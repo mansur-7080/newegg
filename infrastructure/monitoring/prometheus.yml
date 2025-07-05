@@ -1,0 +1,90 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # User Service
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['user-service:3001']
+        labels:
+          service: 'user-service'
+          env: 'development'
+
+  # Product Service
+  - job_name: 'product-service'
+    static_configs:
+      - targets: ['product-service:3002']
+        labels:
+          service: 'product-service'
+          env: 'development'
+
+  # Order Service
+  - job_name: 'order-service'
+    static_configs:
+      - targets: ['order-service:3003']
+        labels:
+          service: 'order-service'
+          env: 'development'
+
+  # Cart Service
+  - job_name: 'cart-service'
+    static_configs:
+      - targets: ['cart-service:3004']
+        labels:
+          service: 'cart-service'
+          env: 'development'
+
+  # Payment Service
+  - job_name: 'payment-service'
+    static_configs:
+      - targets: ['payment-service:3005']
+        labels:
+          service: 'payment-service'
+          env: 'development'
+
+  # Notification Service
+  - job_name: 'notification-service'
+    static_configs:
+      - targets: ['notification-service:3006']
+        labels:
+          service: 'notification-service'
+          env: 'development'
+
+  # Search Service
+  - job_name: 'search-service'
+    static_configs:
+      - targets: ['search-service:3007']
+        labels:
+          service: 'search-service'
+          env: 'development'
+
+  # Node Exporter
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # PostgreSQL Exporter
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # MongoDB Exporter
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # Kafka Exporter
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+
+  # Elasticsearch Exporter
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch:9200'] 

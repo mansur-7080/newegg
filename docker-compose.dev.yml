@@ -1,0 +1,225 @@
+version: '3.8'
+
+services:
+  # User Service
+  user-service:
+    build: 
+      context: ./backend/user-service
+      dockerfile: Dockerfile.dev
+    container_name: newegg_user_service
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/newegg_db
+      REDIS_URL: redis://:redis123@redis:6379
+      JWT_SECRET: your-secret-key-here
+      KAFKA_BROKERS: kafka:9092
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend/user-service:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    networks:
+      - newegg_network
+    command: npm run dev
+
+  # Product Service
+  product-service:
+    build:
+      context: ./backend/product-service
+      dockerfile: Dockerfile.dev
+    container_name: newegg_product_service
+    environment:
+      NODE_ENV: development
+      PORT: 3002
+      MONGODB_URL: mongodb://mongo:mongo123@mongodb:27017/newegg_products?authSource=admin
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      REDIS_URL: redis://:redis123@redis:6379
+      KAFKA_BROKERS: kafka:9092
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./backend/product-service:/app
+      - /app/node_modules
+    depends_on:
+      - mongodb
+      - redis
+      - elasticsearch
+      - kafka
+    networks:
+      - newegg_network
+    command: npm run dev
+
+  # Order Service
+  order-service:
+    build:
+      context: ./backend/order-service
+      dockerfile: Dockerfile.dev
+    container_name: newegg_order_service
+    environment:
+      NODE_ENV: development
+      PORT: 3003
+      DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/newegg_db
+      REDIS_URL: redis://:redis123@redis:6379
+      KAFKA_BROKERS: kafka:9092
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./backend/order-service:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    networks:
+      - newegg_network
+    command: npm run dev
+
+  # Cart Service
+  cart-service:
+    build:
+      context: ./backend/cart-service
+      dockerfile: Dockerfile.dev
+    container_name: newegg_cart_service
+    environment:
+      NODE_ENV: development
+      PORT: 3004
+      REDIS_URL: redis://:redis123@redis:6379
+      KAFKA_BROKERS: kafka:9092
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./backend/cart-service:/app
+      - /app/node_modules
+    depends_on:
+      - redis
+      - kafka
+    networks:
+      - newegg_network
+    command: npm run dev
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ./backend/payment-service
+      dockerfile: Dockerfile.dev
+    container_name: newegg_payment_service
+    environment:
+      NODE_ENV: development
+      PORT: 3005
+      DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/newegg_db
+      REDIS_URL: redis://:redis123@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      STRIPE_SECRET_KEY: your-stripe-secret-key
+    ports:
+      - "3005:3005"
+    volumes:
+      - ./backend/payment-service:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    networks:
+      - newegg_network
+    command: npm run dev
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./backend/notification-service
+      dockerfile: Dockerfile.dev
+    container_name: newegg_notification_service
+    environment:
+      NODE_ENV: development
+      PORT: 3006
+      DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/newegg_db
+      REDIS_URL: redis://:redis123@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: your-email@gmail.com
+      SMTP_PASS: your-app-password
+    ports:
+      - "3006:3006"
+    volumes:
+      - ./backend/notification-service:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    networks:
+      - newegg_network
+    command: npm run dev
+
+  # Search Service
+  search-service:
+    build:
+      context: ./backend/search-service
+      dockerfile: Dockerfile.dev
+    container_name: newegg_search_service
+    environment:
+      NODE_ENV: development
+      PORT: 3007
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      REDIS_URL: redis://:redis123@redis:6379
+      KAFKA_BROKERS: kafka:9092
+    ports:
+      - "3007:3007"
+    volumes:
+      - ./backend/search-service:/app
+      - /app/node_modules
+    depends_on:
+      - elasticsearch
+      - redis
+      - kafka
+    networks:
+      - newegg_network
+    command: npm run dev
+
+  # Frontend Web App
+  web-app:
+    build:
+      context: ./frontend/web-app
+      dockerfile: Dockerfile.dev
+    container_name: newegg_web_app
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      REACT_APP_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/web-app:/app
+      - /app/node_modules
+    networks:
+      - newegg_network
+    command: npm start
+
+  # Admin Panel
+  admin-panel:
+    build:
+      context: ./frontend/admin-panel
+      dockerfile: Dockerfile.dev
+    container_name: newegg_admin_panel
+    environment:
+      NODE_ENV: development
+      PORT: 3100
+      REACT_APP_API_URL: http://localhost:8000
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./frontend/admin-panel:/app
+      - /app/node_modules
+    networks:
+      - newegg_network
+    command: npm start
+
+networks:
+  newegg_network:
+    external: true 
