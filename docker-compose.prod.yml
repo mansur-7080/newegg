@@ -1,0 +1,174 @@
+version: '3.8'
+
+services:
+  # User Service
+  user-service:
+    image: newegg/user-service:latest
+    container_name: newegg_user_service_prod
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    networks:
+      - newegg_network
+
+  # Product Service
+  product-service:
+    image: newegg/product-service:latest
+    container_name: newegg_product_service_prod
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+    ports:
+      - "3002:3002"
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    networks:
+      - newegg_network
+
+  # Order Service
+  order-service:
+    image: newegg/order-service:latest
+    container_name: newegg_order_service_prod
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+    ports:
+      - "3003:3003"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    networks:
+      - newegg_network
+
+  # Cart Service
+  cart-service:
+    image: newegg/cart-service:latest
+    container_name: newegg_cart_service_prod
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+    ports:
+      - "3004:3004"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+    restart: unless-stopped
+    networks:
+      - newegg_network
+
+  # Payment Service
+  payment-service:
+    image: newegg/payment-service:latest
+    container_name: newegg_payment_service_prod
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+    ports:
+      - "3005:3005"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    networks:
+      - newegg_network
+
+  # Notification Service
+  notification-service:
+    image: newegg/notification-service:latest
+    container_name: newegg_notification_service_prod
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+    ports:
+      - "3006:3006"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+    restart: unless-stopped
+    networks:
+      - newegg_network
+
+  # Search Service
+  search-service:
+    image: newegg/search-service:latest
+    container_name: newegg_search_service_prod
+    environment:
+      NODE_ENV: production
+      PORT: 3007
+    ports:
+      - "3007:3007"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    networks:
+      - newegg_network
+
+  # Web App (Nginx)
+  web-app:
+    image: newegg/web-app:latest
+    container_name: newegg_web_app_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 128M
+    restart: unless-stopped
+    networks:
+      - newegg_network
+
+  # Admin Panel (Nginx)
+  admin-panel:
+    image: newegg/admin-panel:latest
+    container_name: newegg_admin_panel_prod
+    ports:
+      - "8080:80"
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+    restart: unless-stopped
+    networks:
+      - newegg_network
+
+networks:
+  newegg_network:
+    external: true 
