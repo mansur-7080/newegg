@@ -3,6 +3,7 @@ import { verifyAccessToken, extractTokenFromHeader, hasRole, UserRole } from './
 import { UnauthorizedError, ForbiddenError, ValidationError } from './errors';
 import { logger } from './logger';
 import { JwtPayload } from './types';
+import { Schema } from 'joi';
 
 // Extend Express Request interface
 declare global {
@@ -63,14 +64,14 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction) =>
 };
 
 // Request validation middleware
-export const validateRequest = (schema: any) => {
+export const validateRequest = (schema: Schema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error, value } = schema.validate(req.body, { abortEarly: false });
       
       if (error) {
         const errors: Record<string, string[]> = {};
-        error.details.forEach((detail: any) => {
+        error.details.forEach((detail) => {
           const field = detail.path.join('.');
           if (!errors[field]) {
             errors[field] = [];
@@ -90,7 +91,7 @@ export const validateRequest = (schema: any) => {
 };
 
 // Error handling middleware
-export const errorHandler = (error: any, req: Request, res: Response, next: NextFunction) => {
+export const errorHandler = (error: Error & { statusCode?: number; code?: string; errors?: Record<string, string[]> }, req: Request, res: Response, next: NextFunction) => {
   logger.error('Error occurred:', {
     error: error.message,
     stack: error.stack,
@@ -115,12 +116,12 @@ export const errorHandler = (error: any, req: Request, res: Response, next: Next
     return res.status(422).json({
       success: false,
       message: 'Validation failed',
-      errors: error.errors
+      errors: (error as any).errors
     });
   }
 
   // Handle Prisma errors
-  if (error.code === 'P2002') {
+  if ((error as any).code === 'P2002') {
     return res.status(409).json({
       success: false,
       message: 'Resource already exists',

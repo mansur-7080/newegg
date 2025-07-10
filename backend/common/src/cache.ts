@@ -46,7 +46,7 @@ export class CacheService {
   }
 
   // Set cache with TTL
-  async set(key: string, value: any, ttl: number = this.defaultTTL): Promise<void> {
+  async set<T>(key: string, value: T, ttl: number = this.defaultTTL): Promise<void> {
     try {
       const serializedValue = typeof value === 'string' ? value : JSON.stringify(value);
       await this.client.setex(key, ttl, serializedValue);
@@ -97,7 +97,7 @@ export class CacheService {
   }
 
   // Set cache with expiration
-  async setex(key: string, value: any, ttl: number): Promise<void> {
+  async setex<T>(key: string, value: T, ttl: number): Promise<void> {
     await this.set(key, value, ttl);
   }
 
@@ -122,7 +122,7 @@ export class CacheService {
   }
 
   // Set hash field
-  async hset(key: string, field: string, value: any): Promise<void> {
+  async hset<T>(key: string, field: string, value: T): Promise<void> {
     try {
       const serializedValue = typeof value === 'string' ? value : JSON.stringify(value);
       await this.client.hset(key, field, serializedValue);
@@ -181,7 +181,7 @@ export class CacheService {
   }
 
   // Set multiple values
-  async mset(keyValuePairs: Record<string, any>, ttl: number = this.defaultTTL): Promise<void> {
+  async mset<T>(keyValuePairs: Record<string, T>, ttl: number = this.defaultTTL): Promise<void> {
     try {
       const pipeline = this.client.pipeline();
       
@@ -228,10 +228,10 @@ export class CacheService {
   }
 
   // Get cache statistics
-  async getStats(): Promise<Record<string, any>> {
+  async getStats(): Promise<Record<string, unknown>> {
     try {
       const info = await this.client.info();
-      const stats: Record<string, any> = {};
+      const stats: Record<string, unknown> = {};
       
       info.split('\r\n').forEach(line => {
         const [key, value] = line.split(':');
@@ -258,7 +258,7 @@ export class SessionService extends CacheService {
   }
 
   // Create session
-  async createSession(userId: string, sessionData: any): Promise<string> {
+  async createSession<T>(userId: string, sessionData: T): Promise<string> {
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const key = `${this.sessionPrefix}${sessionId}`;
     
@@ -273,13 +273,13 @@ export class SessionService extends CacheService {
   }
 
   // Get session
-  async getSession(sessionId: string): Promise<any | null> {
+  async getSession<T>(sessionId: string): Promise<T | null> {
     const key = `${this.sessionPrefix}${sessionId}`;
-    const session = await this.get(key);
+    const session = await this.get<T>(key);
     
     if (session) {
       // Update last accessed time
-      session.lastAccessed = new Date().toISOString();
+      (session as any).lastAccessed = new Date().toISOString();
       await this.set(key, session, this.sessionTTL);
     }
     
@@ -293,14 +293,14 @@ export class SessionService extends CacheService {
   }
 
   // Get user sessions
-  async getUserSessions(userId: string): Promise<any[]> {
+  async getUserSessions<T>(userId: string): Promise<T[]> {
     const pattern = `${this.sessionPrefix}*`;
     const keys = await redis.keys(pattern);
-    const sessions: any[] = [];
+    const sessions: T[] = [];
     
     for (const key of keys) {
-      const session = await this.get(key);
-      if (session && session.userId === userId) {
+      const session = await this.get<T>(key);
+      if (session && (session as any).userId === userId) {
         sessions.push(session);
       }
     }
@@ -319,7 +319,7 @@ export class ResponseCacheService extends CacheService {
   }
 
   // Cache API response
-  async cacheResponse(endpoint: string, params: any, response: any, ttl: number = this.defaultCacheTTL): Promise<void> {
+  async cacheResponse<T>(endpoint: string, params: Record<string, unknown>, response: T, ttl: number = this.defaultCacheTTL): Promise<void> {
     const cacheKey = this.generateCacheKey(endpoint, params);
     await this.set(cacheKey, {
       response,
@@ -329,9 +329,9 @@ export class ResponseCacheService extends CacheService {
   }
 
   // Get cached response
-  async getCachedResponse(endpoint: string, params: any): Promise<any | null> {
+  async getCachedResponse<T>(endpoint: string, params: Record<string, unknown>): Promise<T | null> {
     const cacheKey = this.generateCacheKey(endpoint, params);
-    const cached = await this.get(cacheKey);
+    const cached = await this.get<{ response: T }>(cacheKey);
     return cached?.response || null;
   }
 
@@ -344,7 +344,7 @@ export class ResponseCacheService extends CacheService {
     }
   }
 
-  private generateCacheKey(endpoint: string, params: any): string {
+  private generateCacheKey(endpoint: string, params: Record<string, unknown>): string {
     const paramsString = JSON.stringify(params);
     const hash = require('crypto').createHash('md5').update(paramsString).digest('hex');
     return `${this.cachePrefix}${endpoint}:${hash}`;
