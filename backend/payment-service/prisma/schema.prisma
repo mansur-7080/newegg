@@ -1,0 +1,241 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String        @unique
+  userId          String
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("USD")
+  status          PaymentStatus @default(PENDING)
+  method          PaymentMethod
+  provider        PaymentProvider
+  providerTransactionId String?
+  providerResponse Json?
+  description     String?
+  metadata        Json?
+  failureReason   String?
+  refundAmount    Decimal?      @db.Decimal(10, 2)
+  refundReason    String?
+  refundedAt      DateTime?
+  expiresAt       DateTime?
+  processedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  paymentMethod   PaymentMethod @relation(fields: [methodId], references: [id])
+  methodId        String
+  refunds         Refund[]
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+  @@index([method])
+  @@index([provider])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+model PaymentMethod {
+  id              String        @id @default(cuid())
+  userId          String
+  type            PaymentMethodType
+  provider        PaymentProvider
+  providerToken   String?
+  isDefault       Boolean       @default(false)
+  isActive        Boolean       @default(true)
+  lastUsedAt      DateTime?
+  expiresAt       DateTime?
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  payments        Payment[]
+
+  @@index([userId])
+  @@index([type])
+  @@index([provider])
+  @@index([isDefault])
+  @@map("payment_methods")
+}
+
+model Refund {
+  id              String        @id @default(cuid())
+  paymentId       String
+  amount          Decimal       @db.Decimal(10, 2)
+  reason          String?
+  status          RefundStatus  @default(PENDING)
+  providerRefundId String?
+  providerResponse Json?
+  processedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  payment         Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("refunds")
+}
+
+model Subscription {
+  id              String            @id @default(cuid())
+  userId          String
+  planId          String
+  status          SubscriptionStatus @default(ACTIVE)
+  provider        PaymentProvider
+  providerSubscriptionId String?
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd Boolean         @default(false)
+  canceledAt       DateTime?
+  endedAt          DateTime?
+  trialStart       DateTime?
+  trialEnd         DateTime?
+  metadata         Json?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Relations
+  payments        SubscriptionPayment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([provider])
+  @@index([currentPeriodEnd])
+  @@map("subscriptions")
+}
+
+model SubscriptionPayment {
+  id              String        @id @default(cuid())
+  subscriptionId  String
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("USD")
+  status          PaymentStatus @default(PENDING)
+  provider        PaymentProvider
+  providerTransactionId String?
+  providerResponse Json?
+  periodStart     DateTime
+  periodEnd       DateTime
+  processedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  subscription    Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([periodStart, periodEnd])
+  @@map("subscription_payments")
+}
+
+model PaymentWebhook {
+  id              String   @id @default(cuid())
+  provider        PaymentProvider
+  eventType       String
+  payload         Json
+  signature       String?
+  isProcessed     Boolean  @default(false)
+  processedAt     DateTime?
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  @@index([provider])
+  @@index([eventType])
+  @@index([isProcessed])
+  @@index([createdAt])
+  @@map("payment_webhooks")
+}
+
+model PaymentLog {
+  id              String        @id @default(cuid())
+  paymentId       String?
+  userId          String?
+  action          String
+  status          String
+  amount          Decimal?      @db.Decimal(10, 2)
+  currency        String?
+  provider        PaymentProvider?
+  providerResponse Json?
+  errorMessage    String?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime      @default(now())
+
+  @@index([paymentId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("payment_logs")
+}
+
+// Enums
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  DIGITAL_WALLET
+  CRYPTOCURRENCY
+  CASH_ON_DELIVERY
+  BUY_NOW_PAY_LATER
+}
+
+enum PaymentProvider {
+  STRIPE
+  PAYPAL
+  BRAINTREE
+  SQUARE
+  ADYEN
+  RAZORPAY
+  MERCADOPAGO
+  CUSTOM
+}
+
+enum PaymentMethodType {
+  CARD
+  BANK_ACCOUNT
+  DIGITAL_WALLET
+  CRYPTOCURRENCY
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  TRIALING
+  PAUSED
+}
