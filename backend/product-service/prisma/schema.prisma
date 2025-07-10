@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id              String    @id @default(uuid())
+  name            String
+  description     String
+  shortDescription String?
+  sku             String    @unique
+  barcode         String?
+  
+  price           Decimal   @db.Decimal(10, 2)
+  compareAtPrice  Decimal?  @db.Decimal(10, 2)
+  costPrice       Decimal?  @db.Decimal(10, 2)
+  
+  weight          Decimal?  @db.Decimal(8, 3)
+  dimensions      Json?     // {length, width, height}
+  
+  categoryId      String
+  category        Category  @relation(fields: [categoryId], references: [id])
+  
+  brandId         String?
+  brand           Brand?    @relation(fields: [brandId], references: [id])
+  
+  tags            String[]
+  images          String[]
+  isActive        Boolean   @default(true)
+  isFeatured      Boolean   @default(false)
+  isPublished     Boolean   @default(false)
+  
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  slug            String    @unique
+  
+  // Inventory
+  inventory       Inventory?
+  
+  // Reviews
+  reviews         Review[]
+  
+  // Variants
+  variants        ProductVariant[]
+  
+  // Related products
+  relatedProducts Product[] @relation("ProductRelations")
+  relatedTo       Product[] @relation("ProductRelations")
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@index([isPublished])
+  @@index([price])
+  @@index([sku])
+  @@index([slug])
+}
+
+model Category {
+  id              String    @id @default(uuid())
+  name            String
+  description     String?
+  slug            String    @unique
+  image           String?
+  
+  parentId        String?
+  parent          Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children        Category[] @relation("CategoryHierarchy")
+  
+  products        Product[]
+  
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([parentId])
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model Brand {
+  id              String    @id @default(uuid())
+  name            String
+  description     String?
+  logo            String?
+  website         String?
+  
+  products        Product[]
+  
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model ProductVariant {
+  id              String    @id @default(uuid())
+  productId       String
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  sku             String    @unique
+  barcode         String?
+  
+  attributes      Json      // {color: "red", size: "L"}
+  price           Decimal   @db.Decimal(10, 2)
+  compareAtPrice  Decimal?  @db.Decimal(10, 2)
+  
+  weight          Decimal?  @db.Decimal(8, 3)
+  dimensions      Json?     // {length, width, height}
+  
+  images          String[]
+  isActive        Boolean   @default(true)
+  
+  // Inventory
+  inventory       Inventory?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([productId])
+  @@index([sku])
+  @@index([isActive])
+}
+
+model Inventory {
+  id              String    @id @default(uuid())
+  
+  // Product or Variant
+  productId       String?   @unique
+  product         Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  variantId       String?   @unique
+  variant         ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  quantity        Int       @default(0)
+  reservedQuantity Int      @default(0)
+  lowStockThreshold Int     @default(10)
+  trackQuantity   Boolean   @default(true)
+  
+  // Location tracking
+  locations       InventoryLocation[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([quantity])
+  @@index([trackQuantity])
+}
+
+model InventoryLocation {
+  id              String    @id @default(uuid())
+  inventoryId     String
+  inventory       Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  
+  locationName    String
+  quantity        Int       @default(0)
+  reservedQuantity Int      @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([inventoryId])
+  @@index([locationName])
+}
+
+model Review {
+  id              String    @id @default(uuid())
+  productId       String
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  userName        String
+  userEmail       String?
+  
+  rating          Int       // 1-5
+  title           String
+  comment         String
+  images          String[]
+  
+  isVerified      Boolean   @default(false)
+  isApproved      Boolean   @default(false)
+  isHelpful       Int       @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([productId])
+  @@index([userId])
+  @@index([rating])
+  @@index([isApproved])
+  @@index([createdAt])
+}
+
+model ProductImage {
+  id              String    @id @default(uuid())
+  productId       String
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  url             String
+  altText         String?
+  sortOrder       Int       @default(0)
+  isPrimary       Boolean   @default(false)
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([productId])
+  @@index([sortOrder])
+}
+
+model ProductAttribute {
+  id              String    @id @default(uuid())
+  name            String
+  value           String
+  type            String    // text, number, boolean, select
+  
+  productId       String
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([productId])
+  @@index([name])
+}
+
+model SearchLog {
+  id              String    @id @default(uuid())
+  query           String
+  userId          String?
+  userAgent       String?
+  ipAddress       String?
+  resultsCount    Int
+  filters         Json?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([query])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ProductView {
+  id              String    @id @default(uuid())
+  productId       String
+  userId          String?
+  userAgent       String?
+  ipAddress       String?
+  referrer        String?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([productId])
+  @@index([userId])
+  @@index([createdAt])
+}
