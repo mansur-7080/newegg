@@ -8,15 +8,20 @@ UltraMarket/
 │   └── workflows/
 │       └── main.yml              # CI/CD pipeline configuration
 ├── 📁 .vscode/                    # VS Code workspace settings
-├── 📁 backend/                    # Backend microservices
-│   ├── 📁 common/                # Shared utilities and types
-│   ├── 📁 user-service/          # User management service
-│   ├── 📁 product-service/       # Product catalog service
-│   ├── 📁 order-service/         # Order management service
-│   ├── 📁 cart-service/          # Shopping cart service
-│   ├── 📁 payment-service/       # Payment processing service
-│   ├── 📁 notification-service/  # Email/SMS notification service
-│   └── 📁 search-service/        # Search and filtering service
+├── 📁 microservices/             # Backend microservices
+│   ├── 📁 core/                  # Core services
+│   │   ├── 📁 user-service/      # User management service
+│   │   ├── 📁 api-gateway/       # API Gateway service
+│   │   └── 📁 auth-service/      # Authentication service
+│   ├── 📁 business/              # Business logic services
+│   │   ├── 📁 product-service/   # Product catalog service
+│   │   ├── 📁 order-service/     # Order management service
+│   │   ├── 📁 cart-service/      # Shopping cart service
+│   │   └── 📁 payment-service/   # Payment processing service
+│   ├── 📁 platform/              # Platform services
+│   │   ├── 📁 notification-service/ # Email/SMS notification service
+│   │   └── 📁 search-service/    # Search and filtering service
+│   └── 📁 analytics/             # Analytics services
 ├── 📁 config/                     # Configuration files
 ├── 📁 docs/                       # Project documentation
 │   ├── architecture.md           # System architecture
@@ -48,12 +53,12 @@ UltraMarket/
 └── 📄 README.md                  # Project overview
 ```
 
-## 🔧 Backend Service Structure
+## 🔧 Microservice Structure
 
 Each microservice follows this structure:
 
 ```
-backend/[service-name]/
+microservices/[category]/[service-name]/[service-name]/
 ├── 📁 src/
 │   ├── 📁 controllers/          # Request handlers
 │   ├── 📁 services/             # Business logic
@@ -116,24 +121,28 @@ frontend/web-app/
 ## 🗄️ Database Structure
 
 ### PostgreSQL (Relational Data)
+
 - Users and authentication
 - Orders and transactions
 - Inventory management
 - Reviews and ratings
 
 ### MongoDB (Document Store)
+
 - Product catalog
 - Product attributes
 - Categories and tags
 - Shopping sessions
 
 ### Redis (Cache & Sessions)
+
 - Session management
 - Shopping cart data
 - API response caching
 - Rate limiting
 
 ### Elasticsearch (Search)
+
 - Product search index
 - Full-text search
 - Faceted navigation
@@ -142,6 +151,7 @@ frontend/web-app/
 ## 🔐 Configuration Files
 
 ### Environment Variables (.env)
+
 ```bash
 # Database
 DATABASE_URL=postgresql://...
@@ -160,6 +170,7 @@ AWS_ACCESS_KEY_ID=...
 ```
 
 ### Docker Compose Services
+
 - PostgreSQL
 - MongoDB
 - Redis
@@ -172,22 +183,25 @@ AWS_ACCESS_KEY_ID=...
 ## 📝 Development Workflow
 
 1. **Clone repository**
+
    ```bash
    git clone https://github.com/mansur-7080/UltraMarket.git
    cd UltraMarket
    ```
 
 2. **Setup environment**
+
    ```bash
    cp env.example .env
    # Edit .env with your values
    ```
 
 3. **Start services**
+
    ```bash
    # Windows
    .\scripts\start-dev.ps1
-   
+
    # Linux/Mac
    ./scripts/start-dev.sh
    ```
@@ -227,6 +241,7 @@ deployment/
 ## 🔄 CI/CD Pipeline
 
 GitHub Actions workflow:
+
 1. Code quality checks (ESLint, Prettier)
 2. Run tests (Unit, Integration)
 3. Build Docker images
@@ -241,4 +256,4 @@ GitHub Actions workflow:
 - [API Specification](docs/API_Specification.md)
 - [Development Guide](docs/Development_Setup_Guide.md)
 - [Security Checklist](docs/Security_Checklist.md)
-- [Testing Strategy](docs/Testing_Strategy.md) 
+- [Testing Strategy](docs/Testing_Strategy.md)
