@@ -17,7 +17,7 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
-    "@ultramarket/common": "file:../common",
+    "@ultramarket/shared": "file:../../../../libs/shared",
     "@prisma/client": "^5.22.0",
     "@types/pg": "^8.15.4",
     "bcrypt": "^6.0.0",

@@ -14,12 +14,12 @@ export interface ProductFilters {
   search?: string;
   sku?: string;
   // Qo'shimcha filtrlar
-  rating?: number;           // Minimum yulduzlar soni
-  tags?: string[];           // Teglar bo'yicha qidirish
-  onSale?: boolean;          // Chegirmadagi mahsulotlar
-  newArrival?: boolean;      // Yangi kelgan mahsulotlar
-  bestSeller?: boolean;      // Ko'p sotilgan mahsulotlar
-  sortBy?: string;           // Saralash maydoni
+  rating?: number; // Minimum yulduzlar soni
+  tags?: string[]; // Teglar bo'yicha qidirish
+  onSale?: boolean; // Chegirmadagi mahsulotlar
+  newArrival?: boolean; // Yangi kelgan mahsulotlar
+  bestSeller?: boolean; // Ko'p sotilgan mahsulotlar
+  sortBy?: string; // Saralash maydoni
   sortOrder?: 'asc' | 'desc'; // Saralash tartibi
   specifications?: Record<string, any>; // Mahsulot spetsifikatsiyalari bo'yicha qidirish
 }

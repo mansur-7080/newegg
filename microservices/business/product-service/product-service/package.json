@@ -1,5 +1,5 @@
 {
-  "name": "@newegg/product-service",
+  "name": "@ultramarket/product-service",
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@newegg/common": "file:../common",
+    "@ultramarket/shared": "file:../../../../libs/shared",
     "@types/joi": "^17.2.3",
     "@types/mongoose": "^5.11.96",
     "compression": "^1.8.0",

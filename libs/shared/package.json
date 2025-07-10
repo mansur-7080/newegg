@@ -1,5 +1,5 @@
 {
-  "name": "@ultramarket/common",
+  "name": "@ultramarket/shared",
   "version": "1.0.0",
   "description": "Common utilities for UltraMarket microservices",
   "main": "dist/index.js",

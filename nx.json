@@ -58,7 +58,7 @@
     "sharedGlobals": []
   },
   "workspaceLayout": {
-    "appsDir": "apps",
+    "appsDir": "frontend",
     "libsDir": "libs"
   }
 }

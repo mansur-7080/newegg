@@ -1,0 +1,1483 @@
+{
+  "version": "6.0",
+  "nxVersion": "17.3.2",
+  "deps": {
+    "@nx/devkit": "^17.2.0",
+    "@nx/js": "^17.2.0",
+    "@nx/linter": "^17.2.0",
+    "@nx/node": "^17.2.0",
+    "@nx/react": "^17.2.0",
+    "@nx/webpack": "^17.2.0",
+    "@nx/workspace": "^17.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "next": "^14.0.0",
+    "express": "^4.18.2",
+    "fastify": "^4.24.0",
+    "prisma": "^5.7.0",
+    "@prisma/client": "^5.7.0",
+    "mongoose": "^8.0.0",
+    "redis": "^4.6.0",
+    "kafka-node": "^5.0.0",
+    "elasticsearch": "^16.7.3",
+    "winston": "^3.11.0",
+    "joi": "^17.11.0",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "dotenv": "^16.3.1",
+    "uuid": "^9.0.1",
+    "moment": "^2.29.4",
+    "lodash": "^4.17.21",
+    "axios": "^1.6.0",
+    "@types/node": "^20.10.0",
+    "@types/express": "^4.17.21",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@types/jest": "^29.5.8",
+    "@types/lodash": "^4.14.202",
+    "@types/uuid": "^9.0.7",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/cors": "^2.8.17",
+    "@typescript-eslint/eslint-plugin": "^6.12.0",
+    "@typescript-eslint/parser": "^6.12.0",
+    "eslint": "^8.54.0",
+    "eslint-config-next": "^14.0.0",
+    "prettier": "^3.1.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.0",
+    "ts-node": "^10.9.1",
+    "nodemon": "^3.0.2",
+    "supertest": "^6.3.3",
+    "cypress": "^13.6.0",
+    "nx": "^17.2.0"
+  },
+  "pathMappings": {
+    "@constants/*": [
+      "libs/constants/src/*"
+    ],
+    "@shared/*": [
+      "libs/shared/src/*"
+    ],
+    "@types/*": [
+      "libs/types/src/*"
+    ],
+    "@utils/*": [
+      "libs/utils/src/*"
+    ]
+  },
+  "nxJsonPlugins": [],
+  "fileMap": {
+    "nonProjectFiles": [
+      {
+        "file": ".nx/cache/d/server-process.json",
+        "hash": "16291282218527024091"
+      },
+      {
+        "file": "docs/Testing_Strategy.md",
+        "hash": "3793974939846018766"
+      },
+      {
+        "file": "docs/E-Commerce_Complete_Implementation_Plan.md",
+        "hash": "9201092749134959095"
+      },
+      {
+        "file": "infrastructure/kubernetes/production/user-service.yaml",
+        "hash": "15402374955879653882"
+      },
+      {
+        "file": "docs/Database_Schema.md",
+        "hash": "13638488445129001619"
+      },
+      {
+        "file": "scripts/recover-from-docker.ps1",
+        "hash": "17529581278263199455"
+      },
+      {
+        "file": "nx.json",
+        "hash": "12391295692570638088"
+      },
+      {
+        "file": "infrastructure/kubernetes/namespace.yaml",
+        "hash": "13033995073590650345"
+      },
+      {
+        "file": "scripts/start-dev.sh",
+        "hash": "1887102576230794232"
+      },
+      {
+        "file": "infrastructure/kubernetes/production/namespace.yaml",
+        "hash": "6170912496026573624"
+      },
+      {
+        "file": "docs/Security_Checklist.md",
+        "hash": "17848666280049154548"
+      },
+      {
+        "file": "infrastructure/kubernetes/production/ingress.yaml",
+        "hash": "3607492939611778702"
+      },
+      {
+        "file": ".github/workflows/ci-cd.yml",
+        "hash": "18395834050309981790"
+      },
+      {
+        "file": "scripts/setup-project.sh",
+        "hash": "1330683613689437475"
+      },
+      {
+        "file": "LICENSE",
+        "hash": "16689802635478531180"
+      },
+      {
+        "file": "scripts/restore-all-services.ps1",
+        "hash": "450631459251839283"
+      },
+      {
+        "file": "PROJECT_STRUCTURE.md",
+        "hash": "2422340986108812067"
+      },
+      {
+        "file": "scripts/start-dev.ps1",
+        "hash": "950942527220412059"
+      },
+      {
+        "file": ".editorconfig",
+        "hash": "2005709755340886648"
+      },
+      {
+        "file": "PROJECT_SUMMARY.md",
+        "hash": "8853844993879786906"
+      },
+      {
+        "file": "infrastructure/kubernetes/production/cart-service.yaml",
+        "hash": "12141718489818572873"
+      },
+      {
+        "file": "docs/architecture.md",
+        "hash": "760435613258089545"
+      },
+      {
+        "file": "docs/Development_Setup_Guide.md",
+        "hash": "8170360671994905486"
+      },
+      {
+        "file": "infrastructure/kubernetes/monitoring.yaml",
+        "hash": "11382451867001691097"
+      },
+      {
+        "file": "ENTERPRISE_SYSTEM_STATUS.md",
+        "hash": "10738363799871812193"
+      },
+      {
+        "file": "infrastructure/kubernetes/secrets.yaml",
+        "hash": "4611981957070698773"
+      },
+      {
+        "file": "infrastructure/kubernetes/databases.yaml",
+        "hash": "1664940998571230360"
+      },
+      {
+        "file": "package.json",
+        "hash": "3006100064517286174"
+      },
+      {
+        "file": "Makefile",
+        "hash": "7939741370826520774"
+      },
+      {
+        "file": "infrastructure/monitoring/prometheus.yml",
+        "hash": "6869006274739820151"
+      },
+      {
+        "file": "docker-compose.yml",
+        "hash": "18254430116689532012"
+      },
+      {
+        "file": "env.example",
+        "hash": "5901447523287883034"
+      },
+      {
+        "file": ".github/workflows/main.yml",
+        "hash": "7764530821994295905"
+      },
+      {
+        "file": ".prettierrc",
+        "hash": "10680135833817186483"
+      },
+      {
+        "file": "docs/GITHUB_SETUP.md",
+        "hash": "18011312501945608273"
+      },
+      {
+        "file": ".gitignore",
+        "hash": "3686691848712949759"
+      },
+      {
+        "file": "tsconfig.json",
+        "hash": "12296682734081471001"
+      },
+      {
+        "file": "docs/uzbekistan-architecture.md",
+        "hash": "16063025422257891668"
+      },
+      {
+        "file": "docker-compose.dev.yml",
+        "hash": "3257395101325113811"
+      },
+      {
+        "file": "infrastructure/kubernetes/api-gateway.yaml",
+        "hash": "7660987118737468910"
+      },
+      {
+        "file": ".eslintrc.json",
+        "hash": "8264462611752049400"
+      },
+      {
+        "file": "docs/API_Specification.md",
+        "hash": "14422024786279202537"
+      },
+      {
+        "file": "README.md",
+        "hash": "7882068351925044451"
+      }
+    ],
+    "projectFileMap": {
+      "store-service": [
+        {
+          "file": "microservices/core/store-service/project.json",
+          "hash": "6715314005982775062"
+        }
+      ],
+      "personalization-service": [
+        {
+          "file": "microservices/ml-ai/personalization-service/project.json",
+          "hash": "6359291848844647563"
+        }
+      ],
+      "product-service": [
+        {
+          "file": "microservices/business/product-service/product-service/.env.example",
+          "hash": "15133851167136561876"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/Dockerfile",
+          "hash": "229260829056647169"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/Dockerfile.dev",
+          "hash": "3693204460773637334"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/package.json",
+          "hash": "10237072218099494473"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/prisma/schema.prisma",
+          "hash": "9833412543826718299"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/config/database.ts",
+          "hash": "6765267160457866221",
+          "deps": [
+            "npm:mongoose",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/controllers/category.controller.ts",
+          "hash": "3534875303607780411",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/controllers/product.controller.ts",
+          "hash": "13354255472162928405",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/controllers/productController.ts",
+          "hash": "11374468492731212203",
+          "deps": [
+            "npm:express",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/database/ProductDatabase.ts",
+          "hash": "144656718315582870",
+          "deps": [
+            "npm:@ultramarket/common",
+            "npm:mongoose"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/index.ts",
+          "hash": "7882681855603652975",
+          "deps": [
+            "npm:express",
+            "npm:cors",
+            "npm:helmet",
+            "npm:compression",
+            "npm:express-rate-limit",
+            "npm:dotenv",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/middleware/errorHandler.ts",
+          "hash": "16245443404021502752",
+          "deps": [
+            "npm:express",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/middleware/notFound.ts",
+          "hash": "17361062313510314395",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/middleware/validation.ts",
+          "hash": "3660259214669883269",
+          "deps": [
+            "npm:express",
+            "npm:joi"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/models/Category.ts",
+          "hash": "16991665591904598103",
+          "deps": [
+            "npm:mongoose"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/models/Product.ts",
+          "hash": "4745240948394630390",
+          "deps": [
+            "npm:mongoose"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/models/Review.ts",
+          "hash": "9287373955699569950",
+          "deps": [
+            "npm:mongoose"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/models/index.ts",
+          "hash": "5217314454236037402"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/repositories/productRepository.ts",
+          "hash": "1675474898130426319",
+          "deps": [
+            "npm:@ultramarket/common",
+            "npm:mongoose"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/routes/category.routes.ts",
+          "hash": "977335561329862810",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/routes/health.routes.ts",
+          "hash": "5338419729109235324",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/routes/product.routes.ts",
+          "hash": "5728830386243223585",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/routes/productRoutes.ts",
+          "hash": "13136918192561444106",
+          "deps": [
+            "npm:express",
+            "npm:express-rate-limit"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/routes/search.routes.ts",
+          "hash": "7843627907182182226",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/services/productService.new.ts",
+          "hash": "11049696308164982901",
+          "deps": [
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/services/productService.ts",
+          "hash": "2432851433236853316",
+          "deps": [
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/services/productService.ts.bak",
+          "hash": "2432851433236853316"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/utils/logger.ts",
+          "hash": "14204657639763544462",
+          "deps": [
+            "npm:winston"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/validators/productValidator.ts",
+          "hash": "5122542338812458690",
+          "deps": [
+            "npm:express",
+            "npm:joi"
+          ]
+        },
+        {
+          "file": "microservices/business/product-service/product-service/tsconfig.json",
+          "hash": "16257793798371575903"
+        },
+        {
+          "file": "microservices/business/product-service/project.json",
+          "hash": "9899551479143433518"
+        }
+      ],
+      "utils": [
+        {
+          "file": "libs/utils/project.json",
+          "hash": "2702977692462861893"
+        }
+      ],
+      "dynamic-pricing-service": [
+        {
+          "file": "microservices/business/dynamic-pricing-service/package.json",
+          "hash": "5727737318255406275",
+          "deps": [
+            "shared"
+          ]
+        },
+        {
+          "file": "microservices/business/dynamic-pricing-service/project.json",
+          "hash": "6225056161235969330"
+        },
+        {
+          "file": "microservices/business/dynamic-pricing-service/src/index.ts",
+          "hash": "6499870574061452805",
+          "deps": [
+            "npm:express",
+            "npm:cors",
+            "npm:dotenv"
+          ]
+        }
+      ],
+      "payment-service": [
+        {
+          "file": "microservices/business/payment-service/payment-service/Dockerfile.dev",
+          "hash": "226416658842717"
+        },
+        {
+          "file": "microservices/business/payment-service/payment-service/package.json",
+          "hash": "10017833245522803377"
+        },
+        {
+          "file": "microservices/business/payment-service/payment-service/prisma/schema.prisma",
+          "hash": "2274205746233017678"
+        },
+        {
+          "file": "microservices/business/payment-service/payment-service/src/services/payment.service.ts",
+          "hash": "15303876422665639205",
+          "deps": [
+            "npm:stripe",
+            "npm:@ultramarket/common",
+            "npm:events"
+          ]
+        },
+        {
+          "file": "microservices/business/payment-service/project.json",
+          "hash": "11335703202197568752"
+        }
+      ],
+      "file-service": [
+        {
+          "file": "microservices/platform/file-service/project.json",
+          "hash": "8409543041018979635"
+        }
+      ],
+      "business-intelligence": [
+        {
+          "file": "microservices/analytics/business-intelligence/project.json",
+          "hash": "10047537562081838088"
+        }
+      ],
+      "review-service": [
+        {
+          "file": "microservices/business/review-service/project.json",
+          "hash": "2151332668070801258"
+        },
+        {
+          "file": "microservices/business/review-service/review-service/src/models/Review.ts",
+          "hash": "347800936286887054",
+          "deps": [
+            "npm:mongoose"
+          ]
+        }
+      ],
+      "order-service": [
+        {
+          "file": "microservices/business/order-service/order-service/Dockerfile.dev",
+          "hash": "10619021140362893904"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/package.json",
+          "hash": "9178604506698083653"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/prisma/schema.prisma",
+          "hash": "12361424131461449310"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/src/models/Order.ts",
+          "hash": "5585907475620002304",
+          "deps": [
+            "npm:mongoose"
+          ]
+        },
+        {
+          "file": "microservices/business/order-service/project.json",
+          "hash": "10878002123671049797"
+        }
+      ],
+      "real-time-analytics": [
+        {
+          "file": "microservices/analytics/real-time-analytics/project.json",
+          "hash": "6331066964688659442"
+        }
+      ],
+      "pc-builder-service": [
+        {
+          "file": "microservices/business/pc-builder-service/package.json",
+          "hash": "10473475890879236437"
+        },
+        {
+          "file": "microservices/business/pc-builder-service/project.json",
+          "hash": "4777140862348440855"
+        }
+      ],
+      "shipping-service": [
+        {
+          "file": "microservices/business/shipping-service/project.json",
+          "hash": "4619653283762715096"
+        },
+        {
+          "file": "microservices/business/shipping-service/shipping-service/src/services/shipping.service.ts",
+          "hash": "16807349546868188091",
+          "deps": [
+            "npm:events",
+            "npm:axios",
+            "npm:@ultramarket/common"
+          ]
+        }
+      ],
+      "admin-service": [
+        {
+          "file": "microservices/admin/admin-service/project.json",
+          "hash": "15453247395878931074"
+        }
+      ],
+      "performance-optimization-service": [
+        {
+          "file": "microservices/analytics/performance-optimization-service/project.json",
+          "hash": "14460740521953599281"
+        }
+      ],
+      "constants": [
+        {
+          "file": "libs/constants/project.json",
+          "hash": "2610079223960327187"
+        }
+      ],
+      "cart-service": [
+        {
+          "file": "microservices/business/cart-service/cart-service/Dockerfile.dev",
+          "hash": "7175573246368402558"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/package.json",
+          "hash": "9642717065890378906"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/prisma/schema.prisma",
+          "hash": "1675636063375685543"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/config/database.ts",
+          "hash": "4368780433442325016",
+          "deps": [
+            "npm:mongoose"
+          ]
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/config/redis.ts",
+          "hash": "11018054311397729057",
+          "deps": [
+            "npm:redis"
+          ]
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/controllers/cart.controller.ts",
+          "hash": "7950624345312164487",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/index.ts",
+          "hash": "7656617109211342684",
+          "deps": [
+            "npm:express",
+            "npm:cors",
+            "npm:dotenv",
+            "npm:ioredis",
+            "npm:uuid",
+            "npm:axios"
+          ]
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/middleware/errorHandler.ts",
+          "hash": "2528694818971998536",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/middleware/notFound.ts",
+          "hash": "13193954476220454532",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/models/Cart.ts",
+          "hash": "3973840103361132752",
+          "deps": [
+            "npm:ioredis",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/routes/cart.routes.ts",
+          "hash": "10190172008418869032",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/routes/health.routes.ts",
+          "hash": "7863469284549847345",
+          "deps": [
+            "npm:express",
+            "npm:mongoose"
+          ]
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/services/cart.service.ts",
+          "hash": "6667265149763831361"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/utils/logger.ts",
+          "hash": "14064171196285509667",
+          "deps": [
+            "npm:winston"
+          ]
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/tsconfig.json",
+          "hash": "13437085221090879493"
+        },
+        {
+          "file": "microservices/business/cart-service/project.json",
+          "hash": "1772160788593338821"
+        }
+      ],
+      "fraud-detection-service": [
+        {
+          "file": "microservices/ml-ai/fraud-detection-service/project.json",
+          "hash": "10538882671566942292"
+        }
+      ],
+      "types": [
+        {
+          "file": "libs/types/project.json",
+          "hash": "12004325596329502342"
+        }
+      ],
+      "shared": [
+        {
+          "file": "libs/shared/package.json",
+          "hash": "10542284232803598796"
+        },
+        {
+          "file": "libs/shared/project.json",
+          "hash": "15411475930187459143"
+        },
+        {
+          "file": "libs/shared/src/__tests__/errors.test.ts",
+          "hash": "18440433037011691051"
+        },
+        {
+          "file": "libs/shared/src/__tests__/middleware.test.ts",
+          "hash": "12489140801118022733",
+          "deps": [
+            "npm:express",
+            "npm:joi"
+          ]
+        },
+        {
+          "file": "libs/shared/src/__tests__/validation.test.ts",
+          "hash": "13782263437900854687"
+        },
+        {
+          "file": "libs/shared/src/auth.ts",
+          "hash": "9027637790272010642",
+          "deps": [
+            "npm:jsonwebtoken",
+            "npm:bcryptjs"
+          ]
+        },
+        {
+          "file": "libs/shared/src/cache.ts",
+          "hash": "11448591503333480380",
+          "deps": [
+            "npm:ioredis",
+            [
+              "npm:crypto",
+              "dynamic"
+            ]
+          ]
+        },
+        {
+          "file": "libs/shared/src/constants.ts",
+          "hash": "1503316213235449616"
+        },
+        {
+          "file": "libs/shared/src/database.ts",
+          "hash": "17714261324725433921",
+          "deps": [
+            "npm:@prisma/client"
+          ]
+        },
+        {
+          "file": "libs/shared/src/errors.ts",
+          "hash": "2946087134850689024"
+        },
+        {
+          "file": "libs/shared/src/index.ts",
+          "hash": "5622500871341902327"
+        },
+        {
+          "file": "libs/shared/src/logger.ts",
+          "hash": "12109107855996995932",
+          "deps": [
+            "npm:pino"
+          ]
+        },
+        {
+          "file": "libs/shared/src/messaging.ts",
+          "hash": "4872922705444167470"
+        },
+        {
+          "file": "libs/shared/src/middleware.ts",
+          "hash": "5616790337344851523",
+          "deps": [
+            "npm:express",
+            "npm:joi"
+          ]
+        },
+        {
+          "file": "libs/shared/src/types.ts",
+          "hash": "14570340147561375112"
+        },
+        {
+          "file": "libs/shared/src/utils.ts",
+          "hash": "13730311189623897880"
+        },
+        {
+          "file": "libs/shared/src/validation.ts",
+          "hash": "11043507479636281053",
+          "deps": [
+            "npm:joi"
+          ]
+        },
+        {
+          "file": "libs/shared/tsconfig.json",
+          "hash": "4166721358480445447"
+        }
+      ],
+      "web-app": [
+        {
+          "file": "frontend/web-app/Dockerfile.dev",
+          "hash": "14010526039277343783"
+        },
+        {
+          "file": "frontend/web-app/package.json",
+          "hash": "4173140930563240305"
+        },
+        {
+          "file": "frontend/web-app/project.json",
+          "hash": "12290479245104063768"
+        },
+        {
+          "file": "frontend/web-app/src/App.tsx",
+          "hash": "13890573296737656113",
+          "deps": [
+            "npm:react",
+            "npm:react-router-dom",
+            "npm:react-helmet-async",
+            "npm:@tanstack/react-query",
+            "npm:@tanstack/react-query-devtools",
+            "npm:react-error-boundary",
+            "npm:react-hot-toast",
+            "npm:react-redux"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/components/Layout/Footer.tsx",
+          "hash": "15854617660959682969",
+          "deps": [
+            "npm:react",
+            "npm:react-router-dom"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/components/Layout/Header.tsx",
+          "hash": "6256903100317841456",
+          "deps": [
+            "npm:react",
+            "npm:react-router-dom"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/components/Layout/Layout.tsx",
+          "hash": "16640749026160311814",
+          "deps": [
+            "npm:react"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/components/common/ErrorFallback.tsx",
+          "hash": "1036429991632176867",
+          "deps": [
+            "npm:react"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/components/common/LoadingSpinner.tsx",
+          "hash": "2497753312830426940",
+          "deps": [
+            "npm:react"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/pages/CartPage.tsx",
+          "hash": "4756568517295306322",
+          "deps": [
+            "npm:react",
+            "npm:react-helmet-async"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/pages/CheckoutPage.tsx",
+          "hash": "2417060122609155438",
+          "deps": [
+            "npm:react",
+            "npm:react-helmet-async"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/pages/HomePage.tsx",
+          "hash": "13072792701231681698",
+          "deps": [
+            "npm:react",
+            "npm:react-router-dom",
+            "npm:react-helmet-async"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/pages/LoginPage.tsx",
+          "hash": "4341099090022789068",
+          "deps": [
+            "npm:react",
+            "npm:react-helmet-async"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/pages/NotFoundPage.tsx",
+          "hash": "6235107923998354436",
+          "deps": [
+            "npm:react",
+            "npm:react-router-dom",
+            "npm:react-helmet-async"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/pages/OrderHistoryPage.tsx",
+          "hash": "10085307262878287385",
+          "deps": [
+            "npm:react",
+            "npm:react-helmet-async"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/pages/ProductDetailPage.tsx",
+          "hash": "16063846900085530835",
+          "deps": [
+            "npm:react",
+            "npm:react-helmet-async"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/pages/ProductListPage.tsx",
+          "hash": "15562733173952387605",
+          "deps": [
+            "npm:react",
+            "npm:react-helmet-async"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/pages/ProfilePage.tsx",
+          "hash": "57316305856838347",
+          "deps": [
+            "npm:react",
+            "npm:react-helmet-async"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/pages/RegisterPage.tsx",
+          "hash": "2663776091814639337",
+          "deps": [
+            "npm:react",
+            "npm:react-helmet-async"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/services/api.ts",
+          "hash": "8999431766334802702",
+          "deps": [
+            "npm:axios"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/store/index.ts",
+          "hash": "2561713659531613792",
+          "deps": [
+            "npm:@reduxjs/toolkit"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/store/slices/authSlice.ts",
+          "hash": "13639917464985929724",
+          "deps": [
+            "npm:@reduxjs/toolkit"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/store/slices/cartSlice.ts",
+          "hash": "12340431429948275305",
+          "deps": [
+            "npm:@reduxjs/toolkit"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/store/slices/orderSlice.ts",
+          "hash": "16180352835758084352",
+          "deps": [
+            "npm:@reduxjs/toolkit"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/store/slices/productSlice.ts",
+          "hash": "9157225518084564537",
+          "deps": [
+            "npm:@reduxjs/toolkit"
+          ]
+        },
+        {
+          "file": "frontend/web-app/src/styles/globals.css",
+          "hash": "13353706809915575594"
+        },
+        {
+          "file": "frontend/web-app/tsconfig.json",
+          "hash": "11707456870245091791"
+        },
+        {
+          "file": "frontend/web-app/vite.config.ts",
+          "hash": "4782075349344131441",
+          "deps": [
+            "npm:vite",
+            "npm:@vitejs/plugin-react",
+            "npm:path"
+          ]
+        }
+      ],
+      "ui-components": [
+        {
+          "file": "libs/ui-components/project.json",
+          "hash": "5992400011081605419"
+        }
+      ],
+      "advanced-analytics-service": [
+        {
+          "file": "microservices/analytics/advanced-analytics-service/advanced-analytics-service/src/services/analytics.service.ts",
+          "hash": "12732593528460344512",
+          "deps": [
+            "npm:@clickhouse/client",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/analytics/advanced-analytics-service/project.json",
+          "hash": "18241815283427739371"
+        }
+      ],
+      "auth-service": [
+        {
+          "file": "microservices/core/auth-service/project.json",
+          "hash": "6447081860022605172"
+        }
+      ],
+      "audit-service": [
+        {
+          "file": "microservices/platform/audit-service/project.json",
+          "hash": "5312305875211681614"
+        }
+      ],
+      "content-service": [
+        {
+          "file": "microservices/platform/content-service/project.json",
+          "hash": "11223139608044032552"
+        }
+      ],
+      "search-service": [
+        {
+          "file": "microservices/platform/search-service/project.json",
+          "hash": "4827118947257862804"
+        },
+        {
+          "file": "microservices/platform/search-service/search-service/Dockerfile.dev",
+          "hash": "3220381063640839803"
+        },
+        {
+          "file": "microservices/platform/search-service/search-service/package.json",
+          "hash": "15553929788418015803"
+        },
+        {
+          "file": "microservices/platform/search-service/search-service/prisma/schema.prisma",
+          "hash": "2784365770107429149"
+        },
+        {
+          "file": "microservices/platform/search-service/search-service/src/index.ts",
+          "hash": "5692823423403108668",
+          "deps": [
+            "npm:express",
+            "npm:cors",
+            "npm:dotenv",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/platform/search-service/search-service/src/services/search.service.ts",
+          "hash": "16970681979717545733",
+          "deps": [
+            "npm:@elastic/elasticsearch",
+            "npm:@ultramarket/common"
+          ]
+        }
+      ],
+      "user-service": [
+        {
+          "file": "microservices/core/user-service/project.json",
+          "hash": "9889166587371789584"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/Dockerfile.dev",
+          "hash": "4209634219513742999"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/package.json",
+          "hash": "6165256562482761513"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/prisma/migrations/20250706014950_init/migration.sql",
+          "hash": "3977430565408365849"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/prisma/migrations/migration_lock.toml",
+          "hash": "10997593172930738585"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/prisma/schema.prisma",
+          "hash": "3529870053733876756"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/config/database.ts",
+          "hash": "8233796754317232636",
+          "deps": [
+            "npm:@prisma/client"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/controllers/auth.controller.ts",
+          "hash": "14568831852592955706",
+          "deps": [
+            "npm:bcryptjs",
+            "npm:jsonwebtoken",
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/controllers/user.controller.ts",
+          "hash": "3150311748263398504",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/controllers/userController.ts",
+          "hash": "16170945422188966081",
+          "deps": [
+            "npm:express",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/docs/swagger.ts",
+          "hash": "10650659457322852051",
+          "deps": [
+            "npm:express",
+            "npm:swagger-jsdoc",
+            "npm:swagger-ui-express"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/index.ts",
+          "hash": "12821108533126510449",
+          "deps": [
+            "npm:dotenv/config",
+            "npm:express",
+            "npm:cors",
+            "npm:helmet"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/lib/prisma.ts",
+          "hash": "16992245939954966201",
+          "deps": [
+            "npm:@prisma/client"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/middleware/auth.ts",
+          "hash": "4895669591033019921",
+          "deps": [
+            "npm:express",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/middleware/errorHandler.ts",
+          "hash": "11661573112961815339",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/middleware/requestLogger.ts",
+          "hash": "7618288293459381254",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/middleware/validation.ts",
+          "hash": "8468720199358845537",
+          "deps": [
+            "npm:express",
+            "npm:joi"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/monitoring/metrics.ts",
+          "hash": "17964024316212292837",
+          "deps": [
+            "npm:prom-client"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/repositories/userRepository.ts",
+          "hash": "15775285041742783691",
+          "deps": [
+            "npm:@ultramarket/common",
+            "npm:@prisma/client"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/routes/auth.ts",
+          "hash": "10948771558094447150",
+          "deps": [
+            "npm:express",
+            "npm:express-validator"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/routes/health.ts",
+          "hash": "6811281329567373628",
+          "deps": [
+            "npm:express"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/routes/user.ts",
+          "hash": "17499860549916170655",
+          "deps": [
+            "npm:express",
+            "npm:express-validator"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/routes/userRoutes.ts",
+          "hash": "3641605215317454469",
+          "deps": [
+            "npm:express",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/services/email.service.ts",
+          "hash": "5712619792087000007",
+          "deps": [
+            "npm:nodemailer"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/services/redis.service.ts",
+          "hash": "12249099067251749420",
+          "deps": [
+            "npm:ioredis"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/services/user.service.ts",
+          "hash": "10750778281394617263",
+          "deps": [
+            "npm:@prisma/client",
+            "npm:bcryptjs",
+            "npm:jsonwebtoken",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/services/userService.ts",
+          "hash": "4600054100186237070",
+          "deps": [
+            "npm:@ultramarket/common",
+            "npm:uuid",
+            "npm:express",
+            "npm:crypto"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/utils/logger.ts",
+          "hash": "10623606442076304030",
+          "deps": [
+            "npm:winston"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/validators/userValidators.ts",
+          "hash": "9021197934952327673",
+          "deps": [
+            "npm:joi"
+          ]
+        },
+        {
+          "file": "microservices/core/user-service/user-service/tsconfig.json",
+          "hash": "15843840821797769377"
+        }
+      ],
+      "inventory-service": [
+        {
+          "file": "microservices/business/inventory-service/inventory-service/src/services/inventory.service.ts",
+          "hash": "1200403884027784800",
+          "deps": [
+            "npm:@prisma/client",
+            "npm:@ultramarket/common",
+            "npm:events"
+          ]
+        },
+        {
+          "file": "microservices/business/inventory-service/project.json",
+          "hash": "18201472193967206799"
+        }
+      ],
+      "notification-service": [
+        {
+          "file": "microservices/platform/notification-service/notification-service/Dockerfile.dev",
+          "hash": "13959082865395940650"
+        },
+        {
+          "file": "microservices/platform/notification-service/notification-service/package.json",
+          "hash": "5079011462403575185"
+        },
+        {
+          "file": "microservices/platform/notification-service/notification-service/prisma/schema.prisma",
+          "hash": "1610334881133095363"
+        },
+        {
+          "file": "microservices/platform/notification-service/notification-service/src/index.ts",
+          "hash": "18439635201059020421",
+          "deps": [
+            "npm:express",
+            "npm:cors",
+            "npm:dotenv",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/platform/notification-service/notification-service/src/services/notification.service.ts",
+          "hash": "17036671261153849525",
+          "deps": [
+            "npm:nodemailer",
+            "npm:@ultramarket/common"
+          ]
+        },
+        {
+          "file": "microservices/platform/notification-service/project.json",
+          "hash": "10564399622367634892"
+        }
+      ],
+      "api-gateway": [
+        {
+          "file": "microservices/core/api-gateway/api-gateway/Dockerfile",
+          "hash": "13515511344750603857"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/Dockerfile.dev",
+          "hash": "9774759142692115190"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/kong.yml",
+          "hash": "16214834261458591439"
+        },
+        {
+          "file": "microservices/core/api-gateway/project.json",
+          "hash": "10928428769695521380"
+        }
+      ],
+      "recommendation-service": [
+        {
+          "file": "microservices/ml-ai/recommendation-service/project.json",
+          "hash": "461651725778439598"
+        }
+      ],
+      "config-service": [
+        {
+          "file": "microservices/core/config-service/project.json",
+          "hash": "9925551149691818269"
+        }
+      ],
+      "product-management-service": [
+        {
+          "file": "microservices/admin/product-management-service/project.json",
+          "hash": "15985388210280917023"
+        }
+      ],
+      "mobile-app": [
+        {
+          "file": "frontend/mobile-app/project.json",
+          "hash": "12666294398381455705"
+        }
+      ],
+      "navigation-service": [
+        {
+          "file": "microservices/platform/navigation-service/project.json",
+          "hash": "4308638441649736106"
+        }
+      ],
+      "analytics-service": [
+        {
+          "file": "microservices/analytics/analytics-service/package.json",
+          "hash": "7744464147864851622"
+        },
+        {
+          "file": "microservices/analytics/analytics-service/prisma/schema.prisma",
+          "hash": "8467974735836128563"
+        }
+      ],
+      "admin-panel": [
+        {
+          "file": "frontend/admin-panel/Dockerfile.dev",
+          "hash": "1671965714766851387"
+        },
+        {
+          "file": "frontend/admin-panel/package.json",
+          "hash": "12423183771904168737"
+        },
+        {
+          "file": "frontend/admin-panel/project.json",
+          "hash": "12865855196638519607"
+        },
+        {
+          "file": "frontend/admin-panel/src/App.tsx",
+          "hash": "13995584335490904415",
+          "deps": [
+            "npm:react",
+            "npm:react-router-dom",
+            "npm:@tanstack/react-query",
+            "npm:@tanstack/react-query-devtools",
+            "npm:react-redux",
+            "npm:redux-persist/integration/react",
+            "npm:antd",
+            "npm:react-error-boundary"
+          ]
+        },
+        {
+          "file": "frontend/admin-panel/src/pages/SystemMonitoring.tsx",
+          "hash": "8199414994342694762",
+          "deps": [
+            "npm:react",
+            "npm:antd",
+            "npm:@ant-design/icons",
+            "npm:recharts",
+            "npm:framer-motion",
+            "npm:socket.io-client"
+          ]
+        }
+      ]
+    }
+  }
+}

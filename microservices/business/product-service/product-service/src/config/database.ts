@@ -3,7 +3,7 @@ import { logger } from '@ultramarket/common';
 
 const connectDB = async (): Promise<void> => {
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/newegg_products';
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ultramarket_products';
 
     await mongoose.connect(mongoUri, {
       // Modern MongoDB driver options

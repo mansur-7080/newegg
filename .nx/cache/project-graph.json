@@ -1,0 +1,1019 @@
+{
+  "nodes": {
+    "performance-optimization-service": {
+      "name": "performance-optimization-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/analytics/performance-optimization-service",
+        "targets": {},
+        "name": "performance-optimization-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/analytics/performance-optimization-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "advanced-analytics-service": {
+      "name": "advanced-analytics-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/analytics/advanced-analytics-service",
+        "targets": {},
+        "name": "advanced-analytics-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/analytics/advanced-analytics-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "dynamic-pricing-service": {
+      "name": "dynamic-pricing-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/dynamic-pricing-service",
+        "name": "dynamic-pricing-service",
+        "targets": {
+          "build": {
+            "executor": "nx:run-script",
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ],
+            "options": {
+              "script": "build"
+            },
+            "configurations": {}
+          },
+          "start": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "start"
+            },
+            "configurations": {}
+          },
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "configurations": {}
+          },
+          "test": {
+            "executor": "nx:run-script",
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ],
+            "options": {
+              "script": "test"
+            },
+            "configurations": {}
+          },
+          "nx-release-publish": {
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "executor": "@nx/js:release-publish",
+            "options": {},
+            "configurations": {}
+          }
+        },
+        "sourceRoot": "microservices/business/dynamic-pricing-service/src",
+        "projectType": "application",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "product-management-service": {
+      "name": "product-management-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/admin/product-management-service",
+        "targets": {},
+        "name": "product-management-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/admin/product-management-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "business-intelligence": {
+      "name": "business-intelligence",
+      "type": "app",
+      "data": {
+        "root": "microservices/analytics/business-intelligence",
+        "targets": {},
+        "name": "business-intelligence",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/analytics/business-intelligence/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "fraud-detection-service": {
+      "name": "fraud-detection-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/ml-ai/fraud-detection-service",
+        "targets": {},
+        "name": "fraud-detection-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/ml-ai/fraud-detection-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "notification-service": {
+      "name": "notification-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/notification-service",
+        "targets": {},
+        "name": "notification-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/notification-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "personalization-service": {
+      "name": "personalization-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/ml-ai/personalization-service",
+        "targets": {},
+        "name": "personalization-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/ml-ai/personalization-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "real-time-analytics": {
+      "name": "real-time-analytics",
+      "type": "app",
+      "data": {
+        "root": "microservices/analytics/real-time-analytics",
+        "targets": {},
+        "name": "real-time-analytics",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/analytics/real-time-analytics/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "recommendation-service": {
+      "name": "recommendation-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/ml-ai/recommendation-service",
+        "targets": {},
+        "name": "recommendation-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/ml-ai/recommendation-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "analytics-service": {
+      "name": "analytics-service",
+      "type": "lib",
+      "data": {
+        "root": "microservices/analytics/analytics-service",
+        "targets": {
+          "build": {
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ],
+            "executor": "nx:run-script",
+            "options": {
+              "script": "build"
+            },
+            "configurations": {}
+          },
+          "test": {
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ],
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test"
+            },
+            "configurations": {}
+          },
+          "lint": {
+            "inputs": [
+              "default",
+              "{workspaceRoot}/.eslintrc.json"
+            ],
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint"
+            },
+            "configurations": {}
+          },
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "configurations": {}
+          },
+          "start": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "start"
+            },
+            "configurations": {}
+          },
+          "test:watch": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:watch"
+            },
+            "configurations": {}
+          },
+          "test:coverage": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:coverage"
+            },
+            "configurations": {}
+          },
+          "lint:fix": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint:fix"
+            },
+            "configurations": {}
+          },
+          "format": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "format"
+            },
+            "configurations": {}
+          },
+          "migrate": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "migrate"
+            },
+            "configurations": {}
+          },
+          "generate": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "generate"
+            },
+            "configurations": {}
+          },
+          "studio": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "studio"
+            },
+            "configurations": {}
+          },
+          "seed": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "seed"
+            },
+            "configurations": {}
+          },
+          "nx-release-publish": {
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "executor": "@nx/js:release-publish",
+            "options": {},
+            "configurations": {}
+          }
+        },
+        "sourceRoot": "microservices/analytics/analytics-service",
+        "name": "analytics-service",
+        "projectType": "library",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "navigation-service": {
+      "name": "navigation-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/navigation-service",
+        "targets": {},
+        "name": "navigation-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/navigation-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "pc-builder-service": {
+      "name": "pc-builder-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/pc-builder-service",
+        "name": "pc-builder-service",
+        "targets": {
+          "build": {
+            "executor": "nx:run-script",
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ],
+            "options": {
+              "script": "build"
+            },
+            "configurations": {}
+          },
+          "start": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "start"
+            },
+            "configurations": {}
+          },
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "configurations": {}
+          },
+          "test": {
+            "executor": "nx:run-script",
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ],
+            "options": {
+              "script": "test"
+            },
+            "configurations": {}
+          },
+          "nx-release-publish": {
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "executor": "@nx/js:release-publish",
+            "options": {},
+            "configurations": {}
+          }
+        },
+        "sourceRoot": "microservices/business/pc-builder-service/src",
+        "projectType": "application",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "inventory-service": {
+      "name": "inventory-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/inventory-service",
+        "targets": {},
+        "name": "inventory-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/inventory-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "shipping-service": {
+      "name": "shipping-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/shipping-service",
+        "targets": {},
+        "name": "shipping-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/shipping-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "content-service": {
+      "name": "content-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/content-service",
+        "targets": {},
+        "name": "content-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/content-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "payment-service": {
+      "name": "payment-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/payment-service",
+        "targets": {},
+        "name": "payment-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/payment-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "product-service": {
+      "name": "product-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/product-service",
+        "targets": {},
+        "name": "product-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/product-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "review-service": {
+      "name": "review-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/review-service",
+        "targets": {},
+        "name": "review-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/review-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "search-service": {
+      "name": "search-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/search-service",
+        "targets": {},
+        "name": "search-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/search-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "audit-service": {
+      "name": "audit-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/audit-service",
+        "targets": {},
+        "name": "audit-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/audit-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "order-service": {
+      "name": "order-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/order-service",
+        "targets": {},
+        "name": "order-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/order-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "cart-service": {
+      "name": "cart-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/cart-service",
+        "targets": {},
+        "name": "cart-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/cart-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "file-service": {
+      "name": "file-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/file-service",
+        "targets": {},
+        "name": "file-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/file-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "admin-service": {
+      "name": "admin-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/admin/admin-service",
+        "targets": {},
+        "name": "admin-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/admin/admin-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "config-service": {
+      "name": "config-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/core/config-service",
+        "targets": {},
+        "name": "config-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/core/config-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "store-service": {
+      "name": "store-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/core/store-service",
+        "targets": {},
+        "name": "store-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/core/store-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "auth-service": {
+      "name": "auth-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/core/auth-service",
+        "targets": {},
+        "name": "auth-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/core/auth-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "user-service": {
+      "name": "user-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/core/user-service",
+        "targets": {},
+        "name": "user-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/core/user-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "api-gateway": {
+      "name": "api-gateway",
+      "type": "app",
+      "data": {
+        "root": "microservices/core/api-gateway",
+        "targets": {},
+        "name": "api-gateway",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/core/api-gateway/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "admin-panel": {
+      "name": "admin-panel",
+      "type": "app",
+      "data": {
+        "root": "frontend/admin-panel",
+        "name": "admin-panel",
+        "targets": {
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "configurations": {}
+          },
+          "build": {
+            "executor": "nx:run-script",
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ],
+            "options": {
+              "script": "build"
+            },
+            "configurations": {}
+          },
+          "preview": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "preview"
+            },
+            "configurations": {}
+          },
+          "test": {
+            "executor": "nx:run-script",
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ],
+            "options": {
+              "script": "test"
+            },
+            "configurations": {}
+          },
+          "test:ui": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:ui"
+            },
+            "configurations": {}
+          },
+          "test:coverage": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:coverage"
+            },
+            "configurations": {}
+          },
+          "lint": {
+            "executor": "nx:run-script",
+            "inputs": [
+              "default",
+              "{workspaceRoot}/.eslintrc.json"
+            ],
+            "options": {
+              "script": "lint"
+            },
+            "configurations": {}
+          },
+          "lint:fix": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint:fix"
+            },
+            "configurations": {}
+          },
+          "format": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "format"
+            },
+            "configurations": {}
+          },
+          "typecheck": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "typecheck"
+            },
+            "configurations": {}
+          },
+          "nx-release-publish": {
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "executor": "@nx/js:release-publish",
+            "options": {},
+            "configurations": {}
+          }
+        },
+        "sourceRoot": "frontend/admin-panel/src",
+        "projectType": "application",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "mobile-app": {
+      "name": "mobile-app",
+      "type": "app",
+      "data": {
+        "root": "frontend/mobile-app",
+        "targets": {},
+        "name": "mobile-app",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "frontend/mobile-app/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "ui-components": {
+      "name": "ui-components",
+      "type": "lib",
+      "data": {
+        "root": "libs/ui-components",
+        "targets": {},
+        "name": "ui-components",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "libs/ui-components/src",
+        "projectType": "library",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "web-app": {
+      "name": "web-app",
+      "type": "app",
+      "data": {
+        "root": "frontend/web-app",
+        "name": "web-app",
+        "targets": {
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "configurations": {}
+          },
+          "build": {
+            "executor": "@nx/webpack:webpack",
+            "options": {
+              "outputPath": "dist/frontend/web-app"
+            },
+            "configurations": {}
+          },
+          "preview": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "preview"
+            },
+            "configurations": {}
+          },
+          "lint": {
+            "executor": "nx:run-script",
+            "inputs": [
+              "default",
+              "{workspaceRoot}/.eslintrc.json"
+            ],
+            "options": {
+              "script": "lint"
+            },
+            "configurations": {}
+          },
+          "lint:fix": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint:fix"
+            },
+            "configurations": {}
+          },
+          "nx-release-publish": {
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "executor": "@nx/js:release-publish",
+            "options": {},
+            "configurations": {}
+          },
+          "test": {
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ],
+            "executor": "@nx/jest:jest",
+            "options": {
+              "jestConfig": "frontend/web-app/jest.config.ts"
+            },
+            "configurations": {}
+          },
+          "serve": {
+            "executor": "@nx/webpack:dev-server",
+            "options": {
+              "buildTarget": "web-app:build"
+            },
+            "configurations": {}
+          }
+        },
+        "sourceRoot": "frontend/web-app/src",
+        "projectType": "application",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "constants": {
+      "name": "constants",
+      "type": "lib",
+      "data": {
+        "root": "libs/constants",
+        "targets": {},
+        "name": "constants",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "libs/constants/src",
+        "projectType": "library",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "shared": {
+      "name": "shared",
+      "type": "lib",
+      "data": {
+        "root": "libs/shared",
+        "name": "shared",
+        "targets": {
+          "build": {
+            "executor": "nx:run-script",
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ],
+            "options": {
+              "script": "build"
+            },
+            "configurations": {}
+          },
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "configurations": {}
+          },
+          "test": {
+            "executor": "nx:run-script",
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ],
+            "options": {
+              "script": "test"
+            },
+            "configurations": {}
+          },
+          "lint": {
+            "executor": "nx:run-script",
+            "inputs": [
+              "default",
+              "{workspaceRoot}/.eslintrc.json"
+            ],
+            "options": {
+              "script": "lint"
+            },
+            "configurations": {}
+          },
+          "format": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "format"
+            },
+            "configurations": {}
+          },
+          "nx-release-publish": {
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "executor": "@nx/js:release-publish",
+            "options": {},
+            "configurations": {}
+          }
+        },
+        "sourceRoot": "libs/shared/src",
+        "projectType": "library",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "types": {
+      "name": "types",
+      "type": "lib",
+      "data": {
+        "root": "libs/types",
+        "targets": {},
+        "name": "types",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "libs/types/src",
+        "projectType": "library",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    },
+    "utils": {
+      "name": "utils",
+      "type": "lib",
+      "data": {
+        "root": "libs/utils",
+        "targets": {},
+        "name": "utils",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "libs/utils/src",
+        "projectType": "library",
+        "implicitDependencies": [],
+        "tags": []
+      }
+    }
+  },
+  "externalNodes": {},
+  "dependencies": {
+    "performance-optimization-service": [],
+    "advanced-analytics-service": [],
+    "dynamic-pricing-service": [
+      {
+        "source": "dynamic-pricing-service",
+        "target": "shared",
+        "type": "static"
+      }
+    ],
+    "product-management-service": [],
+    "business-intelligence": [],
+    "fraud-detection-service": [],
+    "notification-service": [],
+    "personalization-service": [],
+    "real-time-analytics": [],
+    "recommendation-service": [],
+    "analytics-service": [],
+    "navigation-service": [],
+    "pc-builder-service": [],
+    "inventory-service": [],
+    "shipping-service": [],
+    "content-service": [],
+    "payment-service": [],
+    "product-service": [],
+    "review-service": [],
+    "search-service": [],
+    "audit-service": [],
+    "order-service": [],
+    "cart-service": [],
+    "file-service": [],
+    "admin-service": [],
+    "config-service": [],
+    "store-service": [],
+    "auth-service": [],
+    "user-service": [],
+    "api-gateway": [],
+    "admin-panel": [],
+    "mobile-app": [],
+    "ui-components": [],
+    "web-app": [],
+    "constants": [],
+    "shared": [],
+    "types": [],
+    "utils": []
+  },
+  "version": "6.0"
+}
