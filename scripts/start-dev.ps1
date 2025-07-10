@@ -1,4 +1,4 @@
-Write-Host "🚀 Starting Newegg E-Commerce Platform Development Environment..." -ForegroundColor Green
+Write-Host "🚀 Starting UltraMarket E-Commerce Platform Development Environment..." -ForegroundColor Green
 
 # Check if Docker is installed
 try {

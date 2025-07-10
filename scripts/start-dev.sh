@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting Newegg E-Commerce Platform Development Environment..."
+echo "🚀 Starting UltraMarket E-Commerce Platform Development Environment..."
 
 # Check if Docker is installed
 if ! command -v docker &> /dev/null; then

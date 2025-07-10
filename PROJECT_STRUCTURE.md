@@ -1,9 +1,9 @@
-# 📁 Newegg E-Commerce Platform - Project Structure
+# 📁 UltraMarket E-Commerce Platform - Project Structure
 
 ## 🏗️ Root Directory Structure
 
 ```
-newegg/
+UltraMarket/
 ├── 📁 .github/                    # GitHub workflows and templates
 │   └── workflows/
 │       └── main.yml              # CI/CD pipeline configuration
@@ -173,8 +173,8 @@ AWS_ACCESS_KEY_ID=...
 
 1. **Clone repository**
    ```bash
-   git clone https://github.com/mansur-7080/newegg.git
-   cd newegg
+   git clone https://github.com/mansur-7080/UltraMarket.git
+   cd UltraMarket
    ```
 
 2. **Setup environment**

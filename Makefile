@@ -1,166 +1,307 @@
-# Newegg E-Commerce Platform Makefile
+# =====================================================
+# UltraMarket Enterprise E-Commerce Platform
+# Makefile for Development & Deployment
+# =====================================================
 
-.PHONY: help
-help: ## Display this help message
-	@echo "Newegg E-Commerce Platform - Available Commands:"
-	@echo ""
-	@awk 'BEGIN {FS = ":.*##"; printf "\033[36m%-30s\033[0m %s\n", "Command", "Description"} /^[a-zA-Z_-]+:.*?##/ { printf "\033[32m%-30s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+.PHONY: help install build test lint format clean dev up down logs deploy k8s-deploy
 
-.PHONY: setup
-setup: ## Initial project setup
-	@echo "Setting up project..."
-	@cp env.example .env
-	@echo "Please update .env file with your configuration"
+# Default target
+help: ## Show this help message
+	@echo "🚀 UltraMarket Enterprise Platform Commands"
+	@echo "=============================================="
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-# Docker Commands
-.PHONY: docker-up
-docker-up: ## Start all Docker services
-	docker-compose up -d
-
-.PHONY: docker-down
-docker-down: ## Stop all Docker services
-	docker-compose down
-
-.PHONY: docker-build
-docker-build: ## Build all Docker images
-	docker-compose build
-
-.PHONY: docker-logs
-docker-logs: ## View Docker logs
-	docker-compose logs -f
-
-.PHONY: docker-ps
-docker-ps: ## List running containers
-	docker-compose ps
-
+# =====================================================
 # Development Commands
-.PHONY: dev-up
-dev-up: ## Start development environment
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# =====================================================
 
-.PHONY: dev-down
-dev-down: ## Stop development environment
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+install: ## Install all dependencies
+	@echo "📦 Installing dependencies..."
+	npm install
+	nx run-many --target=install --all
 
-.PHONY: dev-logs
-dev-logs: ## View development logs
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f
+build: ## Build all applications and services
+	@echo "🔨 Building all projects..."
+	nx run-many --target=build --all
 
-# Database Commands
-.PHONY: db-migrate
-db-migrate: ## Run database migrations
-	docker-compose exec user-service npm run migrate
-	docker-compose exec order-service npm run migrate
-	docker-compose exec payment-service npm run migrate
+build-affected: ## Build only affected projects
+	@echo "🔨 Building affected projects..."
+	nx affected:build
 
-.PHONY: db-seed
-db-seed: ## Seed database with test data
-	docker-compose exec user-service npm run seed
-	docker-compose exec product-service npm run seed
-
-.PHONY: db-reset
-db-reset: ## Reset database
-	docker-compose exec postgres psql -U postgres -d newegg_db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
-	$(MAKE) db-migrate
-	$(MAKE) db-seed
-
-# Service Commands
-.PHONY: service-user
-service-user: ## Access user service shell
-	docker-compose exec user-service sh
-
-.PHONY: service-product
-service-product: ## Access product service shell
-	docker-compose exec product-service sh
-
-.PHONY: service-order
-service-order: ## Access order service shell
-	docker-compose exec order-service sh
-
-# Testing Commands
-.PHONY: test
 test: ## Run all tests
-	docker-compose exec user-service npm test
-	docker-compose exec product-service npm test
-	docker-compose exec order-service npm test
+	@echo "🧪 Running tests..."
+	nx run-many --target=test --all
 
-.PHONY: test-unit
-test-unit: ## Run unit tests
-	docker-compose exec user-service npm run test:unit
-	docker-compose exec product-service npm run test:unit
+test-affected: ## Run tests for affected projects
+	@echo "🧪 Running tests for affected projects..."
+	nx affected:test
 
-.PHONY: test-integration
-test-integration: ## Run integration tests
-	docker-compose exec user-service npm run test:integration
-	docker-compose exec product-service npm run test:integration
+lint: ## Run linting for all projects
+	@echo "🔍 Running linting..."
+	nx run-many --target=lint --all
 
-.PHONY: test-e2e
-test-e2e: ## Run E2E tests
-	docker-compose exec web-app npm run test:e2e
+lint-fix: ## Fix linting issues
+	@echo "🔧 Fixing linting issues..."
+	nx run-many --target=lint --all --fix
 
-# Monitoring Commands
-.PHONY: monitor-prometheus
-monitor-prometheus: ## Open Prometheus dashboard
-	@echo "Opening Prometheus at http://localhost:9090"
-	@start http://localhost:9090 || open http://localhost:9090 || xdg-open http://localhost:9090
+format: ## Format code
+	@echo "✨ Formatting code..."
+	nx format:write
 
-.PHONY: monitor-grafana
-monitor-grafana: ## Open Grafana dashboard
-	@echo "Opening Grafana at http://localhost:3000"
-	@echo "Default credentials: admin/admin123"
-	@start http://localhost:3000 || open http://localhost:3000 || xdg-open http://localhost:3000
+format-check: ## Check code formatting
+	@echo "✅ Checking code formatting..."
+	nx format:check
 
-# Build Commands
-.PHONY: build-frontend
-build-frontend: ## Build frontend applications
-	docker-compose exec web-app npm run build
-	docker-compose exec admin-panel npm run build
+clean: ## Clean build artifacts
+	@echo "🧹 Cleaning build artifacts..."
+	rm -rf dist/
+	rm -rf node_modules/
+	nx reset
 
-.PHONY: build-backend
-build-backend: ## Build backend services
-	docker-compose exec user-service npm run build
-	docker-compose exec product-service npm run build
-	docker-compose exec order-service npm run build
+# =====================================================
+# Development Server Commands
+# =====================================================
 
-# Clean Commands
-.PHONY: clean
-clean: ## Clean all generated files and volumes
-	docker-compose down -v
-	rm -rf node_modules
-	rm -rf backend/*/node_modules
-	rm -rf frontend/*/node_modules
+dev: ## Start development environment
+	@echo "🚀 Starting development environment..."
+	docker-compose -f docker-compose.enterprise.yml up -d
 
-.PHONY: clean-docker
-clean-docker: ## Clean Docker system
-	docker system prune -af
+dev-web: ## Start web application
+	@echo "🌐 Starting web application..."
+	nx serve web-app
+
+dev-admin: ## Start admin panel
+	@echo "👨‍💼 Starting admin panel..."
+	nx serve admin-panel
+
+dev-api: ## Start API gateway
+	@echo "🔗 Starting API gateway..."
+	nx serve api-gateway
+
+dev-services: ## Start all backend services
+	@echo "⚙️ Starting backend services..."
+	nx run-many --target=serve --projects=user-service,product-service,order-service,payment-service
+
+# =====================================================
+# Docker Commands
+# =====================================================
+
+docker-build: ## Build Docker images
+	@echo "🐳 Building Docker images..."
+	docker-compose -f docker-compose.enterprise.yml build
+
+docker-up: ## Start Docker containers
+	@echo "🐳 Starting Docker containers..."
+	docker-compose -f docker-compose.enterprise.yml up -d
+
+docker-down: ## Stop Docker containers
+	@echo "🐳 Stopping Docker containers..."
+	docker-compose -f docker-compose.enterprise.yml down
+
+docker-logs: ## Show Docker logs
+	@echo "📋 Showing Docker logs..."
+	docker-compose -f docker-compose.enterprise.yml logs -f
+
+docker-clean: ## Clean Docker resources
+	@echo "🧹 Cleaning Docker resources..."
+	docker system prune -f
 	docker volume prune -f
 
+# =====================================================
+# Database Commands
+# =====================================================
+
+db-migrate: ## Run database migrations
+	@echo "🗄️ Running database migrations..."
+	nx run-many --target=migrate --all
+
+db-seed: ## Seed database with test data
+	@echo "🌱 Seeding database..."
+	nx run-many --target=seed --all
+
+db-reset: ## Reset database
+	@echo "🔄 Resetting database..."
+	nx run-many --target=db-reset --all
+
+# =====================================================
 # Kubernetes Commands
-.PHONY: k8s-deploy
+# =====================================================
+
 k8s-deploy: ## Deploy to Kubernetes
+	@echo "☸️ Deploying to Kubernetes..."
+	kubectl apply -f infrastructure/kubernetes/namespace.yaml
 	kubectl apply -f infrastructure/kubernetes/
 
-.PHONY: k8s-delete
-k8s-delete: ## Delete Kubernetes deployment
+k8s-delete: ## Delete Kubernetes resources
+	@echo "🗑️ Deleting Kubernetes resources..."
 	kubectl delete -f infrastructure/kubernetes/
 
-.PHONY: k8s-status
 k8s-status: ## Check Kubernetes status
-	kubectl get all -n newegg
+	@echo "📊 Checking Kubernetes status..."
+	kubectl get pods -n ultramarket
+	kubectl get services -n ultramarket
+	kubectl get ingress -n ultramarket
 
-# Git Commands
-.PHONY: git-push
-git-push: ## Push to GitHub
-	git add .
-	git commit -m "Update: $$(date +'%Y-%m-%d %H:%M:%S')"
-	git push origin master
+k8s-logs: ## Show Kubernetes logs
+	@echo "📋 Showing Kubernetes logs..."
+	kubectl logs -f deployment/api-gateway -n ultramarket
 
-# Production Commands
-.PHONY: prod-build
-prod-build: ## Build for production
-	docker-compose -f docker-compose.prod.yml build
+# =====================================================
+# Monitoring Commands
+# =====================================================
 
-.PHONY: prod-deploy
-prod-deploy: ## Deploy to production
-	@echo "Deploying to production..."
-	@echo "This would run your production deployment scripts" 
+monitor-up: ## Start monitoring stack
+	@echo "📊 Starting monitoring stack..."
+	docker-compose -f docker-compose.enterprise.yml up -d prometheus grafana jaeger
+
+monitor-down: ## Stop monitoring stack
+	@echo "📊 Stopping monitoring stack..."
+	docker-compose -f docker-compose.enterprise.yml stop prometheus grafana jaeger
+
+# =====================================================
+# Security Commands
+# =====================================================
+
+security-scan: ## Run security scans
+	@echo "🔒 Running security scans..."
+	npm audit
+	docker run --rm -v $(PWD):/app securecodewarrior/docker-security-scan
+
+vulnerability-check: ## Check for vulnerabilities
+	@echo "🛡️ Checking for vulnerabilities..."
+	npm audit --audit-level high
+
+# =====================================================
+# Performance Commands
+# =====================================================
+
+load-test: ## Run load tests
+	@echo "⚡ Running load tests..."
+	k6 run tests/load/api-load-test.js
+
+benchmark: ## Run benchmarks
+	@echo "🏃‍♂️ Running benchmarks..."
+	npm run benchmark
+
+# =====================================================
+# Quality Commands
+# =====================================================
+
+quality-check: ## Run quality checks
+	@echo "✅ Running quality checks..."
+	make lint
+	make test
+	make security-scan
+
+pre-commit: ## Run pre-commit checks
+	@echo "🔍 Running pre-commit checks..."
+	make format-check
+	make lint
+	make test-affected
+
+# =====================================================
+# Deployment Commands
+# =====================================================
+
+deploy-dev: ## Deploy to development environment
+	@echo "🚀 Deploying to development..."
+	kubectl apply -f infrastructure/kubernetes/namespace.yaml
+	kubectl apply -f infrastructure/kubernetes/ --namespace=ultramarket-dev
+
+deploy-staging: ## Deploy to staging environment
+	@echo "🚀 Deploying to staging..."
+	kubectl apply -f infrastructure/kubernetes/ --namespace=ultramarket-staging
+
+deploy-prod: ## Deploy to production environment
+	@echo "🚀 Deploying to production..."
+	kubectl apply -f infrastructure/kubernetes/ --namespace=ultramarket
+
+# =====================================================
+# Backup Commands
+# =====================================================
+
+backup-db: ## Backup databases
+	@echo "💾 Backing up databases..."
+	./scripts/backup-databases.sh
+
+restore-db: ## Restore databases
+	@echo "🔄 Restoring databases..."
+	./scripts/restore-databases.sh
+
+# =====================================================
+# Utility Commands
+# =====================================================
+
+graph: ## Show project dependency graph
+	@echo "📊 Showing project dependency graph..."
+	nx graph
+
+affected: ## Show affected projects
+	@echo "📋 Showing affected projects..."
+	nx affected:apps
+	nx affected:libs
+
+update-deps: ## Update dependencies
+	@echo "📦 Updating dependencies..."
+	npm update
+	nx migrate latest
+
+# =====================================================
+# Environment Setup
+# =====================================================
+
+setup-dev: ## Setup development environment
+	@echo "🛠️ Setting up development environment..."
+	make install
+	make docker-up
+	make db-migrate
+	make db-seed
+	@echo "✅ Development environment ready!"
+
+setup-prod: ## Setup production environment
+	@echo "🛠️ Setting up production environment..."
+	make k8s-deploy
+	make monitor-up
+	@echo "✅ Production environment ready!"
+
+# =====================================================
+# Documentation Commands
+# =====================================================
+
+docs-build: ## Build documentation
+	@echo "📚 Building documentation..."
+	npm run docs:build
+
+docs-serve: ## Serve documentation
+	@echo "📚 Serving documentation..."
+	npm run docs:serve
+
+# =====================================================
+# CI/CD Commands
+# =====================================================
+
+ci-build: ## CI build pipeline
+	@echo "🔄 Running CI build..."
+	make install
+	make lint
+	make test
+	make build
+
+ci-deploy: ## CI deploy pipeline
+	@echo "🚀 Running CI deploy..."
+	make docker-build
+	make k8s-deploy
+
+# =====================================================
+# Health Check Commands
+# =====================================================
+
+health-check: ## Check system health
+	@echo "🏥 Checking system health..."
+	curl -f http://localhost:3000/health || exit 1
+	curl -f http://localhost:8080/health || exit 1
+
+status: ## Show system status
+	@echo "📊 System Status:"
+	@echo "=================="
+	@docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 

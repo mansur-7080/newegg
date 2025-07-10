@@ -1,62 +1,123 @@
 {
-  "name": "newegg-ecommerce-platform",
-  "version": "1.0.0",
+  "name": "@ultramarket/workspace",
+  "version": "2.0.0",
+  "description": "Enterprise E-Commerce Platform - UltraMarket",
+  "author": "UltraMarket Engineering Team",
+  "license": "MIT",
   "private": true,
-  "description": "Enterprise-grade e-commerce platform like Newegg",
   "workspaces": [
-    "backend/*",
-    "frontend/*"
+    "frontend/*",
+    "services/core/*",
+    "services/business/*",
+    "services/platform/*",
+    "services/ml-ai/*",
+    "services/analytics/*",
+    "services/admin/*",
+    "libs/*"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "npm run dev --workspace=backend",
-    "dev:frontend": "npm run dev --workspace=frontend",
-    "build": "npm run build:backend && npm run build:frontend",
-    "build:backend": "npm run build --workspaces --if-present",
-    "build:frontend": "npm run build --workspace=frontend",
-    "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
-    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
-    "clean": "npm run clean --workspaces --if-present && rimraf node_modules",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:build": "docker-compose build",
-    "docker:logs": "docker-compose logs -f",
+    "build": "nx build",
+    "build:all": "nx run-many --target=build --all",
+    "test": "nx test",
+    "test:all": "nx run-many --target=test --all",
+    "lint": "nx lint",
+    "lint:all": "nx run-many --target=lint --all",
+    "dev": "nx serve",
+    "dev:web": "nx serve web-app",
+    "dev:admin": "nx serve admin-panel",
+    "dev:api": "nx serve api-gateway",
+    "start": "nx serve",
+    "start:prod": "node dist/frontend/web-app/main.js",
+    "docker:build": "docker-compose -f docker-compose.dev.yml build",
+    "docker:up": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:down": "docker-compose -f docker-compose.dev.yml down",
+    "k8s:deploy": "kubectl apply -f infrastructure/kubernetes/",
+    "migrate": "nx run-many --target=migrate --all",
+    "seed": "nx run-many --target=seed --all",
+    "format": "nx format:write",
+    "format:check": "nx format:check",
+    "affected:build": "nx affected:build",
+    "affected:test": "nx affected:test",
+    "affected:lint": "nx affected:lint",
+    "graph": "nx graph",
     "prepare": "husky install"
   },
+  "dependencies": {
+    "@nx/devkit": "^17.2.0",
+    "@nx/js": "^17.2.0",
+    "@nx/linter": "^17.2.0",
+    "@nx/node": "^17.2.0",
+    "@nx/react": "^17.2.0",
+    "@nx/webpack": "^17.2.0",
+    "@nx/workspace": "^17.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "next": "^14.0.0",
+    "express": "^4.18.2",
+    "fastify": "^4.24.0",
+    "prisma": "^5.7.0",
+    "@prisma/client": "^5.7.0",
+    "mongoose": "^8.0.0",
+    "redis": "^4.6.0",
+    "kafka-node": "^5.0.0",
+    "elasticsearch": "^16.7.3",
+    "winston": "^3.11.0",
+    "joi": "^17.11.0",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "dotenv": "^16.3.1",
+    "uuid": "^9.0.1",
+    "moment": "^2.29.4",
+    "lodash": "^4.17.21",
+    "axios": "^1.6.0"
+  },
   "devDependencies": {
-    "concurrently": "^7.6.0",
+    "@types/node": "^20.10.0",
+    "@types/express": "^4.17.21",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/jest": "^29.5.8",
+    "@types/lodash": "^4.14.202",
+    "@types/uuid": "^9.0.7",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/cors": "^2.8.17",
+    "@typescript-eslint/eslint-plugin": "^6.12.0",
+    "@typescript-eslint/parser": "^6.12.0",
+    "eslint": "^8.54.0",
+    "eslint-config-next": "^14.0.0",
+    "prettier": "^3.1.0",
     "husky": "^8.0.3",
     "lint-staged": "^15.2.0",
-    "prettier": "^3.1.0",
-    "rimraf": "^5.0.5"
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.0",
+    "ts-node": "^10.9.1",
+    "nodemon": "^3.0.2",
+    "supertest": "^6.3.3",
+    "cypress": "^13.6.0",
+    "nx": "^17.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
       "eslint --fix",
       "prettier --write"
     ],
-    "*.{json,md,yml,yaml}": [
+    "*.{json,md}": [
       "prettier --write"
     ]
   },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/mansur-7080/newegg.git"
-  },
-  "keywords": [
-    "ecommerce",
-    "microservices",
-    "typescript",
-    "react",
-    "nodejs",
-    "docker",
-    "kubernetes"
-  ],
-  "author": "Mansur <mansur7080@gmail.com>",
-  "license": "MIT"
-} 
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test"
+    }
+  }
+}
