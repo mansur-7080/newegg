@@ -1,0 +1,107 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ultramarket-ingress
+  namespace: ultramarket-production
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+spec:
+  tls:
+  - hosts:
+    - api.ultramarket.com
+    - www.ultramarket.com
+    - ultramarket.com
+    secretName: ultramarket-tls
+  rules:
+  # API Gateway
+  - host: api.ultramarket.com
+    http:
+      paths:
+      - path: /cart
+        pathType: Prefix
+        backend:
+          service:
+            name: ultramarket-cart-service
+            port:
+              number: 80
+      - path: /payment
+        pathType: Prefix
+        backend:
+          service:
+            name: ultramarket-payment-service
+            port:
+              number: 80
+      - path: /notification
+        pathType: Prefix
+        backend:
+          service:
+            name: ultramarket-notification-service
+            port:
+              number: 80
+      - path: /search
+        pathType: Prefix
+        backend:
+          service:
+            name: ultramarket-search-service
+            port:
+              number: 80
+      - path: /products
+        pathType: Prefix
+        backend:
+          service:
+            name: ultramarket-product-service
+            port:
+              number: 80
+      - path: /users
+        pathType: Prefix
+        backend:
+          service:
+            name: ultramarket-user-service
+            port:
+              number: 80
+      - path: /orders
+        pathType: Prefix
+        backend:
+          service:
+            name: ultramarket-order-service
+            port:
+              number: 80
+      - path: /health
+        pathType: Exact
+        backend:
+          service:
+            name: ultramarket-api-gateway
+            port:
+              number: 80
+  
+  # Web Application
+  - host: www.ultramarket.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ultramarket-web-app
+            port:
+              number: 80
+  
+  - host: ultramarket.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ultramarket-web-app
+            port:
+              number: 80
