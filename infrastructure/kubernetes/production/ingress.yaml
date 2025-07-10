@@ -2,106 +2,421 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ultramarket-ingress
-  namespace: ultramarket-production
+  namespace: ultramarket-prod
   annotations:
-    kubernetes.io/ingress.class: "nginx"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-    nginx.ingress.kubernetes.io/rate-limit: "100"
-    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://ultramarket.com,https://admin.ultramarket.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "1000"
+    nginx.ingress.kubernetes.io/rate-limit-burst: "2000"
+    nginx.ingress.kubernetes.io/limit-connections: "100"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+      more_set_headers "Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.ultramarket.com wss://api.ultramarket.com";
+  labels:
+    app: ultramarket
+    environment: production
+    tier: frontend
 spec:
   tls:
-  - hosts:
-    - api.ultramarket.com
-    - www.ultramarket.com
-    - ultramarket.com
-    secretName: ultramarket-tls
+    - hosts:
+        - ultramarket.com
+        - www.ultramarket.com
+        - api.ultramarket.com
+        - admin.ultramarket.com
+        - cdn.ultramarket.com
+      secretName: ultramarket-tls
   rules:
-  # API Gateway
-  - host: api.ultramarket.com
-    http:
-      paths:
-      - path: /cart
-        pathType: Prefix
-        backend:
-          service:
-            name: ultramarket-cart-service
-            port:
-              number: 80
-      - path: /payment
-        pathType: Prefix
-        backend:
-          service:
-            name: ultramarket-payment-service
-            port:
-              number: 80
-      - path: /notification
-        pathType: Prefix
-        backend:
-          service:
-            name: ultramarket-notification-service
-            port:
-              number: 80
-      - path: /search
-        pathType: Prefix
-        backend:
-          service:
-            name: ultramarket-search-service
-            port:
-              number: 80
-      - path: /products
-        pathType: Prefix
-        backend:
-          service:
-            name: ultramarket-product-service
-            port:
-              number: 80
-      - path: /users
-        pathType: Prefix
-        backend:
-          service:
-            name: ultramarket-user-service
-            port:
-              number: 80
-      - path: /orders
-        pathType: Prefix
-        backend:
-          service:
-            name: ultramarket-order-service
-            port:
-              number: 80
-      - path: /health
-        pathType: Exact
-        backend:
-          service:
-            name: ultramarket-api-gateway
-            port:
-              number: 80
-  
-  # Web Application
-  - host: www.ultramarket.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: ultramarket-web-app
-            port:
-              number: 80
-  
-  - host: ultramarket.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: ultramarket-web-app
-            port:
-              number: 80
+    # Main Website
+    - host: ultramarket.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-app-service
+                port:
+                  number: 80
+    
+    # WWW Redirect
+    - host: www.ultramarket.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-app-service
+                port:
+                  number: 80
+
+    # API Gateway
+    - host: api.ultramarket.com
+      http:
+        paths:
+          # User Service
+          - path: /api/v1/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 3000
+          - path: /api/v1/users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 3000
+
+          # Product Service
+          - path: /api/v1/products
+            pathType: Prefix
+            backend:
+              service:
+                name: product-service
+                port:
+                  number: 3001
+          - path: /api/v1/categories
+            pathType: Prefix
+            backend:
+              service:
+                name: product-service
+                port:
+                  number: 3001
+
+          # Search Service
+          - path: /api/v1/search
+            pathType: Prefix
+            backend:
+              service:
+                name: search-service
+                port:
+                  number: 3002
+
+          # Cart Service
+          - path: /api/v1/cart
+            pathType: Prefix
+            backend:
+              service:
+                name: cart-service
+                port:
+                  number: 3003
+
+          # Order Service
+          - path: /api/v1/orders
+            pathType: Prefix
+            backend:
+              service:
+                name: order-service
+                port:
+                  number: 3004
+
+          # Payment Service
+          - path: /api/v1/payments
+            pathType: Prefix
+            backend:
+              service:
+                name: payment-service
+                port:
+                  number: 3005
+
+          # Review Service
+          - path: /api/v1/reviews
+            pathType: Prefix
+            backend:
+              service:
+                name: review-service
+                port:
+                  number: 3006
+
+          # Notification Service
+          - path: /api/v1/notifications
+            pathType: Prefix
+            backend:
+              service:
+                name: notification-service
+                port:
+                  number: 3007
+
+          # Analytics Service
+          - path: /api/v1/analytics
+            pathType: Prefix
+            backend:
+              service:
+                name: analytics-service
+                port:
+                  number: 3008
+
+          # Admin Service
+          - path: /api/v1/admin
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-service
+                port:
+                  number: 3009
+
+          # Health Checks
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway-service
+                port:
+                  number: 8080
+
+    # Admin Panel
+    - host: admin.ultramarket.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-panel-service
+                port:
+                  number: 80
+
+    # CDN/Assets
+    - host: cdn.ultramarket.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cdn-service
+                port:
+                  number: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-app-service
+  namespace: ultramarket-prod
+  labels:
+    app: web-app
+    environment: production
+spec:
+  selector:
+    app: web-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-panel-service
+  namespace: ultramarket-prod
+  labels:
+    app: admin-panel
+    environment: production
+spec:
+  selector:
+    app: admin-panel
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-service
+  namespace: ultramarket-prod
+  labels:
+    app: api-gateway
+    environment: production
+spec:
+  selector:
+    app: api-gateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cdn-service
+  namespace: ultramarket-prod
+  labels:
+    app: cdn
+    environment: production
+spec:
+  selector:
+    app: cdn
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+  type: ClusterIP
+
+---
+# Certificate Issuer for Let's Encrypt
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@ultramarket.com
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+
+---
+# Network Policy for Production
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ultramarket-network-policy
+  namespace: ultramarket-prod
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 8080
+    
+    # Allow inter-service communication
+    - from:
+        - podSelector:
+            matchLabels:
+              app: ultramarket
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 3001
+        - protocol: TCP
+          port: 3002
+        - protocol: TCP
+          port: 3003
+        - protocol: TCP
+          port: 3004
+        - protocol: TCP
+          port: 3005
+        - protocol: TCP
+          port: 3006
+        - protocol: TCP
+          port: 3007
+        - protocol: TCP
+          port: 3008
+        - protocol: TCP
+          port: 3009
+
+    # Allow monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 8080
+
+  egress:
+    # Allow DNS
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Allow HTTPS outbound
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+
+    # Allow database connections
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 27017
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 9200
+
+    # Allow inter-service communication
+    - to:
+        - podSelector:
+            matchLabels:
+              app: ultramarket
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 3001
+        - protocol: TCP
+          port: 3002
+        - protocol: TCP
+          port: 3003
+        - protocol: TCP
+          port: 3004
+        - protocol: TCP
+          port: 3005
+        - protocol: TCP
+          port: 3006
+        - protocol: TCP
+          port: 3007
+        - protocol: TCP
+          port: 3008
+        - protocol: TCP
+          port: 3009
