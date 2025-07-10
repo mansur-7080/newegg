@@ -111,7 +111,7 @@ services:
 
   # API Gateway
   kong:
-    image: kong:3.4-alpine
+    image: kong:3.5-alpine
     container_name: newegg_kong
     environment:
       KONG_DATABASE: postgres
