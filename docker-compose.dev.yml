@@ -10,14 +10,13 @@ services:
       POSTGRES_USER: ultramarket_user
       POSTGRES_PASSWORD: ultramarket_password
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/user-service/prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ultramarket_user -d ultramarket"]
+      test: ['CMD-SHELL', 'pg_isready -U ultramarket_user -d ultramarket']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,13 +26,13 @@ services:
     image: redis:7-alpine
     container_name: ultramarket-redis
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,13 +46,13 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ultramarket_password
       MONGO_INITDB_DATABASE: ultramarket_products
     ports:
-      - "27017:27017"
+      - '27017:27017'
     volumes:
       - mongodb_data:/data/db
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -65,32 +64,18 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - 'ES_JAVA_OPTS=-Xms512m -Xmx512m'
     ports:
-      - "9200:9200"
+      - '9200:9200'
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      test: ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1']
       interval: 30s
       timeout: 10s
       retries: 5
-
-  # Kibana (for Elasticsearch management)
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.0
-    container_name: ultramarket-kibana
-    environment:
-      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
-    ports:
-      - "5601:5601"
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-    networks:
-      - ultramarket-network
 
   # RabbitMQ (for message queuing)
   rabbitmq:
@@ -100,36 +85,26 @@ services:
       RABBITMQ_DEFAULT_USER: ultramarket_user
       RABBITMQ_DEFAULT_PASS: ultramarket_password
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - '5672:5672'
+      - '15672:15672'
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # Mailhog (for email testing)
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: ultramarket-mailhog
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    networks:
-      - ultramarket-network
 
   # Prometheus (for metrics)
   prometheus:
     image: prom/prometheus:latest
     container_name: ultramarket-prometheus
     ports:
-      - "9090:9090"
+      - '9090:9090'
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -148,32 +123,18 @@ services:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
     ports:
-      - "3000:3000"
+      - '3001:3000'
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
     depends_on:
       - prometheus
-    networks:
-      - ultramarket-network
-
-  # Jaeger (for distributed tracing)
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    container_name: ultramarket-jaeger
-    ports:
-      - "16686:16686"
-      - "14268:14268"
-    environment:
-      COLLECTOR_OTLP_ENABLED: "true"
     networks:
       - ultramarket-network
 
   # User Service
   user-service:
     build:
-      context: ./backend/user-service
+      context: ./microservices/core/user-service/user-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-user-service
     environment:
@@ -183,24 +144,20 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: your-super-secret-jwt-key-for-development
       JWT_REFRESH_SECRET: your-super-secret-jwt-refresh-key-for-development
-      EMAIL_SERVICE_URL: http://notification-service:3006
-      RABBITMQ_URL: amqp://ultramarket_user:ultramarket_password@rabbitmq:5672
     ports:
-      - "3001:3001"
+      - '3002:3001'
     volumes:
-      - ./backend/user-service:/app
+      - ./microservices/core/user-service/user-service:/app
       - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -208,7 +165,7 @@ services:
   # Product Service
   product-service:
     build:
-      context: ./backend/product-service
+      context: ./microservices/business/product-service/product-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-product-service
     environment:
@@ -217,11 +174,10 @@ services:
       MONGODB_URI: mongodb://ultramarket_admin:ultramarket_password@mongodb:27017/ultramarket_products?authSource=admin
       REDIS_URL: redis://redis:6379
       ELASTICSEARCH_URL: http://elasticsearch:9200
-      RABBITMQ_URL: amqp://ultramarket_user:ultramarket_password@rabbitmq:5672
     ports:
-      - "3002:3002"
+      - '3003:3002'
     volumes:
-      - ./backend/product-service:/app
+      - ./microservices/business/product-service/product-service:/app
       - /app/node_modules
     depends_on:
       mongodb:
@@ -230,12 +186,10 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3002/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -243,7 +197,7 @@ services:
   # Cart Service
   cart-service:
     build:
-      context: ./backend/cart-service
+      context: ./microservices/business/cart-service/cart-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-cart-service
     environment:
@@ -252,11 +206,10 @@ services:
       REDIS_URL: redis://redis:6379
       USER_SERVICE_URL: http://user-service:3001
       PRODUCT_SERVICE_URL: http://product-service:3002
-      RABBITMQ_URL: amqp://ultramarket_user:ultramarket_password@rabbitmq:5672
     ports:
-      - "3003:3003"
+      - '3004:3003'
     volumes:
-      - ./backend/cart-service:/app
+      - ./microservices/business/cart-service/cart-service:/app
       - /app/node_modules
     depends_on:
       redis:
@@ -265,12 +218,10 @@ services:
         condition: service_healthy
       product-service:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3003/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -278,7 +229,7 @@ services:
   # Order Service
   order-service:
     build:
-      context: ./backend/order-service
+      context: ./microservices/business/order-service/order-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-order-service
     environment:
@@ -288,13 +239,10 @@ services:
       REDIS_URL: redis://redis:6379
       USER_SERVICE_URL: http://user-service:3001
       PRODUCT_SERVICE_URL: http://product-service:3002
-      PAYMENT_SERVICE_URL: http://payment-service:3005
-      NOTIFICATION_SERVICE_URL: http://notification-service:3006
-      RABBITMQ_URL: amqp://ultramarket_user:ultramarket_password@rabbitmq:5672
     ports:
-      - "3004:3004"
+      - '3005:3004'
     volumes:
-      - ./backend/order-service:/app
+      - ./microservices/business/order-service/order-service:/app
       - /app/node_modules
     depends_on:
       postgres:
@@ -305,16 +253,10 @@ services:
         condition: service_healthy
       product-service:
         condition: service_healthy
-      payment-service:
-        condition: service_healthy
-      notification-service:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3004/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -322,7 +264,7 @@ services:
   # Payment Service
   payment-service:
     build:
-      context: ./backend/payment-service
+      context: ./microservices/business/payment-service/payment-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-payment-service
     environment:
@@ -332,23 +274,20 @@ services:
       REDIS_URL: redis://redis:6379
       STRIPE_SECRET_KEY: sk_test_your_stripe_test_key
       STRIPE_WEBHOOK_SECRET: whsec_your_stripe_webhook_secret
-      RABBITMQ_URL: amqp://ultramarket_user:ultramarket_password@rabbitmq:5672
     ports:
-      - "3005:3005"
+      - '3006:3005'
     volumes:
-      - ./backend/payment-service:/app
+      - ./microservices/business/payment-service/payment-service:/app
       - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3005/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -356,34 +295,25 @@ services:
   # Notification Service
   notification-service:
     build:
-      context: ./backend/notification-service
+      context: ./microservices/platform/notification-service/notification-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-notification-service
     environment:
       NODE_ENV: development
       PORT: 3006
       REDIS_URL: redis://redis:6379
-      SMTP_HOST: mailhog
-      SMTP_PORT: 1025
-      SMTP_USER: 
-      SMTP_PASS: 
-      RABBITMQ_URL: amqp://ultramarket_user:ultramarket_password@rabbitmq:5672
     ports:
-      - "3006:3006"
+      - '3007:3006'
     volumes:
-      - ./backend/notification-service:/app
+      - ./microservices/platform/notification-service/notification-service:/app
       - /app/node_modules
     depends_on:
       redis:
         condition: service_healthy
-      mailhog:
-        condition: service_started
-      rabbitmq:
-        condition: service_healthy
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3006/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3006/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -391,7 +321,7 @@ services:
   # Search Service
   search-service:
     build:
-      context: ./backend/search-service
+      context: ./microservices/platform/search-service/search-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-search-service
     environment:
@@ -399,23 +329,20 @@ services:
       PORT: 3007
       ELASTICSEARCH_URL: http://elasticsearch:9200
       PRODUCT_SERVICE_URL: http://product-service:3002
-      RABBITMQ_URL: amqp://ultramarket_user:ultramarket_password@rabbitmq:5672
     ports:
-      - "3007:3007"
+      - '3008:3007'
     volumes:
-      - ./backend/search-service:/app
+      - ./microservices/platform/search-service/search-service:/app
       - /app/node_modules
     depends_on:
       elasticsearch:
         condition: service_healthy
       product-service:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3007/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3007/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -423,7 +350,7 @@ services:
   # API Gateway
   api-gateway:
     build:
-      context: ./backend/api-gateway
+      context: ./microservices/core/api-gateway/api-gateway
       dockerfile: Dockerfile.dev
     container_name: ultramarket-api-gateway
     environment:
@@ -438,9 +365,9 @@ services:
       SEARCH_SERVICE_URL: http://search-service:3007
       JWT_SECRET: your-super-secret-jwt-key-for-development
     ports:
-      - "3000:3000"
+      - '3000:3000'
     volumes:
-      - ./backend/api-gateway:/app
+      - ./microservices/core/api-gateway/api-gateway:/app
       - /app/node_modules
     depends_on:
       user-service:
@@ -460,7 +387,7 @@ services:
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -477,7 +404,7 @@ services:
       REACT_APP_API_URL: http://localhost:3000
       REACT_APP_WS_URL: ws://localhost:3000
     ports:
-      - "8080:8080"
+      - '8080:8080'
     volumes:
       - ./frontend/web-app:/app
       - /app/node_modules
@@ -487,25 +414,25 @@ services:
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080']
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Admin Dashboard
-  admin-dashboard:
+  # Admin Panel
+  admin-panel:
     build:
-      context: ./frontend/admin-dashboard
+      context: ./frontend/admin-panel
       dockerfile: Dockerfile.dev
-    container_name: ultramarket-admin-dashboard
+    container_name: ultramarket-admin-panel
     environment:
       NODE_ENV: development
       PORT: 8081
       REACT_APP_API_URL: http://localhost:3000
     ports:
-      - "8081:8081"
+      - '8081:8081'
     volumes:
-      - ./frontend/admin-dashboard:/app
+      - ./frontend/admin-panel:/app
       - /app/node_modules
     depends_on:
       api-gateway:
@@ -513,7 +440,7 @@ services:
     networks:
       - ultramarket-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8081']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -529,4 +456,4 @@ volumes:
 
 networks:
   ultramarket-network:
-    driver: bridge 
+    driver: bridge

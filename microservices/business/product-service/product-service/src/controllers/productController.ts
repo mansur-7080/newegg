@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { ProductService } from '../services/productService';
-import { logger } from '@newegg/common';
+import { logger } from '@ultramarket/common';
 
 export class ProductController {
   private productService: ProductService;

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '@newegg/common';
+import { logger } from '@ultramarket/common';
 
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction): void => {
   logger.error('Error:', err);

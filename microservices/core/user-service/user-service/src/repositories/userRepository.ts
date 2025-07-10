@@ -1,6 +1,6 @@
-import { User } from '@newegg/common';
+import { User } from '@ultramarket/common';
 import { PrismaClient } from '@prisma/client';
-import { AuthProvider } from '@newegg/common';
+import { AuthProvider } from '@ultramarket/common';
 
 const prisma = new PrismaClient();
 

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '@newegg/common';
-import { userService } from '../services/userService';
-import { HTTP_STATUS } from '@newegg/common';
+import { AuthenticatedRequest } from '@ultramarket/common';
+import * as userService from '../services/userService';
+import { HTTP_STATUS } from '@ultramarket/common';
 
 export class UserController {
   async register(req: Request, res: Response, next: NextFunction) {

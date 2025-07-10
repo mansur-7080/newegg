@@ -1,5 +1,5 @@
 import { Product, Category, Review, IProduct, ICategory, IReview } from '../models/Product';
-import { logger } from '@newegg/common';
+import { logger } from '@ultramarket/common';
 import mongoose from 'mongoose';
 
 export interface ProductFilters {

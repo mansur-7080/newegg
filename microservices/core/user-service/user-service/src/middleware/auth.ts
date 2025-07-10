@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest, UserRole } from '@newegg/common';
-import { verifyAccessToken, hasRole } from '@newegg/common';
-import { UnauthorizedError } from '@newegg/common';
+import { AuthenticatedRequest, UserRole } from '@ultramarket/common';
+import { verifyAccessToken, hasRole } from '@ultramarket/common';
+import { UnauthorizedError } from '@ultramarket/common';
 
 // Professional authentication middleware
 export const authenticate = async (

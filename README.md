@@ -50,12 +50,11 @@
 
 ```
 UltraMarket/
-├── apps/                           # Frontend Applications
-│   ├── web-app/                   # Next.js Web Application
+├── frontend/                       # Frontend Applications
+│   ├── web-app/                   # React Web Application
 │   ├── mobile-app/                # React Native Mobile App
-│   ├── admin-dashboard/           # Admin Panel
-│   └── partner-portal/            # Partner Management
-├── services/                      # Backend Microservices
+│   └── admin-panel/               # Admin Dashboard
+├── microservices/                 # Backend Microservices
 │   ├── core/                      # Core Services
 │   │   ├── api-gateway/          # API Gateway & Routing
 │   │   ├── user-service/         # User Management
@@ -66,7 +65,8 @@ UltraMarket/
 │   │   ├── order-service/        # Order Management
 │   │   ├── payment-service/      # Payment Processing
 │   │   ├── inventory-service/    # Inventory Management
-│   │   └── cart-service/         # Shopping Cart
+│   │   ├── cart-service/         # Shopping Cart
+│   │   └── shipping-service/     # Shipping Management
 │   ├── platform/                  # Platform Services
 │   │   ├── notification-service/ # Notifications
 │   │   ├── search-service/       # Search & Discovery
@@ -76,9 +76,11 @@ UltraMarket/
 │   │   ├── recommendation-service/ # Product Recommendations
 │   │   ├── fraud-detection-service/ # Fraud Detection
 │   │   └── personalization-service/ # Personalization
-│   └── analytics/                 # Analytics Services
-│       ├── real-time-analytics/  # Real-time Analytics
-│       └── business-intelligence/ # BI & Reporting
+│   ├── analytics/                 # Analytics Services
+│   │   ├── real-time-analytics/  # Real-time Analytics
+│   │   └── business-intelligence/ # BI & Reporting
+│   └── admin/                     # Admin Services
+│       └── admin-service/        # Admin Management
 ├── libs/                          # Shared Libraries
 │   ├── shared/                   # Common utilities
 │   ├── ui-components/            # Reusable UI components
@@ -91,11 +93,10 @@ UltraMarket/
 │   ├── helm/                     # Helm charts
 │   ├── monitoring/               # Monitoring configs
 │   └── security/                 # Security policies
-├── data/                          # Data Layer
-│   ├── databases/                # Database schemas
-│   ├── migrations/               # Database migrations
-│   ├── seeds/                    # Test data
-│   └── schemas/                  # Data schemas
+├── scripts/                       # Utility Scripts
+│   ├── setup-project.sh         # Project setup
+│   ├── start-dev.sh             # Development startup
+│   └── restore-all-services.ps1 # Service restoration
 └── docs/                          # Documentation
     ├── api/                      # API documentation
     ├── architecture/             # Architecture docs
@@ -134,7 +135,7 @@ make dev
 ### 3. Access Applications
 
 - **Web App**: http://localhost:8080
-- **Admin Dashboard**: http://localhost:8081
+- **Admin Panel**: http://localhost:8081
 - **API Gateway**: http://localhost:3000
 - **Grafana**: http://localhost:3001
 - **Prometheus**: http://localhost:9090
@@ -147,7 +148,7 @@ make dev
 # Development
 make dev                    # Start development environment
 make dev-web               # Start web application
-make dev-admin             # Start admin dashboard
+make dev-admin             # Start admin panel
 make dev-api               # Start API gateway
 
 # Building

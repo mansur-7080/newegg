@@ -1,7 +1,7 @@
 {
-  "name": "@newegg/user-service",
+  "name": "@ultramarket/user-service",
   "version": "1.0.0",
-  "description": "User management microservice for Newegg",
+  "description": "User management microservice for UltraMarket",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -17,7 +17,7 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
-    "@newegg/common": "file:../common",
+    "@ultramarket/common": "file:../common",
     "@prisma/client": "^5.22.0",
     "@types/pg": "^8.15.4",
     "bcrypt": "^6.0.0",

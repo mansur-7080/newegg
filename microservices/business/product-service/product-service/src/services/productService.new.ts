@@ -1,6 +1,6 @@
 import ProductDatabase from '../database/ProductDatabase';
 import { IProduct, ICategory, IReview } from '../models';
-import { logger } from '@newegg/common';
+import { logger } from '@ultramarket/common';
 
 export interface ProductFilters {
   category?: string;

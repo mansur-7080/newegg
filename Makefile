@@ -64,7 +64,7 @@ clean: ## Clean build artifacts
 
 dev: ## Start development environment
 	@echo "🚀 Starting development environment..."
-	docker-compose -f docker-compose.enterprise.yml up -d
+	docker-compose -f docker-compose.dev.yml up -d
 
 dev-web: ## Start web application
 	@echo "🌐 Starting web application..."
@@ -88,19 +88,19 @@ dev-services: ## Start all backend services
 
 docker-build: ## Build Docker images
 	@echo "🐳 Building Docker images..."
-	docker-compose -f docker-compose.enterprise.yml build
+	docker-compose -f docker-compose.dev.yml build
 
 docker-up: ## Start Docker containers
 	@echo "🐳 Starting Docker containers..."
-	docker-compose -f docker-compose.enterprise.yml up -d
+	docker-compose -f docker-compose.dev.yml up -d
 
 docker-down: ## Stop Docker containers
 	@echo "🐳 Stopping Docker containers..."
-	docker-compose -f docker-compose.enterprise.yml down
+	docker-compose -f docker-compose.dev.yml down
 
 docker-logs: ## Show Docker logs
 	@echo "📋 Showing Docker logs..."
-	docker-compose -f docker-compose.enterprise.yml logs -f
+	docker-compose -f docker-compose.dev.yml logs -f
 
 docker-clean: ## Clean Docker resources
 	@echo "🧹 Cleaning Docker resources..."
@@ -152,11 +152,11 @@ k8s-logs: ## Show Kubernetes logs
 
 monitor-up: ## Start monitoring stack
 	@echo "📊 Starting monitoring stack..."
-	docker-compose -f docker-compose.enterprise.yml up -d prometheus grafana jaeger
+	docker-compose -f docker-compose.dev.yml up -d prometheus grafana
 
 monitor-down: ## Stop monitoring stack
 	@echo "📊 Stopping monitoring stack..."
-	docker-compose -f docker-compose.enterprise.yml stop prometheus grafana jaeger
+	docker-compose -f docker-compose.dev.yml stop prometheus grafana
 
 # =====================================================
 # Security Commands

@@ -1,5 +1,5 @@
-import { User, UserRole, AuthProvider } from '@newegg/common';
-import type { UserResponse } from '@newegg/common';
+import { User, UserRole, AuthProvider } from '@ultramarket/common';
+import type { UserResponse } from '@ultramarket/common';
 import {
   hashPassword,
   comparePassword,
@@ -7,8 +7,8 @@ import {
   verifyRefreshToken,
   createSession,
   cache,
-} from '@newegg/common';
-import { ConflictError, NotFoundError, UnauthorizedError } from '@newegg/common';
+} from '@ultramarket/common';
+import { ConflictError, NotFoundError, UnauthorizedError } from '@ultramarket/common';
 import { userRepository } from '../repositories/userRepository';
 import { v4 as uuidv4 } from 'uuid';
 import { Request } from 'express';

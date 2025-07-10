@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import { logger } from '@newegg/common';
+import { logger } from '@ultramarket/common';
 import { errorHandler } from './middleware/errorHandler';
 import productRoutes from './routes/productRoutes';
 import connectDB from './config/database';
