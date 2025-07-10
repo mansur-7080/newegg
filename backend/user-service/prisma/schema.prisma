@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,115 +11,170 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  username        String    @unique
-  passwordHash    String
-  firstName       String
-  lastName        String
-  phoneNumber     String?
-  role            UserRole  @default(CUSTOMER)
-  isActive        Boolean   @default(true)
-  isEmailVerified Boolean   @default(false)
-  profileImage    String?
-  bio             String?
-  
-  addresses       Address[]
-  sessions        Session[]
-  refreshTokens   RefreshToken[]
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  lastLoginAt     DateTime?
-  
-  @@index([email])
-  @@index([username])
-  @@index([role])
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String
+  firstName         String
+  lastName          String
+  phone             String?
+  avatarUrl         String?
+  emailVerified     Boolean   @default(false)
+  status            UserStatus @default(ACTIVE)
+  role              UserRole   @default(USER)
+  lastLoginAt       DateTime?
+  deactivatedAt     DateTime?
+  deactivationReason String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  addresses         Address[]
+  preferences       UserPreference[]
+  orders           Order[]
+  reviews          Review[]
+  notifications    Notification[]
+
+  @@map("users")
 }
 
 model Address {
-  id          String    @id @default(uuid())
+  id          String   @id @default(cuid())
   userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
   type        AddressType
-  street1     String
-  street2     String?
+  street      String
   city        String
   state       String
   postalCode  String
   country     String
-  isDefault   Boolean   @default(false)
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  @@index([userId])
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
 }
 
-model Session {
-  id          String    @id @default(uuid())
+model UserPreference {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  language          String   @default("en")
+  currency          String   @default("USD")
+  timezone          String   @default("UTC")
+  emailNotifications Boolean @default(true)
+  smsNotifications  Boolean  @default(false)
+  pushNotifications Boolean  @default(true)
+  marketingEmails   Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  orderNumber     String      @unique
+  status          OrderStatus @default(PENDING)
+  totalAmount     Decimal     @db.Decimal(10, 2)
+  currency        String      @default("USD")
+  shippingAddress Json
+  billingAddress  Json
+  paymentMethod   String
+  paymentStatus   PaymentStatus @default(PENDING)
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("orders")
+}
+
+model Review {
+  id          String   @id @default(cuid())
   userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  token       String    @unique
-  userAgent   String?
-  ipAddress   String?
-  
-  expiresAt   DateTime
-  createdAt   DateTime  @default(now())
-  
-  @@index([userId])
-  @@index([token])
+  productId   String
+  rating      Int      @db.SmallInt
+  title       String?
+  comment     String?
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
 }
 
-model RefreshToken {
-  id          String    @id @default(uuid())
+model Notification {
+  id          String           @id @default(cuid())
   userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  token       String    @unique
-  expiresAt   DateTime
-  
-  createdAt   DateTime  @default(now())
-  
-  @@index([userId])
-  @@index([token])
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean          @default(false)
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
 }
 
-model EmailVerification {
-  id          String    @id @default(uuid())
-  email       String
-  token       String    @unique
-  expiresAt   DateTime
-  
-  createdAt   DateTime  @default(now())
-  
-  @@index([email])
-  @@index([token])
-}
-
-model PasswordReset {
-  id          String    @id @default(uuid())
-  email       String
-  token       String    @unique
-  expiresAt   DateTime
-  used        Boolean   @default(false)
-  
-  createdAt   DateTime  @default(now())
-  
-  @@index([email])
-  @@index([token])
+// Enums
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  DEACTIVATED
+  SUSPENDED
 }
 
 enum UserRole {
-  CUSTOMER
-  SELLER
+  USER
   ADMIN
-  SUPER_ADMIN
+  MODERATOR
+  VENDOR
 }
 
 enum AddressType {
-  SHIPPING
-  BILLING
+  HOME
+  WORK
+  OTHER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  SHIPPING_UPDATE
+  PROMOTION
+  SYSTEM
+  SECURITY
 } 
