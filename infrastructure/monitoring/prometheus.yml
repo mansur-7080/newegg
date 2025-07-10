@@ -1,6 +1,9 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  external_labels:
+    cluster: ultramarket-production
+    environment: production
 
 rule_files:
   - "rules/*.yml"
@@ -17,7 +20,7 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # Kubernetes API Server
+  # Kubernetes API server
   - job_name: 'kubernetes-apiservers'
     kubernetes_sd_configs:
       - role: endpoints
@@ -31,7 +34,7 @@ scrape_configs:
         action: keep
         regex: default;kubernetes;https
 
-  # Kubernetes Nodes
+  # Kubernetes nodes
   - job_name: 'kubernetes-nodes'
     kubernetes_sd_configs:
       - role: node
@@ -50,7 +53,7 @@ scrape_configs:
         target_label: __metrics_path__
         replacement: /api/v1/nodes/${1}/proxy/metrics
 
-  # Kubernetes Pods
+  # Kubernetes pods
   - job_name: 'kubernetes-pods'
     kubernetes_sd_configs:
       - role: pod
@@ -76,116 +79,164 @@ scrape_configs:
         action: replace
         target_label: kubernetes_pod_name
 
-  # UltraMarket Services
-  - job_name: 'ultramarket-cart-service'
+  # User Service
+  - job_name: 'user-service'
     kubernetes_sd_configs:
-      - role: pod
+      - role: endpoints
         namespaces:
           names:
-            - ultramarket-production
+            - production
+    metrics_path: /metrics
     relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_label_app]
-        regex: ultramarket-cart-service
+      - source_labels: [__meta_kubernetes_service_label_app]
+        regex: user-service
         action: keep
-      - source_labels: [__meta_kubernetes_pod_ip]
-        action: replace
-        target_label: __address__
-        regex: (.+)
-        replacement: $1:3003
-      - source_labels: [__meta_kubernetes_pod_name]
-        action: replace
+      - source_labels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]
+        regex: Pod;(.*)
+        replacement: ${1}
         target_label: pod
       - source_labels: [__meta_kubernetes_namespace]
-        action: replace
         target_label: namespace
-    metrics_path: /metrics
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: service
 
-  - job_name: 'ultramarket-payment-service'
+  # Product Service
+  - job_name: 'product-service'
     kubernetes_sd_configs:
-      - role: pod
+      - role: endpoints
         namespaces:
           names:
-            - ultramarket-production
+            - production
+    metrics_path: /metrics
     relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_label_app]
-        regex: ultramarket-payment-service
+      - source_labels: [__meta_kubernetes_service_label_app]
+        regex: product-service
         action: keep
-      - source_labels: [__meta_kubernetes_pod_ip]
-        action: replace
-        target_label: __address__
-        regex: (.+)
-        replacement: $1:3004
-      - source_labels: [__meta_kubernetes_pod_name]
-        action: replace
+      - source_labels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]
+        regex: Pod;(.*)
+        replacement: ${1}
         target_label: pod
       - source_labels: [__meta_kubernetes_namespace]
-        action: replace
         target_label: namespace
-    metrics_path: /metrics
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: service
 
-  - job_name: 'ultramarket-notification-service'
+  # Cart Service
+  - job_name: 'cart-service'
     kubernetes_sd_configs:
-      - role: pod
+      - role: endpoints
         namespaces:
           names:
-            - ultramarket-production
+            - production
+    metrics_path: /metrics
     relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_label_app]
-        regex: ultramarket-notification-service
+      - source_labels: [__meta_kubernetes_service_label_app]
+        regex: cart-service
         action: keep
-      - source_labels: [__meta_kubernetes_pod_ip]
-        action: replace
-        target_label: __address__
-        regex: (.+)
-        replacement: $1:3005
-      - source_labels: [__meta_kubernetes_pod_name]
-        action: replace
+      - source_labels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]
+        regex: Pod;(.*)
+        replacement: ${1}
         target_label: pod
       - source_labels: [__meta_kubernetes_namespace]
-        action: replace
         target_label: namespace
-    metrics_path: /metrics
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: service
 
-  - job_name: 'ultramarket-search-service'
+  # Order Service
+  - job_name: 'order-service'
     kubernetes_sd_configs:
-      - role: pod
+      - role: endpoints
         namespaces:
           names:
-            - ultramarket-production
+            - production
+    metrics_path: /metrics
     relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_label_app]
-        regex: ultramarket-search-service
+      - source_labels: [__meta_kubernetes_service_label_app]
+        regex: order-service
         action: keep
-      - source_labels: [__meta_kubernetes_pod_ip]
-        action: replace
-        target_label: __address__
-        regex: (.+)
-        replacement: $1:3006
-      - source_labels: [__meta_kubernetes_pod_name]
-        action: replace
+      - source_labels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]
+        regex: Pod;(.*)
+        replacement: ${1}
         target_label: pod
       - source_labels: [__meta_kubernetes_namespace]
-        action: replace
         target_label: namespace
-    metrics_path: /metrics
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: service
 
-  # Database Monitoring
+  # Payment Service
+  - job_name: 'payment-service'
+    kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+            - production
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_label_app]
+        regex: payment-service
+        action: keep
+      - source_labels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]
+        regex: Pod;(.*)
+        replacement: ${1}
+        target_label: pod
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: service
+
+  # PostgreSQL
   - job_name: 'postgres'
     static_configs:
       - targets: ['postgres-service:5432']
     metrics_path: /metrics
+    params:
+      collect[]:
+        - pg_stat_activity
+        - pg_stat_bgwriter
+        - pg_stat_database
+        - pg_stat_replication
+        - pg_stat_tables
+        - pg_stat_user_indexes
+        - pg_stat_user_tables
 
-  - job_name: 'mongodb'
-    static_configs:
-      - targets: ['mongodb-service:27017']
-    metrics_path: /metrics
-
+  # Redis
   - job_name: 'redis'
     static_configs:
       - targets: ['redis-service:6379']
     metrics_path: /metrics
 
-  # Infrastructure Monitoring
+  # MongoDB
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-service:27017']
+    metrics_path: /metrics
+
+  # Elasticsearch
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch-service:9200']
+    metrics_path: /_prometheus/metrics
+
+  # Kafka
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-service:9092']
+    metrics_path: /metrics
+
+  # Nginx Ingress Controller
+  - job_name: 'nginx-ingress'
+    kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+            - ingress-nginx
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_label_app]
+        regex: nginx-ingress
+        action: keep
+
+  # Node Exporter
   - job_name: 'node-exporter'
     kubernetes_sd_configs:
       - role: node
@@ -199,7 +250,7 @@ scrape_configs:
         target_label: __metrics_path__
         replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
 
-  # Blackbox Exporter for Uptime Monitoring
+  # Blackbox Exporter (External monitoring)
   - job_name: 'blackbox'
     metrics_path: /probe
     params:
@@ -207,12 +258,24 @@ scrape_configs:
     static_configs:
       - targets:
         - https://api.ultramarket.com/health
-        - https://www.ultramarket.com
         - https://ultramarket.com
+        - https://admin.ultramarket.com
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
       - source_labels: [__param_target]
         target_label: instance
       - target_label: __address__
-        replacement: blackbox-exporter:9115 
+        replacement: blackbox-exporter:9115
+
+  # Grafana
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana-service:3000']
+    metrics_path: /metrics
+
+  # Alertmanager
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager-service:9093']
+    metrics_path: /metrics 
