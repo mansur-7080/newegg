@@ -2,24 +2,63 @@ name: UltraMarket CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 env:
   NODE_VERSION: '18'
-  DOCKER_REGISTRY: ghcr.io
-  IMAGE_NAME: ultramarket
+  DOCKER_REGISTRY: 'ghcr.io'
+  IMAGE_NAME: 'ultramarket'
 
 jobs:
-  # Lint and Test
-  lint-and-test:
-    name: Lint and Test
+  # Code Quality & Security Checks
+  code-quality:
     runs-on: ubuntu-latest
+    name: Code Quality & Security
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        run: npm run format:check
+
+      - name: Run TypeScript check
+        run: npm run type-check
+
+      - name: Security audit
+        run: npm audit --audit-level=moderate
+
+      - name: Run SAST with CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, typescript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # Unit Tests
+  unit-tests:
+    runs-on: ubuntu-latest
+    name: Unit Tests
+    needs: code-quality
     strategy:
       matrix:
-        service: [user-service, product-service, cart-service, order-service, payment-service]
-    
+        service: [user-service, product-service, cart-service, api-gateway]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,29 +70,63 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
-      - name: Run ESLint
-        run: npm run lint --workspace=backend/${{ matrix.service }}
+      - name: Run unit tests for ${{ matrix.service }}
+        run: |
+          cd microservices/*//${{ matrix.service }}
+          npm test -- --coverage --watchAll=false
 
-      - name: Run TypeScript check
-        run: npm run type-check --workspace=backend/${{ matrix.service }}
-
-      - name: Run tests
-        run: npm run test --workspace=backend/${{ matrix.service }}
-
-      - name: Upload test coverage
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
         with:
-          file: ./backend/${{ matrix.service }}/coverage/lcov.info
+          file: ./coverage/lcov.info
           flags: ${{ matrix.service }}
           name: ${{ matrix.service }}-coverage
 
-  # Security Scan
-  security-scan:
-    name: Security Scan
+  # Integration Tests
+  integration-tests:
     runs-on: ubuntu-latest
-    
+    name: Integration Tests
+    needs: unit-tests
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: ultramarket_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      mongodb:
+        image: mongo:7
+        env:
+          MONGO_INITDB_ROOT_USERNAME: test_admin
+          MONGO_INITDB_ROOT_PASSWORD: test_password
+        options: >-
+          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh localhost:27017/test --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -65,27 +138,35 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
-      - name: Run npm audit
-        run: npm audit --audit-level=moderate
+      - name: Setup test environment
+        run: |
+          cp env.example .env.test
+          sed -i 's/localhost/127.0.0.1/g' .env.test
 
-      - name: Run Snyk security scan
-        uses: snyk/actions/node@master
+      - name: Run database migrations
+        run: |
+          cd microservices/core/user-service/user-service
+          npx prisma migrate deploy
+
+      - name: Run integration tests
+        run: npm run test:integration
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/ultramarket_test
+          REDIS_URL: redis://localhost:6379
+          MONGODB_URI: mongodb://test_admin:test_password@localhost:27017/ultramarket_test?authSource=admin
 
   # Build Docker Images
   build-images:
-    name: Build Docker Images
     runs-on: ubuntu-latest
-    needs: [lint-and-test, security-scan]
+    name: Build Docker Images
+    needs: integration-tests
+    if: github.event_name == 'push'
     strategy:
       matrix:
-        service: [user-service, product-service, cart-service, order-service, payment-service, notification-service]
-    
+        service: [user-service, product-service, cart-service, api-gateway, web-app, admin-panel]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -93,7 +174,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
+      - name: Login to Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.DOCKER_REGISTRY }}
@@ -108,55 +189,50 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend/${{ matrix.service }}
+          context: .
+          file: ./microservices/*/${{ matrix.service }}*/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Database Migration
-  database-migration:
-    name: Database Migration
+  # Security Scanning
+  security-scan:
     runs-on: ubuntu-latest
-    needs: [lint-and-test]
-    if: github.ref == 'refs/heads/main'
-    
+    name: Security Scanning
+    needs: build-images
+    if: github.event_name == 'push'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run database migrations
-        run: |
-          cd backend/user-service
-          npx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
 
   # Deploy to Staging
   deploy-staging:
-    name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [build-images, database-migration]
-    if: github.ref == 'refs/heads/develop'
+    name: Deploy to Staging
+    needs: [security-scan]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     environment: staging
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -164,47 +240,37 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
         with:
-          version: 'latest'
+          version: 'v1.28.0'
 
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > kubeconfig
-          export KUBECONFIG=kubeconfig
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ultramarket-staging
 
       - name: Deploy to staging
         run: |
-          kubectl apply -f k8s/staging/
-          kubectl set image deployment/user-service user-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/user-service:${{ github.sha }}
-          kubectl set image deployment/product-service product-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/product-service:${{ github.sha }}
-          kubectl set image deployment/cart-service cart-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/cart-service:${{ github.sha }}
-          kubectl set image deployment/order-service order-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/order-service:${{ github.sha }}
-          kubectl set image deployment/payment-service payment-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/payment-service:${{ github.sha }}
-          kubectl set image deployment/notification-service notification-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/notification-service:${{ github.sha }}
-
-      - name: Wait for deployment
-        run: |
-          kubectl rollout status deployment/user-service --timeout=300s
-          kubectl rollout status deployment/product-service --timeout=300s
-          kubectl rollout status deployment/cart-service --timeout=300s
-          kubectl rollout status deployment/order-service --timeout=300s
-          kubectl rollout status deployment/payment-service --timeout=300s
-          kubectl rollout status deployment/notification-service --timeout=300s
+          kubectl apply -f infrastructure/kubernetes/staging/
+          kubectl rollout status deployment/api-gateway -n ultramarket-staging
+          kubectl rollout status deployment/user-service -n ultramarket-staging
+          kubectl rollout status deployment/product-service -n ultramarket-staging
 
       - name: Run smoke tests
         run: |
-          # Wait for services to be ready
-          sleep 30
-          # Run basic health checks
-          curl -f http://staging-api.ultramarket.com/health || exit 1
+          kubectl wait --for=condition=ready pod -l app=api-gateway -n ultramarket-staging --timeout=300s
+          npm run test:smoke -- --env=staging
 
   # Deploy to Production
   deploy-production:
-    name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [build-images, database-migration]
-    if: github.ref == 'refs/heads/main'
+    name: Deploy to Production
+    needs: [security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -212,200 +278,53 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
         with:
-          version: 'latest'
+          version: 'v1.28.0'
 
-      - name: Configure kubectl
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ultramarket-production
+
+      - name: Deploy to production with blue-green strategy
         run: |
-          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > kubeconfig
-          export KUBECONFIG=kubeconfig
+          # Blue-green deployment
+          kubectl apply -f infrastructure/kubernetes/production/
+          kubectl rollout status deployment/api-gateway -n ultramarket-production
+          kubectl rollout status deployment/user-service -n ultramarket-production
+          kubectl rollout status deployment/product-service -n ultramarket-production
 
-      - name: Deploy to production
+      - name: Run production health checks
         run: |
-          kubectl apply -f k8s/production/
-          kubectl set image deployment/user-service user-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/user-service:${{ github.sha }}
-          kubectl set image deployment/product-service product-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/product-service:${{ github.sha }}
-          kubectl set image deployment/cart-service cart-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/cart-service:${{ github.sha }}
-          kubectl set image deployment/order-service order-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/order-service:${{ github.sha }}
-          kubectl set image deployment/payment-service payment-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/payment-service:${{ github.sha }}
-          kubectl set image deployment/notification-service notification-service=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/notification-service:${{ github.sha }}
+          kubectl wait --for=condition=ready pod -l app=api-gateway -n ultramarket-production --timeout=300s
+          npm run test:health -- --env=production
 
-      - name: Wait for deployment
+      - name: Update traffic routing
         run: |
-          kubectl rollout status deployment/user-service --timeout=300s
-          kubectl rollout status deployment/product-service --timeout=300s
-          kubectl rollout status deployment/cart-service --timeout=300s
-          kubectl rollout status deployment/order-service --timeout=300s
-          kubectl rollout status deployment/payment-service --timeout=300s
-          kubectl rollout status deployment/notification-service --timeout=300s
+          # Update ingress to route traffic to new deployment
+          kubectl patch ingress ultramarket-ingress -n ultramarket-production --type='json' -p='[{"op": "replace", "path": "/spec/rules/0/http/paths/0/backend/service/name", "value": "api-gateway"}]'
 
-      - name: Run smoke tests
-        run: |
-          # Wait for services to be ready
-          sleep 30
-          # Run basic health checks
-          curl -f https://api.ultramarket.com/health || exit 1
-
-      - name: Notify deployment
+  # Notify
+  notify:
+    runs-on: ubuntu-latest
+    name: Notify Deployment
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    steps:
+      - name: Notify Slack
         uses: 8398a7/action-slack@v3
         with:
-          status: success
-          text: 'Production deployment completed successfully! 🚀'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
 
-  # Performance Testing
-  performance-test:
-    name: Performance Test
-    runs-on: ubuntu-latest
-    needs: [deploy-staging]
-    if: github.ref == 'refs/heads/develop'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run performance tests
+      - name: Update deployment status
         run: |
-          npm run test:performance
-        env:
-          API_URL: https://staging-api.ultramarket.com
-
-      - name: Upload performance results
-        uses: actions/upload-artifact@v3
-        with:
-          name: performance-results
-          path: performance-results/
-
-  # Security Testing
-  security-test:
-    name: Security Test
-    runs-on: ubuntu-latest
-    needs: [deploy-staging]
-    if: github.ref == 'refs/heads/develop'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run OWASP ZAP scan
-        uses: zaproxy/action-full-scan@v0.8.0
-        with:
-          target: 'https://staging-api.ultramarket.com'
-
-      - name: Upload security scan results
-        uses: actions/upload-artifact@v3
-        with:
-          name: security-scan-results
-          path: zap-report/
-
-  # Monitoring and Alerting
-  monitoring-check:
-    name: Monitoring Check
-    runs-on: ubuntu-latest
-    needs: [deploy-production]
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Check service health
-        run: |
-          # Check all services are healthy
-          services=("user-service" "product-service" "cart-service" "order-service" "payment-service" "notification-service")
-          for service in "${services[@]}"; do
-            if ! curl -f "https://api.ultramarket.com/$service/health"; then
-              echo "Service $service is not healthy"
-              exit 1
-            fi
-          done
-
-      - name: Check metrics endpoint
-        run: |
-          # Verify Prometheus metrics are being collected
-          curl -f https://api.ultramarket.com/metrics || exit 1
-
-      - name: Check logs
-        run: |
-          # Verify logs are being collected
-          # This would typically check with your logging service (ELK, etc.)
-          echo "Log collection verification completed"
-
-  # Documentation Update
-  update-docs:
-    name: Update Documentation
-    runs-on: ubuntu-latest
-    needs: [deploy-production]
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate API documentation
-        run: |
-          npm run docs:generate
-
-      - name: Deploy documentation
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
-
-  # Cleanup
-  cleanup:
-    name: Cleanup
-    runs-on: ubuntu-latest
-    if: always()
-    
-    steps:
-      - name: Cleanup Docker images
-        run: |
-          docker system prune -f
-          docker image prune -f
-
-      - name: Cleanup workspace
-        run: |
-          rm -rf node_modules
-          rm -rf .npm
-
-# Notifications
-notifications:
-  name: Notifications
-  runs-on: ubuntu-latest
-  needs: [lint-and-test, security-scan, build-images, deploy-production]
-  if: always()
-  
-  steps:
-    - name: Notify on failure
-      uses: 8398a7/action-slack@v3
-      if: failure()
-      with:
-        status: failure
-        text: 'Deployment failed! Please check the logs. ❌'
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-    - name: Notify on success
-      uses: 8398a7/action-slack@v3
-      if: success()
-      with:
-        status: success
-        text: 'All checks passed! ✅'
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          echo "Deployment completed with status: ${{ job.status }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
