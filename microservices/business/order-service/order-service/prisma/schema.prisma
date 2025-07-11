@@ -10,229 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Order {
-  id              String        @id @default(cuid())
-  orderNumber     String        @unique
-  userId          String
-  status          OrderStatus   @default(PENDING)
-  type            OrderType     @default(REGULAR)
-  currency        String        @default("USD")
-  subtotal        Decimal       @db.Decimal(10, 2)
-  taxAmount       Decimal       @db.Decimal(10, 2)
-  discountAmount  Decimal       @db.Decimal(10, 2)
-  shippingAmount  Decimal       @db.Decimal(10, 2)
-  totalAmount     Decimal       @db.Decimal(10, 2)
-  appliedCoupons  String[]
-  notes           String?
-  customerNotes   String?
-  internalNotes   String?
-  tags            String[]
-  metadata        Json?
-  estimatedDeliveryDate DateTime?
-  actualDeliveryDate DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  // Relations
-  items           OrderItem[]
-  shipping        Shipping?
-  billing         Billing?
-  payments        OrderPayment[]
-  statusHistory   OrderStatusHistory[]
-  notifications   OrderNotification[]
-
-  @@index([orderNumber])
-  @@index([userId])
-  @@index([status])
-  @@index([type])
-  @@index([createdAt])
-  @@map("orders")
-}
-
-model OrderItem {
-  id              String   @id @default(cuid())
-  orderId         String
-  productId       String
-  variantId       String?
-  name            String
-  sku             String
-  price           Decimal  @db.Decimal(10, 2)
-  comparePrice    Decimal? @db.Decimal(10, 2)
-  quantity        Int      @default(1)
-  weight          Decimal? @db.Decimal(8, 2)
-  dimensions      Json?
-  image           String?
-  attributes      Json?
-  isReturnable    Boolean  @default(true)
-  returnDeadline  DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relations
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([orderId])
-  @@index([productId])
-  @@index([sku])
-  @@map("order_items")
-}
-
-model Shipping {
-  id              String        @id @default(cuid())
-  orderId         String        @unique
-  method          String
-  carrier          String?
-  trackingNumber   String?
-  trackingUrl      String?
-  status           ShippingStatus @default(PENDING)
-  estimatedDeliveryDate DateTime?
-  actualDeliveryDate DateTime?
-  address          Json
-  cost             Decimal       @db.Decimal(10, 2)
-  weight           Decimal?      @db.Decimal(8, 2)
-  dimensions       Json?
-  signatureRequired Boolean      @default(false)
-  insuranceAmount  Decimal?      @db.Decimal(10, 2)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  // Relations
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([orderId])
-  @@index([status])
-  @@index([trackingNumber])
-  @@map("shipping")
-}
-
-model Billing {
-  id              String   @id @default(cuid())
-  orderId         String   @unique
-  method          String
-  status          String
-  amount           Decimal  @db.Decimal(10, 2)
-  currency         String   @default("USD")
-  provider         String?
-  transactionId    String?
-  address          Json
-  taxId            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  // Relations
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([orderId])
-  @@index([status])
-  @@map("billing")
-}
-
-model OrderPayment {
-  id              String        @id @default(cuid())
-  orderId         String
-  amount           Decimal       @db.Decimal(10, 2)
-  currency         String        @default("USD")
-  method           String
-  provider         String?
-  status           PaymentStatus @default(PENDING)
-  transactionId    String?
-  response         Json?
-  failureReason    String?
-  processedAt      DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  // Relations
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([orderId])
-  @@index([status])
-  @@index([transactionId])
-  @@map("order_payments")
-}
-
-model OrderStatusHistory {
-  id              String        @id @default(cuid())
-  orderId         String
-  status          OrderStatus
-  previousStatus  OrderStatus?
-  reason          String?
-  notes           String?
-  performedBy     String?
-  createdAt       DateTime      @default(now())
-
-  // Relations
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([orderId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("order_status_history")
-}
-
-model OrderNotification {
-  id              String        @id @default(cuid())
-  orderId         String
-  type            NotificationType
-  recipient       String
-  subject         String
-  message         String
-  status          NotificationStatus @default(PENDING)
-  sentAt          DateTime?
-  errorMessage    String?
-  createdAt       DateTime      @default(now())
-
-  // Relations
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([orderId])
-  @@index([type])
-  @@index([status])
-  @@index([createdAt])
-  @@map("order_notifications")
-}
-
-model Return {
-  id              String        @id @default(cuid())
-  orderId         String
-  orderItemId     String
-  reason          String
-  description     String?
-  status          ReturnStatus  @default(PENDING)
-  refundAmount    Decimal?      @db.Decimal(10, 2)
-  refundMethod    String?
-  returnLabel     String?
-  trackingNumber  String?
-  receivedAt      DateTime?
-  processedAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  @@index([orderId])
-  @@index([orderItemId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("returns")
-}
-
-model OrderAnalytics {
-  id              String   @id @default(cuid())
-  date            DateTime @db.Date
-  totalOrders     Int      @default(0)
-  totalRevenue    Decimal  @default(0) @db.Decimal(12, 2)
-  averageOrderValue Decimal @default(0) @db.Decimal(10, 2)
-  completedOrders Int      @default(0)
-  cancelledOrders Int      @default(0)
-  returnedOrders  Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([date])
-  @@index([date])
-  @@map("order_analytics")
-}
-
-// Enums
 enum OrderStatus {
   PENDING
   CONFIRMED
@@ -240,28 +17,8 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
-  RETURNED
   REFUNDED
-  PARTIALLY_REFUNDED
-  ON_HOLD
-  BACKORDERED
-}
-
-enum OrderType {
-  REGULAR
-  SUBSCRIPTION
-  PREORDER
-  GIFT
-  WHOLESALE
-}
-
-enum ShippingStatus {
-  PENDING
-  PROCESSING
-  SHIPPED
-  DELIVERED
-  FAILED
-  RETURNED
+  PAID
 }
 
 enum PaymentStatus {
@@ -269,30 +26,131 @@ enum PaymentStatus {
   PROCESSING
   COMPLETED
   FAILED
-  CANCELLED
   REFUNDED
-  PARTIALLY_REFUNDED
-}
-
-enum ReturnStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  PROCESSING
-  COMPLETED
   CANCELLED
 }
 
-enum NotificationType {
-  EMAIL
-  SMS
-  PUSH
-  WEBHOOK
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  DIGITAL_WALLET
+  CASH_ON_DELIVERY
 }
 
-enum NotificationStatus {
-  PENDING
-  SENT
-  FAILED
-  CANCELLED
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  status          OrderStatus @default(PENDING)
+  total           Decimal     @db.Decimal(10, 2)
+  subtotal        Decimal     @db.Decimal(10, 2)
+  tax             Decimal     @db.Decimal(10, 2) @default(0)
+  shipping        Decimal     @db.Decimal(10, 2) @default(0)
+  discount        Decimal     @db.Decimal(10, 2) @default(0)
+  
+  shippingAddress Json
+  billingAddress  Json?
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus @default(PENDING)
+  
+  notes           String?
+  trackingNumber  String?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderItems      OrderItem[]
+  payments        Payment[]
+  orderHistory    OrderHistory[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([paymentStatus])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2)
+  subtotal  Decimal  @db.Decimal(10, 2)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+  
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String
+  amount        Decimal       @db.Decimal(10, 2)
+  currency      String        @default("USD")
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?
+  gateway       String?
+  
+  metadata      Json?
+  errorMessage  String?
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Relations
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  @@index([orderId])
+  @@index([status])
+  @@index([transactionId])
+}
+
+model OrderHistory {
+  id        String      @id @default(cuid())
+  orderId   String
+  status    OrderStatus
+  notes     String?
+  updatedBy String
+  
+  createdAt DateTime    @default(now())
+  
+  // Relations
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+// External models (referenced from other services)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  
+  // Relations
+  orders    Order[]
+  
+  @@map("users")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  
+  // Relations
+  orderItems  OrderItem[]
+  
+  @@map("products")
 }
