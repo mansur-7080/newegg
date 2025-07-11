@@ -1,0 +1,467 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ultramarket-alerts
+  namespace: ultramarket
+  labels:
+    app: ultramarket
+    component: monitoring
+spec:
+  groups:
+    # =============================================
+    # BUSINESS METRICS ALERTS
+    # =============================================
+    - name: business-metrics
+      interval: 30s
+      rules:
+        # Critical business alerts
+        - alert: HighOrderFailureRate
+          expr: |
+            (
+              sum(rate(order_failures_total[5m])) /
+              sum(rate(order_attempts_total[5m]))
+            ) * 100 > 5
+          for: 2m
+          labels:
+            severity: critical
+            team: business
+            category: orders
+          annotations:
+            summary: 'High order failure rate detected'
+            description: 'Order failure rate is {{ $value }}% over the last 5 minutes, which is above the 5% threshold.'
+            runbook_url: 'https://wiki.company.com/runbooks/high-order-failure-rate'
+
+        - alert: PaymentGatewayDown
+          expr: |
+            up{job="payment-gateway"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            team: business
+            category: payments
+          annotations:
+            summary: 'Payment gateway is down'
+            description: 'Payment gateway {{ $labels.instance }} has been down for more than 1 minute.'
+            impact: 'Users cannot complete purchases'
+
+        - alert: LowConversionRate
+          expr: |
+            (
+              sum(rate(orders_completed_total[1h])) /
+              sum(rate(cart_created_total[1h]))
+            ) * 100 < 2
+          for: 10m
+          labels:
+            severity: warning
+            team: business
+            category: conversion
+          annotations:
+            summary: 'Conversion rate is unusually low'
+            description: 'Cart-to-order conversion rate is {{ $value }}% over the last hour, which is below normal.'
+
+        - alert: HighCartAbandonmentRate
+          expr: |
+            (
+              sum(rate(cart_abandoned_total[1h])) /
+              sum(rate(cart_created_total[1h]))
+            ) * 100 > 70
+          for: 15m
+          labels:
+            severity: warning
+            team: business
+            category: conversion
+          annotations:
+            summary: 'High cart abandonment rate'
+            description: 'Cart abandonment rate is {{ $value }}% over the last hour.'
+
+        - alert: InventoryLowStock
+          expr: |
+            product_stock_quantity < product_low_stock_threshold
+          for: 5m
+          labels:
+            severity: warning
+            team: inventory
+            category: stock
+          annotations:
+            summary: 'Product {{ $labels.product_name }} is low on stock'
+            description: 'Product {{ $labels.product_name }} (SKU: {{ $labels.sku }}) has {{ $value }} units remaining.'
+
+        - alert: RevenueDropSignificant
+          expr: |
+            (
+              sum(rate(revenue_total[1h])) < 
+              sum(rate(revenue_total[1h] offset 24h)) * 0.7
+            )
+          for: 30m
+          labels:
+            severity: critical
+            team: business
+            category: revenue
+          annotations:
+            summary: 'Significant revenue drop detected'
+            description: 'Current hourly revenue is 30% lower than the same time yesterday.'
+
+        - alert: HighRefundRate
+          expr: |
+            (
+              sum(rate(refunds_total[24h])) /
+              sum(rate(orders_completed_total[24h]))
+            ) * 100 > 10
+          for: 1h
+          labels:
+            severity: warning
+            team: business
+            category: refunds
+          annotations:
+            summary: 'High refund rate detected'
+            description: 'Refund rate is {{ $value }}% over the last 24 hours.'
+
+    # =============================================
+    # APPLICATION PERFORMANCE ALERTS
+    # =============================================
+    - name: application-performance
+      interval: 30s
+      rules:
+        - alert: HighResponseTime
+          expr: |
+            histogram_quantile(0.95, 
+              sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            category: performance
+          annotations:
+            summary: 'High response time for {{ $labels.service }}'
+            description: '95th percentile response time is {{ $value }}s for service {{ $labels.service }}.'
+
+        - alert: HighErrorRate
+          expr: |
+            (
+              sum(rate(http_requests_total{status=~"5.."}[5m])) by (service) /
+              sum(rate(http_requests_total[5m])) by (service)
+            ) * 100 > 5
+          for: 2m
+          labels:
+            severity: critical
+            team: platform
+            category: errors
+          annotations:
+            summary: 'High error rate for {{ $labels.service }}'
+            description: 'Error rate is {{ $value }}% for service {{ $labels.service }}.'
+
+        - alert: DatabaseConnectionPoolExhausted
+          expr: |
+            database_connection_pool_active / database_connection_pool_max > 0.9
+          for: 2m
+          labels:
+            severity: critical
+            team: platform
+            category: database
+          annotations:
+            summary: 'Database connection pool nearly exhausted'
+            description: 'Database connection pool is {{ $value | humanizePercentage }} full for {{ $labels.service }}.'
+
+        - alert: SlowDatabaseQueries
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(database_query_duration_seconds_bucket[5m])) by (le, service)
+            ) > 5
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            category: database
+          annotations:
+            summary: 'Slow database queries detected'
+            description: '95th percentile query time is {{ $value }}s for {{ $labels.service }}.'
+
+    # =============================================
+    # INFRASTRUCTURE ALERTS
+    # =============================================
+    - name: infrastructure
+      interval: 30s
+      rules:
+        - alert: HighCPUUsage
+          expr: |
+            100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+          for: 5m
+          labels:
+            severity: warning
+            team: infrastructure
+            category: cpu
+          annotations:
+            summary: 'High CPU usage on {{ $labels.instance }}'
+            description: 'CPU usage is {{ $value }}% on instance {{ $labels.instance }}.'
+
+        - alert: HighMemoryUsage
+          expr: |
+            (
+              (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / 
+              node_memory_MemTotal_bytes
+            ) * 100 > 85
+          for: 5m
+          labels:
+            severity: warning
+            team: infrastructure
+            category: memory
+          annotations:
+            summary: 'High memory usage on {{ $labels.instance }}'
+            description: 'Memory usage is {{ $value }}% on instance {{ $labels.instance }}.'
+
+        - alert: DiskSpaceLow
+          expr: |
+            (
+              (node_filesystem_size_bytes - node_filesystem_free_bytes) /
+              node_filesystem_size_bytes
+            ) * 100 > 85
+          for: 5m
+          labels:
+            severity: warning
+            team: infrastructure
+            category: disk
+          annotations:
+            summary: 'Low disk space on {{ $labels.instance }}'
+            description: 'Disk usage is {{ $value }}% on {{ $labels.device }} at {{ $labels.instance }}.'
+
+        - alert: HighNetworkErrors
+          expr: |
+            rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]) > 10
+          for: 5m
+          labels:
+            severity: warning
+            team: infrastructure
+            category: network
+          annotations:
+            summary: 'High network errors on {{ $labels.instance }}'
+            description: 'Network error rate is {{ $value }} errors/sec on {{ $labels.device }} at {{ $labels.instance }}.'
+
+    # =============================================
+    # MICROSERVICES HEALTH ALERTS
+    # =============================================
+    - name: microservices-health
+      interval: 30s
+      rules:
+        - alert: ServiceDown
+          expr: |
+            up{job=~".*-service"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            team: platform
+            category: availability
+          annotations:
+            summary: 'Service {{ $labels.job }} is down'
+            description: 'Service {{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute.'
+
+        - alert: ServiceHighRequestRate
+          expr: |
+            sum(rate(http_requests_total[5m])) by (service) > 1000
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            category: load
+          annotations:
+            summary: 'High request rate for {{ $labels.service }}'
+            description: 'Request rate is {{ $value }} req/sec for service {{ $labels.service }}.'
+
+        - alert: ServiceCircuitBreakerOpen
+          expr: |
+            circuit_breaker_state{state="open"} == 1
+          for: 1m
+          labels:
+            severity: warning
+            team: platform
+            category: circuit-breaker
+          annotations:
+            summary: 'Circuit breaker is open for {{ $labels.service }}'
+            description: 'Circuit breaker is open for service {{ $labels.service }}, blocking requests.'
+
+    # =============================================
+    # SECURITY ALERTS
+    # =============================================
+    - name: security
+      interval: 30s
+      rules:
+        - alert: HighFailedLoginAttempts
+          expr: |
+            sum(rate(auth_login_failures_total[5m])) > 50
+          for: 2m
+          labels:
+            severity: warning
+            team: security
+            category: authentication
+          annotations:
+            summary: 'High number of failed login attempts'
+            description: '{{ $value }} failed login attempts per second over the last 5 minutes.'
+
+        - alert: SuspiciousAPIUsage
+          expr: |
+            sum(rate(http_requests_total{status="401"}[5m])) by (source_ip) > 100
+          for: 5m
+          labels:
+            severity: warning
+            team: security
+            category: api-abuse
+          annotations:
+            summary: 'Suspicious API usage from {{ $labels.source_ip }}'
+            description: 'High rate of 401 errors from IP {{ $labels.source_ip }}.'
+
+        - alert: UnauthorizedAccessAttempts
+          expr: |
+            sum(rate(security_unauthorized_access_total[5m])) > 10
+          for: 2m
+          labels:
+            severity: critical
+            team: security
+            category: access-control
+          annotations:
+            summary: 'Multiple unauthorized access attempts detected'
+            description: '{{ $value }} unauthorized access attempts per second.'
+
+    # =============================================
+    # DATA QUALITY ALERTS
+    # =============================================
+    - name: data-quality
+      interval: 60s
+      rules:
+        - alert: InconsistentOrderData
+          expr: |
+            abs(
+              sum(orders_total) - 
+              sum(order_items_total)
+            ) > 0
+          for: 10m
+          labels:
+            severity: warning
+            team: data
+            category: consistency
+          annotations:
+            summary: 'Inconsistent order data detected'
+            description: 'Mismatch between orders count and order items count.'
+
+        - alert: StaleDataDetected
+          expr: |
+            time() - max(last_sync_timestamp) > 3600
+          for: 5m
+          labels:
+            severity: warning
+            team: data
+            category: freshness
+          annotations:
+            summary: 'Stale data detected'
+            description: "Data hasn't been synced for over 1 hour."
+
+    # =============================================
+    # CUSTOM BUSINESS RULES
+    # =============================================
+    - name: business-rules
+      interval: 60s
+      rules:
+        - alert: AbnormalPeakTraffic
+          expr: |
+            sum(rate(http_requests_total[5m])) > 
+            (
+              sum(rate(http_requests_total[5m] offset 1w)) * 3
+            )
+          for: 10m
+          labels:
+            severity: warning
+            team: business
+            category: traffic
+          annotations:
+            summary: 'Abnormal traffic spike detected'
+            description: 'Current traffic is 3x higher than the same time last week.'
+
+        - alert: ProductPageLoadingSlow
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(page_load_duration_seconds_bucket{page="product"}[5m])) by (le)
+            ) > 3
+          for: 5m
+          labels:
+            severity: warning
+            team: frontend
+            category: performance
+          annotations:
+            summary: 'Product pages loading slowly'
+            description: '95th percentile page load time is {{ $value }}s for product pages.'
+
+        - alert: SearchResultsEmpty
+          expr: |
+            (
+              sum(rate(search_results_empty_total[10m])) /
+              sum(rate(search_queries_total[10m]))
+            ) * 100 > 20
+          for: 5m
+          labels:
+            severity: warning
+            team: search
+            category: relevance
+          annotations:
+            summary: 'High rate of empty search results'
+            description: '{{ $value }}% of searches return no results.'
+
+        - alert: RecommendationEngineDown
+          expr: |
+            up{job="recommendation-service"} == 0
+          for: 2m
+          labels:
+            severity: warning
+            team: ml
+            category: recommendations
+          annotations:
+            summary: 'Recommendation engine is down'
+            description: 'Recommendation service is unavailable, affecting user experience.'
+
+    # =============================================
+    # SLA MONITORING
+    # =============================================
+    - name: sla-monitoring
+      interval: 300s # 5 minutes
+      rules:
+        - record: sla:availability:5m
+          expr: |
+            (
+              sum(up{job=~".*-service"}) /
+              count(up{job=~".*-service"})
+            ) * 100
+
+        - record: sla:response_time:5m
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+            )
+
+        - record: sla:error_rate:5m
+          expr: |
+            (
+              sum(rate(http_requests_total{status=~"5.."}[5m])) /
+              sum(rate(http_requests_total[5m]))
+            ) * 100
+
+        - alert: SLABreach
+          expr: |
+            sla:availability:5m < 99.9
+          for: 0m
+          labels:
+            severity: critical
+            team: sre
+            category: sla
+          annotations:
+            summary: 'SLA breach: Availability below 99.9%'
+            description: 'System availability is {{ $value }}% which breaches our 99.9% SLA.'
+
+        - alert: SLAWarning
+          expr: |
+            sla:availability:5m < 99.95
+          for: 5m
+          labels:
+            severity: warning
+            team: sre
+            category: sla
+          annotations:
+            summary: 'SLA warning: Availability approaching threshold'
+            description: 'System availability is {{ $value }}%, approaching SLA threshold.'

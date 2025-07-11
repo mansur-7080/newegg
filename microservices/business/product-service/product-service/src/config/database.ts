@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { logger } from '@ultramarket/common';
+import { logger } from '@ultramarket/shared';
 
 const connectDB = async (): Promise<void> => {
   try {

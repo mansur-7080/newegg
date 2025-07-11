@@ -4,10 +4,11 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import { logger } from '@ultramarket/common';
+import { logger } from '@ultramarket/shared';
 import { errorHandler } from './middleware/errorHandler';
 import productRoutes from './routes/productRoutes';
 import connectDB from './config/database';
+import { setupSwagger } from './docs/swagger';
 
 // Load environment variables
 dotenv.config();
@@ -58,6 +59,9 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Setup Swagger documentation
+setupSwagger(app);
+
 // API routes
 app.use('/api/v1', productRoutes);
 
@@ -104,5 +108,4 @@ const startServer = async () => {
 };
 
 // Initialize server
-startServer();
 startServer();

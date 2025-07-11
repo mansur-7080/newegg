@@ -1,4 +1,4 @@
-import { logger } from '@ultramarket/common';
+import { logger } from '@ultramarket/shared';
 import mongoose from 'mongoose';
 import { Product, Category, Review } from '../models';
 import { IProduct } from '../models/Product';

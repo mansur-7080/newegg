@@ -60,6 +60,7 @@ services:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
       - '--web.external-url=http://localhost:9093'
+      - '--web.route-prefix=/'
     networks:
       - ultramarket-monitoring
     restart: unless-stopped
@@ -76,9 +77,20 @@ services:
       - /:/rootfs:ro
     command:
       - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - ultramarket-monitoring
+    restart: unless-stopped
+
+  # Blackbox Exporter - External Monitoring
+  blackbox-exporter:
+    image: prom/blackbox-exporter:latest
+    container_name: ultramarket-blackbox-exporter
+    ports:
+      - '9115:9115'
+    volumes:
+      - ./blackbox.yml:/etc/blackbox_exporter/config.yml
     networks:
       - ultramarket-monitoring
     restart: unless-stopped

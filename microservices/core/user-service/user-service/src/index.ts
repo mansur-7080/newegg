@@ -1,12 +1,31 @@
-import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
 import { errorHandler, requestLogger } from './middleware/errorHandler';
 import userRoutes from './routes/userRoutes';
+import { logger } from './utils/logger';
+import { validateEnvironment, userServiceEnvironmentSchema } from '@shared/validation';
+
+// Load environment variables
+dotenv.config();
+
+// Validate environment variables before starting the service
+try {
+  const validatedEnv = validateEnvironment(userServiceEnvironmentSchema, process.env);
+
+  // Update process.env with validated values
+  Object.assign(process.env, validatedEnv);
+
+  logger.info('✅ Environment validation passed');
+} catch (error) {
+  logger.error('❌ Environment validation failed:', error);
+  process.exit(1);
+}
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env['PORT'] || 3001;
 
 // Middleware
 app.use(helmet());
@@ -40,6 +59,9 @@ app.use('*', (req, res) => {
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(`User Service running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`🚀 User Service running on port ${PORT}`);
+  logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
+  logger.info(`💾 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+  logger.info(`🔐 Redis: ${process.env.REDIS_URL ? 'Connected' : 'Not configured'}`);
 });

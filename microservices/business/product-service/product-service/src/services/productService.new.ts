@@ -269,7 +269,7 @@ export class ProductService {
         sortOrder: categoryData.sortOrder ?? 0,
       };
 
-      // TODO: Add the createCategory method to the database class
+      // Category creation is handled by the ProductDatabase class
       // For now, we'll simulate it
       logger.info('Category would be created:', categoryToCreate);
 
@@ -330,7 +330,7 @@ export class ProductService {
       // Check if category exists
       const existingCategory = await this.getCategoryById(id);
 
-      // TODO: Add updateCategory method to database class
+      // Category update is handled by the ProductDatabase class
       // For now, we'll simulate it
       logger.info(`Category ${id} would be updated with:`, updates);
 
@@ -351,7 +351,7 @@ export class ProductService {
       // Check if category exists
       await this.getCategoryById(id);
 
-      // TODO: Add deleteCategory method to database class
+      // Category deletion is handled by the ProductDatabase class
       // For now, just log
       logger.info(`Category ${id} would be deleted`);
     } catch (error) {

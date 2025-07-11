@@ -15,7 +15,7 @@ model User {
   firstName       String
   lastName        String
   phoneNumber     String?
-  role            String    @default("CUSTOMER")  // CUSTOMER, SELLER, ADMIN, SUPER_ADMIN
+  role            UserRole  @default(CUSTOMER)
   isActive        Boolean   @default(true)
   isEmailVerified Boolean   @default(false)
   profileImage    String?
@@ -39,7 +39,7 @@ model Address {
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  type        String    // SHIPPING, BILLING
+  type        AddressType
   street1     String
   street2     String?
   city        String
@@ -109,6 +109,14 @@ model PasswordReset {
   @@index([token])
 }
 
-// For SQLite compatibility, using String instead of enum
-// UserRole: CUSTOMER, SELLER, ADMIN, SUPER_ADMIN
-// AddressType: SHIPPING, BILLING 
+enum UserRole {
+  CUSTOMER
+  SELLER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+} 

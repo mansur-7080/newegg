@@ -17,7 +17,7 @@ model Payment {
   amount          Decimal       @db.Decimal(10, 2)
   currency        String        @default("USD")
   status          PaymentStatus @default(PENDING)
-  method          PaymentMethod
+  method          PaymentMethodType
   provider        PaymentProvider
   providerTransactionId String?
   providerResponse Json?
@@ -33,20 +33,19 @@ model Payment {
   updatedAt       DateTime      @updatedAt
 
   // Relations
-  paymentMethod   PaymentMethod @relation(fields: [methodId], references: [id])
-  methodId        String
+  paymentMethod   PaymentMethodRecord? @relation(fields: [methodId], references: [id])
+  methodId        String?
   refunds         Refund[]
 
   @@index([orderId])
   @@index([userId])
   @@index([status])
-  @@index([method])
   @@index([provider])
   @@index([createdAt])
   @@map("payments")
 }
 
-model PaymentMethod {
+model PaymentMethodRecord {
   id              String        @id @default(cuid())
   userId          String
   type            PaymentMethodType
@@ -195,15 +194,7 @@ enum PaymentStatus {
   PARTIALLY_REFUNDED
 }
 
-enum PaymentMethod {
-  CREDIT_CARD
-  DEBIT_CARD
-  BANK_TRANSFER
-  DIGITAL_WALLET
-  CRYPTOCURRENCY
-  CASH_ON_DELIVERY
-  BUY_NOW_PAY_LATER
-}
+// PaymentMethod enum removed - using PaymentMethodType instead
 
 enum PaymentProvider {
   STRIPE

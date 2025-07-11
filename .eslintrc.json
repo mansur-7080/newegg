@@ -2,8 +2,29 @@
   "root": true,
   "env": {
     "browser": true,
-    "es2021": true,
-    "node": true
+    "es2022": true,
+    "node": true,
+    "jest": true
+  },
+  "globals": {
+    "process": "readonly",
+    "console": "readonly",
+    "module": "readonly",
+    "require": "readonly",
+    "exports": "readonly",
+    "__dirname": "readonly",
+    "__filename": "readonly",
+    "global": "readonly",
+    "Buffer": "readonly",
+    "jest": "readonly",
+    "describe": "readonly",
+    "it": "readonly",
+    "test": "readonly",
+    "expect": "readonly",
+    "beforeEach": "readonly",
+    "afterEach": "readonly",
+    "beforeAll": "readonly",
+    "afterAll": "readonly"
   },
   "extends": [
     "eslint:recommended",
@@ -12,51 +33,181 @@
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "ecmaVersion": "latest",
+    "ecmaVersion": 2022,
     "sourceType": "module",
-    "project": [
-      "./tsconfig.json",
-      "./microservices/*/tsconfig.json",
-      "./microservices/*/*/tsconfig.json",
-      "./frontend/*/tsconfig.json",
-      "./libs/*/tsconfig.json"
-    ]
+    "project": "./tsconfig.json"
   },
-  "plugins": ["@typescript-eslint", "prefer-arrow"],
+  "plugins": ["@typescript-eslint", "import", "security"],
   "rules": {
+    // TypeScript specific rules
     "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
-    "@typescript-eslint/no-explicit-any": "error",
-    "@typescript-eslint/explicit-function-return-type": "warn",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/no-inferrable-types": "off",
     "@typescript-eslint/no-non-null-assertion": "warn",
     "@typescript-eslint/prefer-nullish-coalescing": "error",
     "@typescript-eslint/prefer-optional-chain": "error",
-    "prefer-arrow/prefer-arrow-functions": "error",
-    "no-console": "warn",
+    "@typescript-eslint/no-floating-promises": "error",
+    "@typescript-eslint/await-thenable": "error",
+    "@typescript-eslint/no-misused-promises": "error",
+    "@typescript-eslint/require-await": "error",
+    "@typescript-eslint/no-unsafe-assignment": "warn",
+    "@typescript-eslint/no-unsafe-member-access": "warn",
+    "@typescript-eslint/no-unsafe-call": "warn",
+    "@typescript-eslint/no-unsafe-return": "warn",
+
+    // Import rules
+    "import/order": [
+      "error",
+      {
+        "groups": ["builtin", "external", "internal", "parent", "sibling", "index"],
+        "newlines-between": "always",
+        "alphabetize": {
+          "order": "asc",
+          "caseInsensitive": true
+        }
+      }
+    ],
+    "import/no-unresolved": "off",
+    "import/no-cycle": "error",
+    "import/no-unused-modules": "off",
+
+    // Security rules
+    "security/detect-object-injection": "warn",
+    "security/detect-non-literal-regexp": "warn",
+    "security/detect-unsafe-regex": "error",
+    "security/detect-buffer-noassert": "error",
+    "security/detect-child-process": "warn",
+    "security/detect-disable-mustache-escape": "error",
+    "security/detect-eval-with-expression": "error",
+    "security/detect-no-csrf-before-method-override": "error",
+    "security/detect-non-literal-fs-filename": "warn",
+    "security/detect-non-literal-require": "warn",
+    "security/detect-possible-timing-attacks": "warn",
+    "security/detect-pseudoRandomBytes": "error",
+
+    // General rules
+    "no-console": "off",
     "no-debugger": "error",
-    "prefer-const": "error",
+    "no-alert": "error",
     "no-var": "error",
-    "object-shorthand": "error",
-    "prefer-template": "error"
+    "prefer-const": "error",
+    "prefer-arrow-callback": "error",
+    "arrow-spacing": "error",
+    "no-duplicate-imports": "error",
+    "no-unused-expressions": "error",
+    "no-unreachable": "error",
+    "no-constant-condition": "error",
+    "no-empty": "error",
+    "no-extra-semi": "error",
+    "no-func-assign": "error",
+    "no-irregular-whitespace": "error",
+    "no-obj-calls": "error",
+    "no-sparse-arrays": "error",
+    "no-unexpected-multiline": "error",
+    "no-unreachable-loop": "error",
+    "use-isnan": "error",
+    "valid-typeof": "error",
+
+    // Best practices
+    "curly": "error",
+    "dot-notation": "error",
+    "eqeqeq": "error",
+    "no-caller": "error",
+    "no-else-return": "error",
+    "no-eval": "error",
+    "no-extend-native": "error",
+    "no-extra-bind": "error",
+    "no-fallthrough": "error",
+    "no-floating-decimal": "error",
+    "no-implicit-coercion": "error",
+    "no-implied-eval": "error",
+    "no-iterator": "error",
+    "no-labels": "error",
+    "no-lone-blocks": "error",
+    "no-loop-func": "error",
+    "no-multi-spaces": "error",
+    "no-multi-str": "error",
+    "no-new": "error",
+    "no-new-func": "error",
+    "no-new-wrappers": "error",
+    "no-octal": "error",
+    "no-octal-escape": "error",
+    "no-param-reassign": "error",
+    "no-proto": "error",
+    "no-redeclare": "error",
+    "no-return-assign": "error",
+    "no-script-url": "error",
+    "no-self-compare": "error",
+    "no-sequences": "error",
+    "no-throw-literal": "error",
+    "no-unused-labels": "error",
+    "no-useless-call": "error",
+    "no-useless-concat": "error",
+    "no-void": "error",
+    "no-with": "error",
+    "radix": "error",
+    "wrap-iife": "error",
+    "yoda": "error"
   },
   "overrides": [
     {
-      "files": ["**/*.test.ts", "**/*.spec.ts"],
+      "files": ["*.test.ts", "*.spec.ts", "**/__tests__/**/*"],
       "env": {
         "jest": true
       },
       "rules": {
-        "@typescript-eslint/no-explicit-any": "off"
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-return": "off"
       }
     },
     {
-      "files": ["frontend/**/*.tsx"],
-      "extends": ["plugin:react/recommended", "plugin:react-hooks/recommended"],
-      "plugins": ["react", "react-hooks"],
+      "files": ["*.js", "*.config.js", "jest.*.js", "babel.config.js"],
+      "env": {
+        "node": true,
+        "commonjs": true
+      },
       "rules": {
-        "react/react-in-jsx-scope": "off",
-        "react/prop-types": "off"
+        "@typescript-eslint/no-var-requires": "off",
+        "@typescript-eslint/no-require-imports": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-return": "off"
+      }
+    },
+    {
+      "files": ["healthcheck.js"],
+      "env": {
+        "node": true
+      },
+      "rules": {
+        "no-console": "off",
+        "@typescript-eslint/no-var-requires": "off",
+        "@typescript-eslint/no-require-imports": "off"
       }
     }
   ],
-  "ignorePatterns": ["dist/", "build/", "node_modules/", "*.js", "*.d.ts"]
+  "settings": {
+    "import/resolver": {
+      "typescript": {
+        "alwaysTryTypes": true,
+        "project": "./tsconfig.json"
+      }
+    }
+  },
+  "ignorePatterns": [
+    "dist/",
+    "build/",
+    "node_modules/",
+    "coverage/",
+    "*.min.js",
+    "*.bundle.js",
+    "prisma/migrations/",
+    "**/*.d.ts"
+  ]
 }

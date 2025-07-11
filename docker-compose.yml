@@ -9,9 +9,9 @@ services:
     image: postgres:15-alpine
     container_name: ultramarket-postgres
     environment:
-      POSTGRES_DB: ultramarket
-      POSTGRES_USER: ultramarket_user
-      POSTGRES_PASSWORD: ultramarket_password
+      POSTGRES_DB: ${POSTGRES_DB:-ultramarket}
+      POSTGRES_USER: ${POSTGRES_USER:-ultramarket_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     ports:
       - '5432:5432'
     volumes:
@@ -30,9 +30,9 @@ services:
     image: mongo:7
     container_name: ultramarket-mongodb
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ultramarket_admin
-      MONGO_INITDB_ROOT_PASSWORD: ultramarket_password
-      MONGO_INITDB_DATABASE: ultramarket_products
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USERNAME:-ultramarket_admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:?MONGODB_PASSWORD is required}
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:-ultramarket_products}
     ports:
       - '27017:27017'
     volumes:
@@ -50,7 +50,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: ultramarket-redis
-    command: redis-server --requirepass ultramarket_password
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     ports:
       - '6379:6379'
     volumes:
@@ -125,15 +125,15 @@ services:
       dockerfile: Dockerfile
     container_name: ultramarket-api-gateway
     environment:
-      NODE_ENV: development
-      PORT: 3000
-      USER_SERVICE_URL: http://user-service:3001
-      AUTH_SERVICE_URL: http://auth-service:3002
-      PRODUCT_SERVICE_URL: http://product-service:3003
-      ORDER_SERVICE_URL: http://order-service:3004
-      PAYMENT_SERVICE_URL: http://payment-service:3005
-      REDIS_URL: redis://:ultramarket_password@redis:6379
-      JWT_SECRET: your-super-secret-jwt-key-for-development
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${API_GATEWAY_PORT:-3000}
+      USER_SERVICE_URL: http://user-service:${USER_SERVICE_PORT:-3001}
+      AUTH_SERVICE_URL: http://auth-service:${AUTH_SERVICE_PORT:-3002}
+      PRODUCT_SERVICE_URL: http://product-service:${PRODUCT_SERVICE_PORT:-3003}
+      ORDER_SERVICE_URL: http://order-service:${ORDER_SERVICE_PORT:-3004}
+      PAYMENT_SERVICE_URL: http://payment-service:${PAYMENT_SERVICE_PORT:-3005}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
     ports:
       - '3000:3000'
     depends_on:
@@ -156,11 +156,13 @@ services:
       dockerfile: Dockerfile
     container_name: ultramarket-user-service
     environment:
-      NODE_ENV: development
-      PORT: 3001
-      DATABASE_URL: postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket_users
-      REDIS_URL: redis://:ultramarket_password@redis:6379
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${USER_SERVICE_PORT:-3001}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       KAFKA_BROKERS: kafka:9092
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
     ports:
       - '3001:3001'
     depends_on:
@@ -442,7 +444,7 @@ services:
     image: grafana/grafana:latest
     container_name: ultramarket-grafana
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
     ports:
       - '3001:3000'
     volumes:

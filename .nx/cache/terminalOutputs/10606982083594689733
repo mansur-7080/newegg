@@ -1,0 +1,80 @@
+
+> @ultramarket/pc-builder-service@1.0.0 test
+> jest
+
+[0m[7m[1m[31m FAIL [39m[22m[27m[0m [2mpc-builder-service/dist/tests/[22m[1mpcBuilderService.test.js[22m
+  [1m● [22mTest suite failed to run
+
+    ReferenceError: D:\UltraMarket\microservices\business\pc-builder-service\pc-builder-service\dist\tests\pcBuilderService.test.js: The module factory of `jest.mock()` is not allowed to reference any out-of-scope variables.
+    Invalid variable access: Component_1
+    Allowed objects: AbortController, AbortSignal, AggregateError, Array, ArrayBuffer, Atomics, BigInt, BigInt64Array, BigUint64Array, Blob, Boolean, BroadcastChannel, Buffer, ByteLengthQueuingStrategy, CompressionStream, CountQueuingStrategy, Crypto, CryptoKey, CustomEvent, DOMException, DataView, Date, DecompressionStream, Error, EvalError, Event, EventTarget, File, FinalizationRegistry, Float32Array, Float64Array, FormData, Function, Generator, GeneratorFunction, Headers, Infinity, Int16Array, Int32Array, Int8Array, InternalError, Intl, Iterator, JSON, Map, Math, MessageChannel, MessageEvent, MessagePort, NaN, Navigator, Number, Object, Performance, PerformanceEntry, PerformanceMark, PerformanceMeasure, PerformanceObserver, PerformanceObserverEntryList, PerformanceResourceTiming, Promise, Proxy, RangeError, ReadableByteStreamController, ReadableStream, ReadableStreamBYOBReader, ReadableStreamBYOBRequest, ReadableStreamDefaultController, ReadableStreamDefaultReader, ReferenceError, Reflect, RegExp, Request, Response, Set, SharedArrayBuffer, String, SubtleCrypto, Symbol, SyntaxError, TextDecoder, TextDecoderStream, TextEncoder, TextEncoderStream, TransformStream, TransformStreamDefaultController, TypeError, URIError, URL, URLSearchParams, Uint16Array, Uint32Array, Uint8Array, Uint8ClampedArray, WeakMap, WeakRef, WeakSet, WebAssembly, WebSocket, WritableStream, WritableStreamDefaultController, WritableStreamDefaultWriter, __dirname, __filename, arguments, atob, btoa, clearImmediate, clearInterval, clearTimeout, console, crypto, decodeURI, decodeURIComponent, encodeURI, encodeURIComponent, escape, eval, expect, exports, fetch, global, globalThis, isFinite, isNaN, jest, module, navigator, parseFloat, parseInt, performance, process, queueMicrotask, require, setImmediate, setInterval, setTimeout, structuredClone, undefined, unescape.
+    Note: This is a precaution to guard against uninitialized mock variables. If it is ensured that the mock is required lazily, variable names prefixed with `mock` (case insensitive) are permitted.
+
+    [0m [90m 18 |[39m                 getAIBuildRecommendation[33m:[39m jest[33m.[39mfn()[33m.[39mmockResolvedValue({
+     [90m 19 |[39m                     components[33m:[39m {
+    [31m[1m>[22m[39m[90m 20 |[39m                         [[33mComponent_1[39m[33m.[39m[33mComponentType[39m[33m.[39m[33mCPU[39m][33m:[39m { name[33m:[39m [32m'Test CPU'[39m[33m,[39m price[33m:[39m [35m200[39m }[33m,[39m
+     [90m    |[39m                          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+     [90m 21 |[39m                         [[33mComponent_1[39m[33m.[39m[33mComponentType[39m[33m.[39m[33mVIDEO_CARD[39m][33m:[39m { name[33m:[39m [32m'Test GPU'[39m[33m,[39m price[33m:[39m [35m300[39m }[33m,[39m
+     [90m 22 |[39m                     }[33m,[39m
+     [90m 23 |[39m                     explanation[33m:[39m [[32m'Test explanation'[39m][33m,[39m[0m
+
+      [2mat File.buildCodeFrameError ([22m../../../node_modules/@babel/core/src/transformation/file/file.ts[2m:256:12)[22m
+      [2mat NodePath.buildError [as buildCodeFrameError] ([22m../../../node_modules/@babel/traverse/src/path/index.ts[2m:142:21)[22m
+      [2mat call ([22m../../../node_modules/@babel/traverse/src/visitors.ts[2m:303:14)[22m
+      [2mat NodePath.call [as _call] ([22m../../../node_modules/@babel/traverse/src/path/context.ts[2m:36:20)[22m
+      [2mat NodePath.call ([22m../../../node_modules/@babel/traverse/src/path/context.ts[2m:21:18)[22m
+      [2mat NodePath.call [as visit] ([22m../../../node_modules/@babel/traverse/src/path/context.ts[2m:97:31)[22m
+      [2mat TraversalContext.visit [as visitQueue] ([22m../../../node_modules/@babel/traverse/src/context.ts[2m:148:16)[22m
+      [2mat TraversalContext.visitQueue [as visitMultiple] ([22m../../../node_modules/@babel/traverse/src/context.ts[2m:99:17)[22m
+      [2mat TraversalContext.visitMultiple [as visit] ([22m../../../node_modules/@babel/traverse/src/context.ts[2m:178:19)[22m
+      [2mat visit ([22m../../../node_modules/@babel/traverse/src/traverse-node.ts[2m:208:17)[22m
+      [2mat NodePath.visit ([22m../../../node_modules/@babel/traverse/src/path/context.ts[2m:104:33)[22m
+      [2mat TraversalContext.visit [as visitQueue] ([22m../../../node_modules/@babel/traverse/src/context.ts[2m:148:16)[22m
+      [2mat TraversalContext.visitQueue [as visitSingle] ([22m../../../node_modules/@babel/traverse/src/context.ts[2m:109:19)[22m
+      [2mat TraversalContext.visitSingle [as visit] ([22m../../../node_modules/@babel/traverse/src/context.ts[2m:180:19)[22m
+      [2mat visit ([22m../../../node_modules/@babel/traverse/src/traverse-node.ts[2m:208:17)[22m
+      [2mat traverse ([22m../../../node_modules/@babel/traverse/src/index.ts[2m:83:15)[22m
+      [2mat transformFile ([22m../../../node_modules/@babel/core/src/transformation/index.ts[2m:119:15)[22m
+          at transformFile.next (<anonymous>)
+      [2mat transformFile ([22m../../../node_modules/@babel/core/src/transformation/index.ts[2m:49:12)[22m
+          at run.next (<anonymous>)
+      [2mat transform ([22m../../../node_modules/@babel/core/src/transform.ts[2m:29:20)[22m
+          at transform.next (<anonymous>)
+      [2mat evaluateSync ([22m../../../node_modules/gensync/index.js[2m:251:28)[22m
+      [2mat sync ([22m../../../node_modules/gensync/index.js[2m:89:14)[22m
+      [2mat fn ([22m../../../node_modules/@babel/core/src/errors/rewrite-stack-trace.ts[2m:99:14)[22m
+      [2mat transformSync ([22m../../../node_modules/@babel/core/src/transform.ts[2m:66:52)[22m
+      [2mat ScriptTransformer.transformSource ([22m../../../node_modules/@jest/transform/build/ScriptTransformer.js[2m:545:31)[22m
+      [2mat ScriptTransformer._transformAndBuildScript ([22m../../../node_modules/@jest/transform/build/ScriptTransformer.js[2m:674:40)[22m
+      [2mat ScriptTransformer.transform ([22m../../../node_modules/@jest/transform/build/ScriptTransformer.js[2m:726:19)[22m
+
+[0m[7m[1m[31m FAIL [39m[22m[27m[0m [2mpc-builder-service/dist/tests/[22m[1mneweggFeatures.test.js[22m
+  [1m● [22mTest suite failed to run
+
+    TypeError: Cannot convert undefined or null to object
+        at Function.values (<anonymous>)
+
+    [0m [90m 115 |[39m     buildCategory[33m:[39m {
+     [90m 116 |[39m         type[33m:[39m [33mString[39m[33m,[39m
+    [31m[1m>[22m[39m[90m 117 |[39m         [36menum[39m[33m:[39m [33mObject[39m[33m.[39mvalues([33mBuildTemplate_1[39m[33m.[39m[33mBuildCategory[39m)[33m,[39m
+     [90m     |[39m                      [31m[1m^[22m[39m
+     [90m 118 |[39m     }[33m,[39m
+     [90m 119 |[39m     status[33m:[39m {
+     [90m 120 |[39m         type[33m:[39m [33mString[39m[33m,[39m[0m
+
+      [2mat Object.values ([22mpc-builder-service/dist/models/PCBuild.js[2m:117:22)[22m
+      [2mat Object.require ([22mpc-builder-service/dist/models/BuildTemplate.js[2m:39:19)[22m
+      [2mat Object.require ([22m[0m[36mpc-builder-service/dist/tests/neweggFeatures.test.js[39m[0m[2m:8:25)[22m
+
+[1mTest Suites: [22m[1m[31m2 failed[39m[22m, 2 total
+[1mTests:       [22m0 total
+[1mSnapshots:   [22m0 total
+[1mTime:[22m        1.014 s
+[2mRan all test suites[22m[2m.[22m
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path D:\UltraMarket\microservices\business\pc-builder-service
+npm error workspace @ultramarket/pc-builder-service@1.0.0
+npm error location D:\UltraMarket\microservices\business\pc-builder-service
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c jest

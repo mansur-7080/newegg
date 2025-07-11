@@ -44,7 +44,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 3,
-      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       staleTime: 5 * 60 * 1000, // 5 minutes
       cacheTime: 10 * 60 * 1000, // 10 minutes
       refetchOnWindowFocus: false,
@@ -60,11 +60,11 @@ const queryClient = new QueryClient({
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem('adminToken');
-  
+
   if (!token) {
     return <Navigate to="/auth/login" replace />;
   }
-  
+
   return <>{children}</>;
 };
 
@@ -75,64 +75,64 @@ const AdminRoutes: React.FC = () => {
       <Routes>
         {/* Dashboard */}
         <Route path="/dashboard" element={<Dashboard />} />
-        
+
         {/* E-commerce Management */}
         <Route path="/products/*" element={<ProductManagement />} />
         <Route path="/orders/*" element={<OrderManagement />} />
         <Route path="/inventory/*" element={<InventoryManagement />} />
-        <Route 
-          path="/reviews/*" 
+        <Route
+          path="/reviews/*"
           element={
             <Suspense fallback={<LoadingSpinner />}>
               <ReviewManagement />
             </Suspense>
-          } 
+          }
         />
-        <Route 
-          path="/promotions/*" 
+        <Route
+          path="/promotions/*"
           element={
             <Suspense fallback={<LoadingSpinner />}>
               <PromotionManagement />
             </Suspense>
-          } 
+          }
         />
-        
+
         {/* User Management */}
         <Route path="/users/*" element={<UserManagement />} />
-        
+
         {/* Content Management */}
-        <Route 
-          path="/content/*" 
+        <Route
+          path="/content/*"
           element={
             <Suspense fallback={<LoadingSpinner />}>
               <ContentManagement />
             </Suspense>
-          } 
+          }
         />
-        
+
         {/* Analytics & Reports */}
         <Route path="/analytics/*" element={<AnalyticsDashboard />} />
         <Route path="/reports/*" element={<FinancialReports />} />
-        
+
         {/* System Management */}
-        <Route 
-          path="/monitoring/*" 
+        <Route
+          path="/monitoring/*"
           element={
             <Suspense fallback={<LoadingSpinner />}>
               <SystemMonitoring />
             </Suspense>
-          } 
+          }
         />
-        <Route 
-          path="/audit-logs/*" 
+        <Route
+          path="/audit-logs/*"
           element={
             <Suspense fallback={<LoadingSpinner />}>
               <AuditLogs />
             </Suspense>
-          } 
+          }
         />
         <Route path="/settings/*" element={<SettingsPage />} />
-        
+
         {/* Default redirect */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -159,13 +159,17 @@ const App: React.FC = () => {
   useEffect(() => {
     // Set up global error handling
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error('Unhandled promise rejection:', event.reason);
-      // You can send this to your error tracking service
+      // TODO: Send to error tracking service (e.g., Sentry)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Unhandled promise rejection:', event.reason);
+      }
     };
 
     const handleError = (event: ErrorEvent) => {
-      console.error('Global error:', event.error);
-      // You can send this to your error tracking service
+      // TODO: Send to error tracking service (e.g., Sentry)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Global error:', event.error);
+      }
     };
 
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
@@ -181,8 +185,10 @@ const App: React.FC = () => {
     <ErrorBoundary
       FallbackComponent={ErrorFallback}
       onError={(error, errorInfo) => {
-        console.error('React Error Boundary:', error, errorInfo);
-        // Send to error tracking service
+        // TODO: Send to error tracking service (e.g., Sentry)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('React Error Boundary:', error, errorInfo);
+        }
       }}
     >
       <QueryClientProvider client={queryClient}>
@@ -229,15 +235,15 @@ const App: React.FC = () => {
                         <Routes>
                           {/* Auth Routes */}
                           <Route path="/auth/*" element={<AuthRoutes />} />
-                          
+
                           {/* Protected Admin Routes */}
-                          <Route 
-                            path="/*" 
+                          <Route
+                            path="/*"
                             element={
                               <ProtectedRoute>
                                 <AdminRoutes />
                               </ProtectedRoute>
-                            } 
+                            }
                           />
                         </Routes>
                       </Router>
@@ -248,11 +254,9 @@ const App: React.FC = () => {
             </ConfigProvider>
           </PersistGate>
         </Provider>
-        
+
         {/* Development tools */}
-        {process.env.NODE_ENV === 'development' && (
-          <ReactQueryDevtools initialIsOpen={false} />
-        )}
+        {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
       </QueryClientProvider>
     </ErrorBoundary>
   );

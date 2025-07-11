@@ -1,82 +1,123 @@
-import { User } from '@ultramarket/common';
-import { PrismaClient } from '@prisma/client';
-import { AuthProvider } from '@ultramarket/common';
+import { PrismaClient, User, Address } from '@prisma/client';
+import { UserRole } from '../types/auth';
 
 const prisma = new PrismaClient();
 
-// Utility function to convert null to undefined
-const nullToUndefined = <T>(value: T | null): T | undefined => {
-  return value === null ? undefined : value;
-};
+// Type definitions
+interface CreateUserData {
+  email: string;
+  username: string;
+  passwordHash: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+  role?: UserRole;
+  isActive?: boolean;
+  isEmailVerified?: boolean;
+  profileImage?: string;
+  bio?: string;
+}
 
-// Transform Prisma user to our User interface
-const transformUser = (user: any): User => ({
+interface UpdateUserData {
+  email?: string;
+  username?: string;
+  passwordHash?: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  role?: UserRole;
+  isActive?: boolean;
+  isEmailVerified?: boolean;
+  profileImage?: string;
+  bio?: string;
+  lastLoginAt?: Date;
+}
+
+interface UserWithAddresses extends User {
+  addresses: Address[];
+}
+
+interface PaginatedUsers {
+  users: UserWithAddresses[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+interface FindUsersOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: UserRole;
+  isActive?: boolean;
+  sortBy?: 'createdAt' | 'updatedAt' | 'email' | 'firstName' | 'lastName';
+  sortOrder?: 'asc' | 'desc';
+}
+
+// Transform user data to exclude sensitive information
+const transformUser = (user: User): Omit<User, 'passwordHash'> => ({
   id: user.id,
   email: user.email,
   username: user.username,
-  passwordHash: user.passwordHash,
   firstName: user.firstName,
   lastName: user.lastName,
-  phoneNumber: nullToUndefined(user.phoneNumber),
-  role: user.role as any,
+  phoneNumber: user.phoneNumber,
+  role: user.role as UserRole,
   isActive: user.isActive,
   isEmailVerified: user.isEmailVerified,
-  profileImage: nullToUndefined(user.profileImage),
-  bio: nullToUndefined(user.bio),
-  lastLoginAt: nullToUndefined(user.lastLoginAt),
+  profileImage: user.profileImage,
+  bio: user.bio,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
-  isPhoneVerified: user.isPhoneVerified ?? false,
-  loginAttempts: user.loginAttempts ?? 0,
-  mfaEnabled: user.mfaEnabled ?? false,
-  authProvider: user.authProvider ?? AuthProvider.LOCAL,
+  lastLoginAt: user.lastLoginAt,
 });
 
-export interface UserRepository {
-  create(user: Omit<User, 'createdAt' | 'updatedAt'>): Promise<User>;
-  findById(id: string): Promise<User | null>;
-  findByEmail(email: string): Promise<User | null>;
-  findByUsername(username: string): Promise<User | null>;
-  update(id: string, data: Partial<User>): Promise<User>;
+// User repository interface
+export interface IUserRepository {
+  create(user: CreateUserData): Promise<UserWithAddresses>;
+  findById(id: string): Promise<UserWithAddresses | null>;
+  findByEmail(email: string): Promise<UserWithAddresses | null>;
+  findByUsername(username: string): Promise<UserWithAddresses | null>;
+  update(id: string, data: UpdateUserData): Promise<UserWithAddresses>;
   delete(id: string): Promise<void>;
-  findAll(options?: {
-    page?: number;
-    limit?: number;
-    role?: string;
-    isActive?: boolean;
-  }): Promise<{ users: User[]; total: number }>;
-  updateLastLogin(id: string): Promise<void>;
-  findByEmailOrUsername(emailOrUsername: string): Promise<User | null>;
+  findMany(options: FindUsersOptions): Promise<PaginatedUsers>;
+  count(filters?: { isActive?: boolean; role?: UserRole }): Promise<number>;
+  findByEmailOrUsername(emailOrUsername: string): Promise<UserWithAddresses | null>;
 }
 
-class PrismaUserRepository implements UserRepository {
-  async create(userData: Omit<User, 'createdAt' | 'updatedAt'>): Promise<User> {
+// User repository implementation
+export class UserRepository implements IUserRepository {
+  async create(userData: CreateUserData): Promise<UserWithAddresses> {
     try {
       const user = await prisma.user.create({
         data: {
-          id: userData.id,
           email: userData.email,
           username: userData.username,
           passwordHash: userData.passwordHash,
           firstName: userData.firstName,
           lastName: userData.lastName,
-          phoneNumber: userData.phoneNumber,
-          role: userData.role,
-          isActive: userData.isActive,
-          isEmailVerified: userData.isEmailVerified,
-          profileImage: userData.profileImage,
-          bio: userData.bio,
+          phoneNumber: userData.phoneNumber || null,
+          role: userData.role || UserRole.CUSTOMER,
+          isActive: userData.isActive ?? true,
+          isEmailVerified: userData.isEmailVerified ?? false,
+          profileImage: userData.profileImage || null,
+          bio: userData.bio || null,
+        },
+        include: {
+          addresses: true,
         },
       });
 
-      return transformUser(user);
+      return user;
     } catch (error) {
-      console.error('Error creating user:', error);
-      throw new Error('Failed to create user');
+      throw new Error(
+        `Failed to create user: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
-  async findById(id: string): Promise<User | null> {
+  async findById(id: string): Promise<UserWithAddresses | null> {
     try {
       const user = await prisma.user.findUnique({
         where: { id },
@@ -85,150 +126,183 @@ class PrismaUserRepository implements UserRepository {
         },
       });
 
-      if (!user) return null;
-
-      return transformUser(user);
+      return user;
     } catch (error) {
-      console.error('Error finding user by ID:', error);
-      throw new Error('Failed to find user');
+      throw new Error(
+        `Failed to find user by ID: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<UserWithAddresses | null> {
     try {
       const user = await prisma.user.findUnique({
         where: { email },
+        include: {
+          addresses: true,
+        },
       });
 
-      if (!user) return null;
-
-      return transformUser(user);
+      return user;
     } catch (error) {
-      console.error('Error finding user by email:', error);
-      throw new Error('Failed to find user');
+      throw new Error(
+        `Failed to find user by email: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
-  async findByUsername(username: string): Promise<User | null> {
+  async findByUsername(username: string): Promise<UserWithAddresses | null> {
     try {
       const user = await prisma.user.findUnique({
         where: { username },
+        include: {
+          addresses: true,
+        },
       });
 
-      if (!user) return null;
-
-      return transformUser(user);
+      return user;
     } catch (error) {
-      console.error('Error finding user by username:', error);
-      throw new Error('Failed to find user');
+      throw new Error(
+        `Failed to find user by username: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
-  async update(id: string, data: Partial<User>): Promise<User> {
+  async update(id: string, data: UpdateUserData): Promise<UserWithAddresses> {
     try {
-      const updateData: any = {};
+      const updateData: Partial<User> = {};
 
-      if (data.email) updateData.email = data.email;
-      if (data.username) updateData.username = data.username;
-      if (data.passwordHash) updateData.passwordHash = data.passwordHash;
-      if (data.firstName) updateData.firstName = data.firstName;
-      if (data.lastName) updateData.lastName = data.lastName;
+      // Only include defined fields in the update
+      if (data.email !== undefined) updateData.email = data.email;
+      if (data.username !== undefined) updateData.username = data.username;
+      if (data.passwordHash !== undefined) updateData.passwordHash = data.passwordHash;
+      if (data.firstName !== undefined) updateData.firstName = data.firstName;
+      if (data.lastName !== undefined) updateData.lastName = data.lastName;
       if (data.phoneNumber !== undefined) updateData.phoneNumber = data.phoneNumber;
-      if (data.role) updateData.role = data.role;
+      if (data.role !== undefined) updateData.role = data.role;
       if (data.isActive !== undefined) updateData.isActive = data.isActive;
       if (data.isEmailVerified !== undefined) updateData.isEmailVerified = data.isEmailVerified;
       if (data.profileImage !== undefined) updateData.profileImage = data.profileImage;
       if (data.bio !== undefined) updateData.bio = data.bio;
+      if (data.lastLoginAt !== undefined) updateData.lastLoginAt = data.lastLoginAt;
 
       const user = await prisma.user.update({
         where: { id },
         data: updateData,
+        include: {
+          addresses: true,
+        },
       });
 
-      return transformUser(user);
+      return user;
     } catch (error) {
-      console.error('Error updating user:', error);
-      throw new Error('Failed to update user');
+      throw new Error(
+        `Failed to update user: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
   async delete(id: string): Promise<void> {
     try {
-      await prisma.user.update({
+      await prisma.user.delete({
         where: { id },
-        data: { isActive: false }, // Soft delete
       });
     } catch (error) {
-      console.error('Error deleting user:', error);
-      throw new Error('Failed to delete user');
+      throw new Error(
+        `Failed to delete user: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
-  async findAll(
-    options: {
-      page?: number;
-      limit?: number;
-      role?: string;
-      isActive?: boolean;
-    } = {}
-  ): Promise<{ users: User[]; total: number }> {
+  async findMany(options: FindUsersOptions): Promise<PaginatedUsers> {
     try {
-      const page = options.page || 1;
-      const limit = options.limit || 20;
-      const skip = (page - 1) * limit;
+      const {
+        page = 1,
+        limit = 10,
+        search,
+        role,
+        isActive,
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+      } = options;
 
-      const where: any = {};
-      if (options.role) where.role = options.role;
-      if (options.isActive !== undefined) where.isActive = options.isActive;
+      const skip = (page - 1) * limit;
+      const where: Record<string, unknown> = {};
+
+      // Apply filters
+      if (search) {
+        where['OR'] = [
+          { email: { contains: search, mode: 'insensitive' } },
+          { username: { contains: search, mode: 'insensitive' } },
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      if (role) where['role'] = role;
+      if (isActive !== undefined) where['isActive'] = isActive;
 
       const [users, total] = await Promise.all([
         prisma.user.findMany({
           where,
           skip,
           take: limit,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { [sortBy]: sortOrder },
+          include: {
+            addresses: true,
+          },
         }),
         prisma.user.count({ where }),
       ]);
 
-      const transformedUsers: User[] = users.map(transformUser);
-
-      return { users: transformedUsers, total };
+      return {
+        users,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
     } catch (error) {
-      console.error('Error finding all users:', error);
-      throw new Error('Failed to find users');
+      throw new Error(
+        `Failed to find users: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
-  async updateLastLogin(id: string): Promise<void> {
+  async count(filters?: { isActive?: boolean; role?: UserRole }): Promise<number> {
     try {
-      await prisma.user.update({
-        where: { id },
-        data: { lastLoginAt: new Date() },
-      });
+      const where: Record<string, unknown> = {};
+
+      if (filters?.isActive !== undefined) where['isActive'] = filters.isActive;
+      if (filters?.role) where['role'] = filters.role;
+
+      return await prisma.user.count({ where });
     } catch (error) {
-      console.error('Error updating last login:', error);
-      throw new Error('Failed to update last login');
+      throw new Error(
+        `Failed to count users: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
-  async findByEmailOrUsername(emailOrUsername: string): Promise<User | null> {
+  async findByEmailOrUsername(emailOrUsername: string): Promise<UserWithAddresses | null> {
     try {
       const user = await prisma.user.findFirst({
         where: {
           OR: [{ email: emailOrUsername }, { username: emailOrUsername }],
         },
+        include: {
+          addresses: true,
+        },
       });
 
-      if (!user) return null;
-
-      return transformUser(user);
+      return user;
     } catch (error) {
-      console.error('Error finding user by email or username:', error);
-      throw new Error('Failed to find user');
+      throw new Error(
+        `Failed to find user by email or username: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 }
 
-// Use Prisma repository for production
-export const userRepository: UserRepository = new PrismaUserRepository();
+// Export singleton instance
+export const userRepository = new UserRepository();

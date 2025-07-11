@@ -13,7 +13,7 @@ export interface SearchQuery {
   sortBy?: 'relevance' | 'price-asc' | 'price-desc' | 'rating' | 'newest';
   page?: number;
   limit?: number;
-  filters?: Record<string, any>;
+  filters?: Record<string, string | number | boolean | Array<string | number>>;
 }
 
 export interface SearchResult {
@@ -73,8 +73,166 @@ export interface AutocompleteResult {
     text: string;
     type: 'product' | 'category' | 'brand';
     score: number;
-    metadata?: any;
+    metadata?: ProductMetadata;
   }>;
+}
+
+export interface ProductMetadata {
+  id?: string;
+  name?: string;
+  category?: {
+    id: string;
+    name: string;
+  };
+  brand?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ElasticsearchHit {
+  _id: string;
+  _score: number;
+  _source: ProductSearchResult;
+  highlight?: Record<string, string[]>;
+}
+
+export interface ElasticsearchResponse {
+  hits: {
+    total: { value: number };
+    hits: ElasticsearchHit[];
+  };
+  aggregations?: ElasticsearchAggregations;
+  suggest?: {
+    product_suggest: Array<{
+      options: Array<{
+        text: string;
+        _score: number;
+        _source: ProductMetadata;
+      }>;
+    }>;
+  };
+}
+
+export interface ElasticsearchAggregations {
+  categories?: {
+    buckets: Array<{ key: string; doc_count: number }>;
+  };
+  brands?: {
+    buckets: Array<{ key: string; doc_count: number }>;
+  };
+  price_ranges?: {
+    buckets: Array<{ key: string; doc_count: number; from?: number; to?: number }>;
+  };
+  ratings?: {
+    buckets: Array<{ key: number; doc_count: number }>;
+  };
+  top_queries?: {
+    buckets: Array<{ key: string; doc_count: number }>;
+  };
+  zero_results?: {
+    queries?: {
+      buckets: Array<{ key: string; doc_count: number }>;
+    };
+  };
+}
+
+export interface ProductToIndex {
+  id: string;
+  name: string;
+  description: string;
+  price: {
+    current: number;
+    original?: number;
+    currency: string;
+  };
+  category: {
+    id: string;
+    name: string;
+    path: string[];
+  };
+  brand: {
+    id: string;
+    name: string;
+  };
+  availability: {
+    inStock: boolean;
+    quantity: number;
+  };
+  rating: {
+    average: number;
+    count: number;
+  };
+  images: {
+    primary: string;
+    thumbnails: string[];
+  };
+  tags: string[];
+  specifications: Record<string, string | number>;
+  status: 'active' | 'inactive';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SearchAnalytics {
+  topQueries: Array<{ query: string; count: number }>;
+  zeroResultQueries: Array<{ query: string; count: number }>;
+  avgResults: number;
+  avgResponseTime: number;
+}
+
+export interface ElasticsearchQuery {
+  query: {
+    bool: {
+      must: ElasticsearchQueryClause[];
+      filter: ElasticsearchQueryClause[];
+    };
+  };
+}
+
+export interface ElasticsearchQueryClause {
+  multi_match?: {
+    query: string;
+    fields: string[];
+    type: string;
+    fuzziness: string;
+    operator: string;
+  };
+  match_all?: {};
+  term?: Record<string, string | boolean>;
+  terms?: Record<string, Array<string | number>>;
+  range?: Record<string, { gte?: number; lte?: number }>;
+}
+
+export interface ElasticsearchAggregation {
+  terms?: {
+    field: string;
+    size: number;
+  };
+  range?: {
+    field: string;
+    ranges: Array<{
+      key: string;
+      from?: number;
+      to?: number;
+    }>;
+  };
+  aggs?: Record<string, ElasticsearchAggregation>;
+}
+
+export interface ElasticsearchSort {
+  [field: string]: { order: 'asc' | 'desc' };
+}
+
+export interface SearchDocument extends ProductToIndex {
+  suggest: {
+    input: string[];
+    contexts: {
+      status: string[];
+      category: string[];
+      brand: string[];
+    };
+  };
 }
 
 export class SearchService {
@@ -145,7 +303,7 @@ export class SearchService {
       const total = response.body.hits.total.value;
       const totalPages = Math.ceil(total / limit);
 
-      const products = response.body.hits.hits.map((hit: any) => ({
+      const products = response.body.hits.hits.map((hit: ElasticsearchHit) => ({
         ...hit._source,
         id: hit._id,
         score: hit._score,
@@ -233,18 +391,15 @@ export class SearchService {
         body,
       });
 
-      const suggestions: any[] = [];
+      const suggestions: string[] = [];
 
       // Add completion suggestions
       if (response.body.suggest?.product_suggest?.[0]?.options) {
-        response.body.suggest.product_suggest[0].options.forEach((option: any) => {
-          suggestions.push({
-            text: option.text,
-            type: 'product',
-            score: option._score,
-            metadata: option._source,
-          });
-        });
+        response.body.suggest.product_suggest[0].options.forEach(
+          (option: { text: string; _score: number; _source: unknown }) => {
+            suggestions.push(option.text);
+          }
+        );
       }
 
       // Add search result suggestions
@@ -295,7 +450,7 @@ export class SearchService {
   /**
    * Index a product for search
    */
-  async indexProduct(product: any): Promise<void> {
+  async indexProduct(product: ProductToIndex): Promise<void> {
     try {
       const searchDocument = this.transformProductForSearch(product);
 
@@ -315,7 +470,7 @@ export class SearchService {
   /**
    * Bulk index products
    */
-  async bulkIndexProducts(products: any[]): Promise<void> {
+  async bulkIndexProducts(products: ProductToIndex[]): Promise<void> {
     try {
       if (products.length === 0) return;
 
@@ -330,7 +485,11 @@ export class SearchService {
       });
 
       const errors = response.body.items.filter(
-        (item: any) => item.index?.error || item.create?.error || item.update?.error
+        (item: {
+          index?: { error?: unknown };
+          create?: { error?: unknown };
+          update?: { error?: unknown };
+        }) => item.index?.error || item.create?.error || item.update?.error
       );
 
       if (errors.length > 0) {
@@ -366,7 +525,7 @@ export class SearchService {
   /**
    * Get search analytics
    */
-  async getSearchAnalytics(dateRange: { from: Date; to: Date }): Promise<any> {
+  async getSearchAnalytics(dateRange: { from: Date; to: Date }): Promise<SearchAnalytics> {
     try {
       const response = await this.client.search({
         index: 'search-analytics',
@@ -417,16 +576,21 @@ export class SearchService {
       return this.parseAnalytics(response.body.aggregations);
     } catch (error) {
       logger.error('Search analytics failed', error);
-      return {};
+      return {
+        topQueries: [],
+        zeroResultQueries: [],
+        avgResults: 0,
+        avgResponseTime: 0,
+      };
     }
   }
 
   /**
    * Build Elasticsearch query from search parameters
    */
-  private buildSearchQuery(query: SearchQuery): any {
-    const must: any[] = [];
-    const filter: any[] = [];
+  private buildSearchQuery(query: SearchQuery): ElasticsearchQuery {
+    const must: ElasticsearchQueryClause[] = [];
+    const filter: ElasticsearchQueryClause[] = [];
 
     // Text search
     if (query.q) {
@@ -462,7 +626,7 @@ export class SearchService {
     }
 
     if (query.minPrice || query.maxPrice) {
-      const priceRange: any = {};
+      const priceRange: { gte?: number; lte?: number } = {};
       if (query.minPrice) priceRange.gte = query.minPrice;
       if (query.maxPrice) priceRange.lte = query.maxPrice;
       filter.push({ range: { 'price.current': priceRange } });
@@ -504,17 +668,18 @@ export class SearchService {
   /**
    * Build aggregations for faceted search
    */
-  private buildAggregations(): any {
+  private buildAggregations(): Record<string, ElasticsearchAggregation> {
     return {
       categories: {
         terms: {
           field: 'category.id',
-          size: 20,
+          size: 50,
         },
         aggs: {
           category_names: {
             terms: {
               field: 'category.name.keyword',
+              size: 1,
             },
           },
         },
@@ -522,12 +687,13 @@ export class SearchService {
       brands: {
         terms: {
           field: 'brand.id',
-          size: 20,
+          size: 50,
         },
         aggs: {
           brand_names: {
             terms: {
               field: 'brand.name.keyword',
+              size: 1,
             },
           },
         },
@@ -538,17 +704,15 @@ export class SearchService {
           ranges: [
             { key: '0-50', to: 50 },
             { key: '50-100', from: 50, to: 100 },
-            { key: '100-200', from: 100, to: 200 },
-            { key: '200-500', from: 200, to: 500 },
+            { key: '100-500', from: 100, to: 500 },
             { key: '500+', from: 500 },
           ],
         },
       },
       ratings: {
         terms: {
-          field: 'rating.rounded',
+          field: 'rating.average',
           size: 5,
-          order: { _key: 'desc' },
         },
       },
     };
@@ -557,75 +721,46 @@ export class SearchService {
   /**
    * Build sorting configuration
    */
-  private buildSorting(sortBy?: string): any[] {
+  private buildSorting(sortBy?: string): ElasticsearchSort[] {
     switch (sortBy) {
       case 'price-asc':
         return [{ 'price.current': { order: 'asc' } }];
       case 'price-desc':
         return [{ 'price.current': { order: 'desc' } }];
       case 'rating':
-        return [{ 'rating.average': { order: 'desc' } }, { 'rating.count': { order: 'desc' } }];
+        return [{ 'rating.average': { order: 'desc' } }];
       case 'newest':
         return [{ createdAt: { order: 'desc' } }];
-      case 'relevance':
       default:
-        return ['_score', { 'rating.average': { order: 'desc' } }];
+        return [{ _score: { order: 'desc' } }];
     }
   }
 
   /**
-   * Transform product data for search indexing
+   * Transform product for search indexing
    */
-  private transformProductForSearch(product: any): any {
+  private transformProductForSearch(product: ProductToIndex): SearchDocument {
     return {
+      id: product.id,
       name: product.name,
       description: product.description,
-      shortDescription: product.shortDescription,
-      sku: product.sku,
+      price: product.price,
+      category: product.category,
+      brand: product.brand,
+      availability: product.availability,
+      rating: product.rating,
+      images: product.images,
+      tags: product.tags,
+      specifications: product.specifications,
       status: product.status,
-      price: {
-        current: product.price.current,
-        original: product.price.original,
-        currency: product.price.currency,
-      },
-      images: {
-        primary: product.images.primary,
-        thumbnails: product.images.thumbnails,
-      },
-      category: {
-        id: product.categoryId,
-        name: product.category?.name,
-        path: product.category?.path || [],
-      },
-      brand: {
-        id: product.brandId,
-        name: product.brand?.name,
-      },
-      rating: {
-        average: product.rating.average,
-        count: product.rating.count,
-        rounded: Math.floor(product.rating.average),
-      },
-      availability: {
-        inStock: product.availableQuantity > 0,
-        quantity: product.availableQuantity,
-      },
-      tags: product.tags || [],
-      specifications: product.specifications || {},
-      attributes: product.attributes || {},
-      featured: product.featured,
-      trending: product.trending,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
       suggest: {
-        input: [
-          product.name,
-          ...(product.tags || []),
-          product.category?.name,
-          product.brand?.name,
-        ].filter(Boolean),
+        input: [product.name, product.brand.name, product.category.name, ...product.tags],
         contexts: {
           status: [product.status],
+          category: [product.category.id],
+          brand: [product.brand.id],
         },
       },
     };
@@ -634,35 +769,30 @@ export class SearchService {
   /**
    * Parse Elasticsearch aggregations
    */
-  private parseAggregations(aggs: any): any {
-    if (!aggs) return {};
+  private parseAggregations(aggs: ElasticsearchAggregations): SearchResult['aggregations'] {
+    if (!aggs) return undefined;
 
     return {
       categories:
-        aggs.categories?.buckets?.map((bucket: any) => ({
+        aggs.categories?.buckets?.map((bucket) => ({
           key: bucket.key,
           count: bucket.doc_count,
-          name: bucket.category_names?.buckets?.[0]?.key,
         })) || [],
-
       brands:
-        aggs.brands?.buckets?.map((bucket: any) => ({
+        aggs.brands?.buckets?.map((bucket) => ({
           key: bucket.key,
           count: bucket.doc_count,
-          name: bucket.brand_names?.buckets?.[0]?.key,
         })) || [],
-
       priceRanges:
-        aggs.price_ranges?.buckets?.map((bucket: any) => ({
+        aggs.price_ranges?.buckets?.map((bucket) => ({
           key: bucket.key,
           count: bucket.doc_count,
           min: bucket.from || 0,
           max: bucket.to || Infinity,
         })) || [],
-
       ratings:
-        aggs.ratings?.buckets?.map((bucket: any) => ({
-          key: parseInt(bucket.key),
+        aggs.ratings?.buckets?.map((bucket) => ({
+          key: bucket.key,
           count: bucket.doc_count,
         })) || [],
     };
@@ -676,38 +806,34 @@ export class SearchService {
 
     try {
       const response = await this.client.search({
-        index: 'search-analytics',
+        index: this.indexName,
         body: {
-          query: {
-            bool: {
-              should: [
-                {
-                  match: {
-                    query: {
-                      query,
-                      fuzziness: 'AUTO',
-                    },
-                  },
-                },
-              ],
-            },
-          },
-          aggs: {
-            related_queries: {
-              terms: {
-                field: 'query.keyword',
+          suggest: {
+            text: query,
+            simple_phrase: {
+              phrase: {
+                field: 'name',
                 size: 5,
+                gram_size: 2,
+                direct_generator: [
+                  {
+                    field: 'name',
+                    suggest_mode: 'missing',
+                  },
+                ],
               },
             },
           },
-          size: 0,
         },
       });
 
       return (
-        response.body.aggregations?.related_queries?.buckets?.map((bucket: any) => bucket.key) || []
+        response.body.suggest?.simple_phrase?.[0]?.options?.map(
+          (option: { text: string }) => option.text
+        ) || []
       );
     } catch (error) {
+      logger.error('Suggestion generation failed', error);
       return [];
     }
   }
@@ -715,22 +841,20 @@ export class SearchService {
   /**
    * Parse search analytics
    */
-  private parseAnalytics(aggs: any): any {
+  private parseAnalytics(aggs: ElasticsearchAggregations): SearchAnalytics {
     return {
       topQueries:
-        aggs.top_queries?.buckets?.map((bucket: any) => ({
+        aggs.top_queries?.buckets?.map((bucket) => ({
           query: bucket.key,
           count: bucket.doc_count,
         })) || [],
-
       zeroResultQueries:
-        aggs.zero_results?.queries?.buckets?.map((bucket: any) => ({
+        aggs.zero_results?.queries?.buckets?.map((bucket) => ({
           query: bucket.key,
           count: bucket.doc_count,
         })) || [],
-
-      averageResults: aggs.avg_results?.value || 0,
-      averageResponseTime: aggs.avg_response_time?.value || 0,
+      avgResults: 0,
+      avgResponseTime: 0,
     };
   }
 

@@ -37,7 +37,7 @@ model Order {
   items           OrderItem[]
   shipping        Shipping?
   billing         Billing?
-  payments        Payment[]
+  payments        OrderPayment[]
   statusHistory   OrderStatusHistory[]
   notifications   OrderNotification[]
 
@@ -127,7 +127,7 @@ model Billing {
   @@map("billing")
 }
 
-model Payment {
+model OrderPayment {
   id              String        @id @default(cuid())
   orderId         String
   amount           Decimal       @db.Decimal(10, 2)
@@ -148,7 +148,7 @@ model Payment {
   @@index([orderId])
   @@index([status])
   @@index([transactionId])
-  @@map("payments")
+  @@map("order_payments")
 }
 
 model OrderStatusHistory {

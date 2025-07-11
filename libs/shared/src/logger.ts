@@ -1,10 +1,10 @@
 import pino from 'pino';
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env['NODE_ENV'] === 'development';
 
 // Create logger instance
 export const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env['LOG_LEVEL'] || 'info',
   transport: isDevelopment
     ? {
         target: 'pino-pretty',
@@ -21,8 +21,8 @@ export const logger = pino({
     },
   },
   base: {
-    serviceName: process.env.SERVICE_NAME || 'unknown-service',
-    env: process.env.NODE_ENV || 'development',
+    serviceName: process.env['SERVICE_NAME'] || 'unknown-service',
+    env: process.env['NODE_ENV'] || 'development',
   },
   serializers: {
     req: pino.stdSerializers.req,
@@ -47,4 +47,4 @@ export const LogLevel = {
   FATAL: 'fatal',
 } as const;
 
-export type LogLevelType = typeof LogLevel[keyof typeof LogLevel]; 
+export type LogLevelType = (typeof LogLevel)[keyof typeof LogLevel];

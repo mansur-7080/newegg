@@ -19,11 +19,11 @@ export const comparePassword = async (
 
 // JWT token generation
 export const generateTokens = (payload: JwtPayload): TokenPair => {
-  const accessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
+  const accessToken = jwt.sign(payload, process.env['JWT_SECRET']!, {
     expiresIn: JWT_EXPIRY.ACCESS_TOKEN,
   });
 
-  const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET!, {
+  const refreshToken = jwt.sign(payload, process.env['JWT_REFRESH_SECRET']!, {
     expiresIn: JWT_EXPIRY.REFRESH_TOKEN,
   });
 
@@ -31,9 +31,9 @@ export const generateTokens = (payload: JwtPayload): TokenPair => {
 };
 
 export const generateToken = (
-  payload: object,
+  payload: string | object | Buffer,
   secret: string,
-  expiresIn: string
+  expiresIn: string | number
 ): string => {
   return jwt.sign(payload, secret, { expiresIn });
 };
@@ -41,7 +41,7 @@ export const generateToken = (
 // JWT token verification
 export const verifyAccessToken = (token: string): JwtPayload => {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
+    return jwt.verify(token, process.env['JWT_SECRET']!) as JwtPayload;
   } catch (error) {
     throw new UnauthorizedError('Invalid or expired access token');
   }
@@ -49,7 +49,7 @@ export const verifyAccessToken = (token: string): JwtPayload => {
 
 export const verifyRefreshToken = (token: string): JwtPayload => {
   try {
-    return jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as JwtPayload;
+    return jwt.verify(token, process.env['JWT_REFRESH_SECRET']!) as JwtPayload;
   } catch (error) {
     throw new UnauthorizedError('Invalid or expired refresh token');
   }
@@ -100,4 +100,4 @@ export const generateOTP = (length = 6): string => {
     otp += Math.floor(Math.random() * 10).toString();
   }
   return otp;
-}; 
+};

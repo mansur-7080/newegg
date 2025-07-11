@@ -1,0 +1,125 @@
+modules:
+  # HTTP 2xx probe
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ['HTTP/1.1', 'HTTP/2.0']
+      valid_status_codes: [200, 201, 202, 204]
+      method: GET
+      headers:
+        Host: ultramarket.com
+        Accept-Language: en-US
+        User-Agent: 'UltraMarket-Blackbox-Exporter/1.0'
+      no_follow_redirects: false
+      fail_if_ssl: false
+      fail_if_not_ssl: false
+      tls_config:
+        insecure_skip_verify: false
+      preferred_ip_protocol: 'ip4'
+      ip_protocol_fallback: true
+
+  # HTTP POST probe
+  http_post_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      method: POST
+      headers:
+        Content-Type: application/json
+      body: '{"ping": "pong"}'
+      valid_status_codes: [200, 201, 202]
+
+  # HTTPS probe
+  https_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ['HTTP/1.1', 'HTTP/2.0']
+      valid_status_codes: [200, 201, 202, 204]
+      method: GET
+      tls_config:
+        insecure_skip_verify: false
+      preferred_ip_protocol: 'ip4'
+      ip_protocol_fallback: true
+
+  # TCP probe
+  tcp_connect:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: 'ip4'
+      ip_protocol_fallback: true
+
+  # DNS probe
+  dns:
+    prober: dns
+    timeout: 5s
+    dns:
+      query_name: 'ultramarket.com'
+      query_type: 'A'
+      valid_rcodes:
+        - NOERROR
+      validate_answer_rrs:
+        fail_if_matches_regexp:
+          - '.*127.0.0.1'
+        fail_if_not_matches_regexp:
+          - "ultramarket.com.\t300\tIN\tA\t.*"
+      preferred_ip_protocol: 'ip4'
+      ip_protocol_fallback: true
+
+  # ICMP probe
+  icmp:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: 'ip4'
+      source_ip_address: '127.0.0.1'
+
+  # SSL certificate probe
+  ssl_expiry:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200, 201, 202, 204, 301, 302, 403, 404]
+      tls_config:
+        insecure_skip_verify: false
+      preferred_ip_protocol: 'ip4'
+      ip_protocol_fallback: true
+
+  # API health check
+  api_health:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ['HTTP/1.1', 'HTTP/2.0']
+      valid_status_codes: [200]
+      method: GET
+      headers:
+        Accept: application/json
+        User-Agent: 'UltraMarket-Health-Check/1.0'
+      body_size_limit: 1024
+      fail_if_body_not_matches_regexp:
+        - '"status":\s*"(ok|healthy|up)"'
+      preferred_ip_protocol: 'ip4'
+      ip_protocol_fallback: true
+
+  # Database connection probe
+  database_tcp:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: 'ip4'
+      ip_protocol_fallback: true
+
+  # Redis connection probe
+  redis_tcp:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - expect: "^\\+PONG\\r?$"
+          send: "PING\r\n"
+      preferred_ip_protocol: 'ip4'
+      ip_protocol_fallback: true

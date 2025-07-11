@@ -11,7 +11,7 @@ datasource db {
 }
 
 model Product {
-  id                String            @id @default(cuid())
+  id                String            @id @default(uuid())
   name              String
   slug              String            @unique
   description       String?
@@ -50,72 +50,68 @@ model Product {
   publishedAt       DateTime?
 
   // Relations
-  categoryId        String?
-  category          Category?         @relation(fields: [categoryId], references: [id])
-  images            ProductImage[]
+  category          Category          @relation(fields: [categoryId], references: [id])
+  categoryId        String
+  vendor            User?             @relation(fields: [vendorId], references: [id])
+  vendorId          String?
   variants          ProductVariant[]
-  inventory         Inventory?
+  images            ProductImage[]
   reviews           Review[]
-  relatedProducts   ProductRelation[] @relation("ProductToProduct")
-  relatedToProducts ProductRelation[] @relation("ProductFromProduct")
+  inventory         Inventory?
+  relations         ProductRelation[] @relation("ProductToProduct")
+  relatedFrom       ProductRelation[] @relation("ProductFromProduct")
+  priceHistory      PriceHistory[]
 
   @@index([categoryId])
+  @@index([vendorId])
+  @@index([sku])
   @@index([status])
   @@index([isActive])
-  @@index([isFeatured])
-  @@index([price])
   @@index([createdAt])
   @@map("products")
 }
 
 model Category {
-  id                String    @id @default(cuid())
-  name              String
-  slug              String    @unique
-  description       String?
-  image             String?
-  isActive          Boolean   @default(true)
-  isFeatured        Boolean   @default(false)
-  sortOrder         Int       @default(0)
-  metaTitle         String?
-  metaDescription   String?
-  metaKeywords      String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  // Relations
-  parentId          String?
-  parent            Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children          Category[] @relation("CategoryHierarchy")
-  products          Product[]
+  id              String    @id @default(uuid())
+  name            String
+  slug            String    @unique
+  description     String?
+  image           String?
+  parentId        String?
+  parent          Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children        Category[] @relation("CategoryHierarchy")
+  products        Product[]
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([parentId])
+  @@index([slug])
   @@index([isActive])
-  @@index([sortOrder])
   @@map("categories")
 }
 
-model ProductImage {
-  id          String   @id @default(cuid())
-  productId   String
-  url         String
-  alt         String?
-  title       String?
-  sortOrder   Int      @default(0)
-  isPrimary   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  username        String    @unique
+  firstName       String
+  lastName        String
+  role            UserRole  @default(CUSTOMER)
+  isActive        Boolean   @default(true)
+  products        Product[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  // Relations
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId])
-  @@index([sortOrder])
-  @@map("product_images")
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@map("users")
 }
 
 model ProductVariant {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid())
   productId   String
   name        String
   sku         String   @unique
@@ -139,8 +135,24 @@ model ProductVariant {
   @@map("product_variants")
 }
 
+model ProductImage {
+  id          String   @id @default(uuid())
+  productId   String
+  url         String
+  altText     String?
+  sortOrder   Int      @default(0)
+  isMain      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
 model Inventory {
-  id              String            @id @default(cuid())
+  id              String            @id @default(uuid())
   productId       String?           @unique
   variantId       String?           @unique
   quantity        Int               @default(0)
@@ -166,7 +178,7 @@ model Inventory {
 }
 
 model Review {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid())
   productId   String
   userId      String
   rating      Int      @db.SmallInt
@@ -188,7 +200,7 @@ model Review {
 }
 
 model ProductRelation {
-  id              String   @id @default(cuid())
+  id              String   @id @default(uuid())
   productId       String
   relatedProductId String
   relationType    String   @default("related") // related, upsell, cross-sell
@@ -206,7 +218,7 @@ model ProductRelation {
 }
 
 model SearchLog {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid())
   query       String
   filters     Json?
   results     Int
@@ -221,7 +233,7 @@ model SearchLog {
 }
 
 model PriceHistory {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid())
   productId   String
   variantId   String?
   price       Decimal  @db.Decimal(10, 2)
@@ -234,7 +246,6 @@ model PriceHistory {
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
-  @@index([variantId])
   @@index([createdAt])
   @@map("price_history")
 }
@@ -242,14 +253,20 @@ model PriceHistory {
 // Enums
 enum ProductStatus {
   DRAFT
-  PUBLISHED
+  ACTIVE
+  INACTIVE
   ARCHIVED
-  DELETED
 }
 
 enum ProductType {
   PHYSICAL
   DIGITAL
   SERVICE
-  SUBSCRIPTION
+}
+
+enum UserRole {
+  CUSTOMER
+  VENDOR
+  ADMIN
+  SUPER_ADMIN
 }

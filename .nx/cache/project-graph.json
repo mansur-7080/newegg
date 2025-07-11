@@ -224,7 +224,7 @@
           "lint": {
             "inputs": [
               "default",
-              "{workspaceRoot}/.eslintrc.json"
+              "{workspaceRoot}/eslint.config.js"
             ],
             "executor": "nx:run-script",
             "options": {
@@ -596,11 +596,113 @@
       "type": "app",
       "data": {
         "root": "microservices/core/auth-service",
-        "targets": {},
         "name": "auth-service",
-        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "targets": {
+          "build": {
+            "executor": "nx:run-script",
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ],
+            "options": {
+              "script": "build"
+            },
+            "configurations": {}
+          },
+          "start": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "start"
+            },
+            "configurations": {}
+          },
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "configurations": {}
+          },
+          "test": {
+            "executor": "nx:run-script",
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ],
+            "options": {
+              "script": "test"
+            },
+            "configurations": {}
+          },
+          "test:watch": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:watch"
+            },
+            "configurations": {}
+          },
+          "test:coverage": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:coverage"
+            },
+            "configurations": {}
+          },
+          "lint": {
+            "executor": "nx:run-script",
+            "inputs": [
+              "default",
+              "{workspaceRoot}/eslint.config.js"
+            ],
+            "options": {
+              "script": "lint"
+            },
+            "configurations": {}
+          },
+          "format": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "format"
+            },
+            "configurations": {}
+          },
+          "migrate": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "migrate"
+            },
+            "configurations": {}
+          },
+          "migrate:dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "migrate:dev"
+            },
+            "configurations": {}
+          },
+          "generate": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "generate"
+            },
+            "configurations": {}
+          },
+          "nx-release-publish": {
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "executor": "@nx/js:release-publish",
+            "options": {},
+            "configurations": {}
+          }
+        },
         "sourceRoot": "microservices/core/auth-service/src",
         "projectType": "application",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
         "implicitDependencies": [],
         "tags": []
       }
@@ -610,13 +712,91 @@
       "type": "app",
       "data": {
         "root": "microservices/core/user-service",
-        "targets": {},
+        "targets": {
+          "build": {
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ],
+            "executor": "@nx/node:build",
+            "outputs": [
+              "{options.outputPath}"
+            ],
+            "options": {
+              "outputPath": "dist/microservices/core/user-service",
+              "main": "microservices/core/user-service/user-service/src/index.ts",
+              "tsConfig": "microservices/core/user-service/user-service/tsconfig.json",
+              "assets": [
+                "microservices/core/user-service/user-service/src/assets"
+              ]
+            },
+            "configurations": {
+              "production": {
+                "optimization": true,
+                "extractLicenses": true,
+                "inspect": false,
+                "fileReplacements": [
+                  {
+                    "replace": "microservices/core/user-service/user-service/src/environments/environment.ts",
+                    "with": "microservices/core/user-service/user-service/src/environments/environment.prod.ts"
+                  }
+                ]
+              }
+            }
+          },
+          "test": {
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ],
+            "executor": "@nx/jest:jest",
+            "outputs": [
+              "{workspaceRoot}/coverage/microservices/core/user-service"
+            ],
+            "options": {
+              "jestConfig": "microservices/core/user-service/user-service/jest.config.ts",
+              "passWithNoTests": true
+            },
+            "configurations": {}
+          },
+          "lint": {
+            "inputs": [
+              "default",
+              "{workspaceRoot}/eslint.config.js"
+            ],
+            "executor": "@nx/linter:eslint",
+            "outputs": [
+              "{options.outputFile}"
+            ],
+            "options": {
+              "lintFilePatterns": [
+                "microservices/core/user-service/user-service/**/*.ts"
+              ]
+            },
+            "configurations": {}
+          },
+          "serve": {
+            "executor": "@nx/node:execute",
+            "options": {
+              "buildTarget": "user-service:build"
+            },
+            "configurations": {}
+          }
+        },
         "name": "user-service",
         "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-        "sourceRoot": "microservices/core/user-service/src",
+        "sourceRoot": "microservices/core/user-service/user-service/src",
         "projectType": "application",
-        "implicitDependencies": [],
-        "tags": []
+        "tags": [
+          "scope:backend",
+          "type:service",
+          "domain:user"
+        ],
+        "implicitDependencies": []
       }
     },
     "api-gateway": {
@@ -698,7 +878,7 @@
             "executor": "nx:run-script",
             "inputs": [
               "default",
-              "{workspaceRoot}/.eslintrc.json"
+              "{workspaceRoot}/eslint.config.js"
             ],
             "options": {
               "script": "lint"
@@ -802,7 +982,7 @@
             "executor": "nx:run-script",
             "inputs": [
               "default",
-              "{workspaceRoot}/.eslintrc.json"
+              "{workspaceRoot}/eslint.config.js"
             ],
             "options": {
               "script": "lint"
@@ -909,7 +1089,7 @@
             "executor": "nx:run-script",
             "inputs": [
               "default",
-              "{workspaceRoot}/.eslintrc.json"
+              "{workspaceRoot}/eslint.config.js"
             ],
             "options": {
               "script": "lint"
@@ -988,12 +1168,24 @@
     "recommendation-service": [],
     "analytics-service": [],
     "navigation-service": [],
-    "pc-builder-service": [],
+    "pc-builder-service": [
+      {
+        "source": "pc-builder-service",
+        "target": "shared",
+        "type": "static"
+      }
+    ],
     "inventory-service": [],
     "shipping-service": [],
     "content-service": [],
     "payment-service": [],
-    "product-service": [],
+    "product-service": [
+      {
+        "source": "product-service",
+        "target": "shared",
+        "type": "static"
+      }
+    ],
     "review-service": [],
     "search-service": [],
     "audit-service": [],
@@ -1001,10 +1193,28 @@
     "cart-service": [],
     "file-service": [],
     "admin-service": [],
-    "config-service": [],
+    "config-service": [
+      {
+        "source": "config-service",
+        "target": "shared",
+        "type": "static"
+      }
+    ],
     "store-service": [],
-    "auth-service": [],
-    "user-service": [],
+    "auth-service": [
+      {
+        "source": "auth-service",
+        "target": "shared",
+        "type": "static"
+      }
+    ],
+    "user-service": [
+      {
+        "source": "user-service",
+        "target": "shared",
+        "type": "static"
+      }
+    ],
     "api-gateway": [],
     "admin-panel": [],
     "mobile-app": [],

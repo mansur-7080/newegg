@@ -1,0 +1,98 @@
+{
+  "run": {
+    "command": "nx run-many --target=test --all",
+    "startTime": "2025-07-11T01:59:18.704Z",
+    "endTime": "2025-07-11T02:03:01.907Z",
+    "inner": false
+  },
+  "tasks": [
+    {
+      "taskId": "dynamic-pricing-service:test",
+      "target": "test",
+      "projectName": "dynamic-pricing-service",
+      "hash": "8217167489718344448",
+      "startTime": "2025-07-11T01:59:18.714Z",
+      "endTime": "2025-07-11T01:59:19.758Z",
+      "params": "",
+      "cacheStatus": "cache-miss",
+      "status": 1
+    },
+    {
+      "taskId": "analytics-service:test",
+      "target": "test",
+      "projectName": "analytics-service",
+      "hash": "4636254651430537353",
+      "startTime": "2025-07-11T01:59:18.714Z",
+      "endTime": "2025-07-11T01:59:19.765Z",
+      "params": "",
+      "cacheStatus": "cache-miss",
+      "status": 1
+    },
+    {
+      "taskId": "shared:test",
+      "target": "test",
+      "projectName": "shared",
+      "hash": "15035233470336083632",
+      "startTime": "2025-07-11T01:59:18.714Z",
+      "endTime": "2025-07-11T01:59:20.609Z",
+      "params": "",
+      "cacheStatus": "cache-miss",
+      "status": 1
+    },
+    {
+      "taskId": "auth-service:test",
+      "target": "test",
+      "projectName": "auth-service",
+      "hash": "9646223803254535350",
+      "startTime": "2025-07-11T01:59:19.767Z",
+      "endTime": "2025-07-11T01:59:20.806Z",
+      "params": "",
+      "cacheStatus": "cache-miss",
+      "status": 1
+    },
+    {
+      "taskId": "user-service:test",
+      "target": "test",
+      "projectName": "user-service",
+      "hash": "9226859526161210671",
+      "startTime": "2025-07-11T01:59:20.613Z",
+      "endTime": "2025-07-11T01:59:20.914Z",
+      "params": "",
+      "cacheStatus": "cache-miss",
+      "status": 1
+    },
+    {
+      "taskId": "web-app:test",
+      "target": "test",
+      "projectName": "web-app",
+      "hash": "7234630120661319063",
+      "startTime": "2025-07-11T01:59:20.916Z",
+      "endTime": "2025-07-11T01:59:21.122Z",
+      "params": "",
+      "cacheStatus": "cache-miss",
+      "status": 1
+    },
+    {
+      "taskId": "pc-builder-service:test",
+      "target": "test",
+      "projectName": "pc-builder-service",
+      "hash": "10606982083594689733",
+      "startTime": "2025-07-11T01:59:19.760Z",
+      "endTime": "2025-07-11T01:59:21.931Z",
+      "params": "",
+      "cacheStatus": "cache-miss",
+      "status": 1
+    },
+    {
+      "taskId": "admin-panel:test",
+      "target": "test",
+      "projectName": "admin-panel",
+      "hash": "5812618317873288002",
+      "startTime": "2025-07-11T01:59:20.808Z",
+      "endTime": "2025-07-11T02:03:01.905Z",
+      "params": "",
+      "cacheStatus": "cache-miss",
+      "status": 1
+    }
+  ]
+}

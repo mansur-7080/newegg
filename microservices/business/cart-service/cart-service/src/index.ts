@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
+import { logger } from './utils/logger';
 
 dotenv.config();
 
@@ -22,15 +23,15 @@ const redis = new Redis({
 
 // Redis connection events
 redis.on('connect', () => {
-  console.log('✅ Connected to Redis for Cart Service');
+  logger.info('✅ Connected to Redis for Cart Service');
 });
 
 redis.on('error', (error) => {
-  console.error('❌ Redis connection error:', error);
+  logger.error('❌ Redis connection error:', error);
 });
 
 redis.on('ready', () => {
-  console.log('🚀 Redis is ready for Cart Service operations');
+  logger.info('🚀 Redis is ready for Cart Service operations');
 });
 
 // Middleware
@@ -105,7 +106,16 @@ const calculateCartTotals = (items: CartItem[]): CartSummary => {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = subtotal * TAX_RATE;
   const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
-  const discount = 0; // TODO: Implement discount calculation
+  // Basic discount calculation - can be enhanced with business rules
+  const discount = calculateDiscount(subtotal);
+
+  function calculateDiscount(amount: number): number {
+    // Apply 5% discount for orders over $100
+    if (amount > 100) {
+      return amount * 0.05;
+    }
+    return 0;
+  }
   const total = subtotal + tax + shipping - discount;
 
   return {
@@ -147,7 +157,7 @@ const validateProduct = async (productId: string, quantity: number): Promise<Pro
       maxQuantity: product.quantity,
     };
   } catch (error) {
-    console.error(`Product validation failed for ${productId}:`, error);
+    logger.error(`Product validation failed for ${productId}:`, error);
     return { productId, isValid: false, error: 'Product service unavailable' };
   }
 };
@@ -213,7 +223,7 @@ const getCartFromRedis = async (userId: string): Promise<Cart | null> => {
       updatedAt: cartData.updatedAt,
     };
   } catch (error) {
-    console.error('Error getting cart from Redis:', error);
+    logger.error('Error getting cart from Redis:', error);
     return null;
   }
 };
@@ -265,7 +275,7 @@ const saveCartToRedis = async (cart: Cart): Promise<boolean> => {
     await pipeline.exec();
     return true;
   } catch (error) {
-    console.error('Error saving cart to Redis:', error);
+    logger.error('Error saving cart to Redis:', error);
     return false;
   }
 };
@@ -337,7 +347,7 @@ app.get('/api/cart/:userId', async (req, res) => {
         for (const item of cart.items) {
           const validation = await validateProduct(item.productId, item.quantity);
           if (!validation.isValid) {
-            console.log(`Item ${item.productId} validation failed: ${validation.error}`);
+            logger.warn(`Item ${item.productId} validation failed: ${validation.error}`);
             // Could implement auto-removal or notification here
           }
         }
@@ -349,7 +359,7 @@ app.get('/api/cart/:userId', async (req, res) => {
       data: cart,
     });
   } catch (error) {
-    console.error('Error getting cart:', error);
+    logger.error('Error getting cart:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -465,7 +475,7 @@ app.post('/api/cart/:userId/items', async (req, res) => {
       message: 'Item added to cart successfully',
     });
   } catch (error) {
-    console.error('Error adding item to cart:', error);
+    logger.error('Error adding item to cart:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -527,7 +537,7 @@ app.patch('/api/cart/:userId/items/:productId', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error updating cart item:', error);
+    logger.error('Error updating cart item:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -561,7 +571,7 @@ app.delete('/api/cart/:userId/items/:productId', async (req, res) => {
       message: 'Item removed from cart',
     });
   } catch (error) {
-    console.error('Error removing cart item:', error);
+    logger.error('Error removing cart item:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -591,7 +601,7 @@ app.delete('/api/cart/:userId', async (req, res) => {
       message: 'Cart cleared successfully',
     });
   } catch (error) {
-    console.error('Error clearing cart:', error);
+    logger.error('Error clearing cart:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -629,7 +639,7 @@ app.get('/api/cart/:userId/summary', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error getting cart summary:', error);
+    logger.error('Error getting cart summary:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -671,7 +681,7 @@ app.get('/api/cart/stats/overview', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error getting cart statistics:', error);
+    logger.error('Error getting cart statistics:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -681,15 +691,14 @@ app.get('/api/cart/stats/overview', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🛒 Cart Service running on port ${PORT}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`💾 Database: Redis (Session-based storage)`);
-  console.log(`📊 API: http://localhost:${PORT}/api/cart`);
+  logger.info(`🛒 Cart Service running on port ${PORT}`);
+  logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
+  logger.info(`💾 Database: Redis (Session-based storage)`);
+  logger.info(`📊 API: http://localhost:${PORT}/api/cart`);
 });
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('🛑 Cart Service shutting down...');
-  await redis.quit();
+process.on('SIGTERM', () => {
+  logger.info('🛑 Cart Service shutting down...');
   process.exit(0);
 });

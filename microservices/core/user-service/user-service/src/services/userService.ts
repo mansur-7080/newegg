@@ -61,9 +61,12 @@ export class UserService {
     await cache.setex(`email_verify:${verificationToken}`, 24 * 60 * 60, createdUser.id); // 24h expiry
 
     // Mock email sending (replace with nodemailer in prod)
-    console.log(
-      `[MOCK EMAIL] To: ${createdUser.email} | Verify: http://localhost:3001/api/v1/users/verify-email/${verificationToken}`
-    );
+    // TODO: Replace with proper email service
+    // logger.info('Email verification token generated', {
+    //   userId: createdUser.id,
+    //   email: createdUser.email,
+    //   operation: 'email_verification'
+    // });
 
     const tokens = await generateTokens({
       userId: createdUser.id,
@@ -233,9 +236,12 @@ export class UserService {
     const resetToken = randomBytes(32).toString('hex');
     await cache.setex(`reset_password:${resetToken}`, 60 * 60, user.id); // 1h expiry
     // Mock email sending (replace with nodemailer in prod)
-    console.log(
-      `[MOCK EMAIL] To: ${user.email} | Reset: http://localhost:3001/api/v1/users/reset-password?token=${resetToken}`
-    );
+    // TODO: Replace with proper email service
+    // logger.info('Password reset token generated', {
+    //   userId: user.id,
+    //   email: user.email,
+    //   operation: 'password_reset'
+    // });
   }
 
   async resetPassword(token: string, newPassword: string) {

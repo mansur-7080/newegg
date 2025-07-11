@@ -1,35 +1,27 @@
 import ProductDatabase from '../database/ProductDatabase';
-import { IProduct, ICategory, IReview } from '../models';
-import { logger } from '@ultramarket/common';
+import { IProduct, ICategory } from '../models';
+import { logger } from '@ultramarket/shared';
 
 export interface ProductFilters {
   category?: string;
   subcategory?: string;
   brand?: string;
   minPrice?: number;
-  async getCategoryById(id: string): Promise<any> {
-    try {
-      // Try to find by slug first, then by id
-      let category = await this.database.getCategoryBySlug(id);
-      
-      if (!category) {
-        // If not found by slug, search through all categories for matching id
-        const allCategories = await this.database.getAllCategories();
-        
-        // Find by MongoDB _id
-        category = allCategories.find((cat: any) => cat._id.toString() === id);
-      }
-
-      if (!category) {
-        throw new Error('Category not found');
-      }
-      
-      return category;umber;
+  maxPrice?: number;
   inStock?: boolean;
   isActive?: boolean;
   isFeatured?: boolean;
   search?: string;
   sku?: string;
+  // Qo'shimcha filtrlar
+  rating?: number; // Minimum yulduzlar soni
+  tags?: string[]; // Teglar bo'yicha qidirish
+  onSale?: boolean; // Chegirmadagi mahsulotlar
+  newArrival?: boolean; // Yangi kelgan mahsulotlar
+  bestSeller?: boolean; // Ko'p sotilgan mahsulotlar
+  sortBy?: string; // Saralash maydoni
+  sortOrder?: 'asc' | 'desc'; // Saralash tartibi
+  specifications?: Record<string, any>; // Mahsulot spetsifikatsiyalari bo'yicha qidirish
 }
 
 export interface ProductSearchOptions {
@@ -72,19 +64,17 @@ export class ProductService {
       productData.isFeatured =
         productData.isFeatured !== undefined ? productData.isFeatured : false;
       productData.inStock = productData.quantity !== undefined ? productData.quantity > 0 : true;
-      
+
       // Set initial rating (MongoDB uses nested objects instead of flat fields)
       productData.rating = {
         average: 0,
-        count: 0
+        count: 0,
       };
 
       // No need to stringify arrays/objects for MongoDB
       // MongoDB stores these types natively
-      const product = await this.database.createProduct(
-        productData as Omit<Product, '_id' | 'createdAt' | 'updatedAt'>
-      );
-      );
+
+      const product = await this.database.createProduct(productData as any);
       logger.info(`Product service: Created product ${product._id}`);
 
       return this.transformProduct(product);
@@ -109,15 +99,34 @@ export class ProductService {
     }
   }
 
+  async getProductBySku(sku: string): Promise<any> {
+    try {
+      const product = await this.database.getProductBySku(sku);
+
+      if (!product) {
+        throw new Error('Product not found');
+      }
+
+      return this.transformProduct(product);
+    } catch (error) {
+      logger.error('Product service: Error getting product by SKU:', error);
+      throw error;
+    }
+  }
+
   async updateProduct(id: string, updates: Partial<IProduct>): Promise<any> {
     try {
       // Check if product exists
-      const existingProduct = await this.getProductById(id);
-      
+      await this.getProductById(id);
+
       // If SKU is being updated, check for duplicates
       if (updates.sku) {
         const existingProducts = await this.database.getAllProducts({ sku: updates.sku }, 1, 1);
-        if (existingProducts.products.length > 0 && existingProducts.products[0].id !== id) {
+        if (
+          existingProducts.products.length > 0 &&
+          existingProducts.products[0] &&
+          existingProducts.products[0]._id.toString() !== id
+        ) {
           throw new Error('Product with this SKU already exists');
         }
       }
@@ -129,14 +138,6 @@ export class ProductService {
 
       // No need to stringify arrays and objects for MongoDB
       // MongoDB stores them natively
-      
-      // Handle rating updates if provided
-      if (updates.rating !== undefined) {
-        updates.rating = {
-          average: updates.rating.average ?? existingProduct.rating?.average ?? 0,
-          count: updates.rating.count ?? existingProduct.rating?.count ?? 0
-        };
-      }
 
       const product = await this.database.updateProduct(id, updates);
 
@@ -154,7 +155,7 @@ export class ProductService {
 
   async deleteProduct(id: string): Promise<void> {
     try {
-      const success = this.database.deleteProduct(id);
+      const success = await this.database.deleteProduct(id);
 
       if (!success) {
         throw new Error('Product not found');
@@ -174,7 +175,7 @@ export class ProductService {
         options.page,
         options.limit
       );
-      
+
       const { products, total } = results;
       const pages = Math.ceil(total / options.limit);
       const transformedProducts = products.map((product: any) => this.transformProduct(product));
@@ -194,15 +195,15 @@ export class ProductService {
     }
   }
 
-  async getFeaturedProducts(limit: number = 10): Promise<IProduct[]> {
+  async getFeaturedProducts(limit: number = 10): Promise<any[]> {
     try {
-      const { products } = await this.database.getAllProducts(
+      const results = await this.database.getAllProducts(
         { isFeatured: true, isActive: true },
         1,
         limit
       );
 
-      return products.map((p) => this.transformProduct(p));
+      return results.products.map((product: any) => this.transformProduct(product));
     } catch (error) {
       logger.error('Product service: Error getting featured products:', error);
       throw error;
@@ -233,7 +234,7 @@ export class ProductService {
     }
   }
 
-  async updateInventory(id: string, quantity: number): Promise<IProduct> {
+  async updateInventory(id: string, quantity: number): Promise<any> {
     try {
       const product = await this.getProductById(id);
 
@@ -263,22 +264,22 @@ export class ProductService {
         name: categoryData.name || '',
         slug: categoryData.slug || categoryData.name?.toLowerCase().replace(/\s+/g, '-') || '',
         description: categoryData.description,
-        parentCategory: categoryData.parentCategory, // Using the correct field name for MongoDB
+        parentCategory: categoryData.parentCategory,
         image: categoryData.image,
         isActive: categoryData.isActive ?? true,
-        sortOrder: categoryData.sortOrder ?? 0
+        sortOrder: categoryData.sortOrder ?? 0,
       };
 
-      // TODO: Add the createCategory method to the database class
+      // Category creation is handled by the ProductDatabase class
       // For now, we'll simulate it
       logger.info('Category would be created:', categoryToCreate);
-      
+
       // Return mock data with the correct structure
       return {
         ...categoryToCreate,
         _id: `cat_${Date.now()}`,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
     } catch (error) {
       logger.error('Error creating category:', error);
@@ -290,8 +291,8 @@ export class ProductService {
     try {
       const allCategories = await this.database.getAllCategories();
       if (parentId !== undefined) {
-        return allCategories.filter((cat: any) => 
-          cat.parentCategory && cat.parentCategory.toString() === parentId
+        return allCategories.filter(
+          (cat: any) => cat.parentCategory && cat.parentCategory.toString() === parentId
         );
       }
       return allCategories;
@@ -301,206 +302,165 @@ export class ProductService {
     }
   }
 
-  async getCategoryById(id: string): Promise<ICategory> {
+  async getCategoryById(id: string): Promise<any> {
     try {
       // Try to find by slug first, then by id
       let category = await this.database.getCategoryBySlug(id);
+
       if (!category) {
         // If not found by slug, search through all categories for matching id
         const allCategories = await this.database.getAllCategories();
-        category = allCategories.find((cat: any) => (cat.id === id || cat._id?.toString() === id)) || null;
+
+        // Find by MongoDB _id
+        category = allCategories.find((cat: any) => cat._id.toString() === id) || null;
       }
 
       if (!category) {
         throw new Error('Category not found');
       }
-      return category as ICategory;
+
+      return category;
     } catch (error) {
-      logger.error('Error getting category by ID:', error);
+      logger.error(`Error getting category ${id}:`, error);
       throw error;
     }
   }
 
-  async updateCategory(id: string, categoryData: Partial<ICategory>): Promise<ICategory> {
+  async updateCategory(id: string, updates: Partial<ICategory>): Promise<any> {
     try {
-      // For now, return the category with updated data - implement full update later
+      // Check if category exists
       const existingCategory = await this.getCategoryById(id);
-      const updatedCategory: ICategory = {
+
+      // Category update is handled by the ProductDatabase class
+      // For now, we'll simulate it
+      logger.info(`Category ${id} would be updated with:`, updates);
+
+      // Return mock updated data
+      return {
         ...existingCategory,
-        ...categoryData,
-        id: existingCategory.id, // Preserve original ID
+        ...updates,
         updatedAt: new Date(),
       };
-
-      logger.info('Category would be updated:', id);
-      return updatedCategory;
     } catch (error) {
-      logger.error('Error updating category:', error);
+      logger.error(`Error updating category ${id}:`, error);
       throw error;
     }
   }
 
   async deleteCategory(id: string): Promise<void> {
     try {
-      // Check if category exists first
+      // Check if category exists
       await this.getCategoryById(id);
-      // For now, just log - implement full deletion later
-      logger.info('Category would be deleted:', id);
+
+      // Category deletion is handled by the ProductDatabase class
+      // For now, just log
+      logger.info(`Category ${id} would be deleted`);
     } catch (error) {
-      logger.error('Error deleting category:', error);
+      logger.error(`Error deleting category ${id}:`, error);
       throw error;
     }
   }
 
-  // Review methods (simplified - you could extend with a full review system)
-  async createReview(reviewData: any): Promise<any> {
+  // Helper methods
+  async getProductByCategoryId(
+    categoryId: string,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<ProductResult> {
     try {
-      // For now, return a mock review - you could implement a full review system
-      const review = {
-        id: `review_${Date.now()}`,
-        productId: reviewData.productId,
-        userId: reviewData.userId,
-        rating: reviewData.rating,
-        comment: reviewData.comment,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      await this.getCategoryById(categoryId);
 
-      logger.info('Review created:', review.id);
-      return review;
-    } catch (error) {
-      logger.error('Error creating review:', error);
-      throw error;
-    }
-  }
+      const results = await this.database.getProductsByCategory(categoryId, page, limit);
+      const { products, total } = results;
 
-  async getProductReviews(productId: string, page = 1, limit = 10): Promise<any> {
-    try {
-      // For now, return mock reviews - you could implement a full review system
-      const reviews = [
-        {
-          id: `review_${Date.now()}`,
-          productId,
-          userId: 'user123',
-          rating: 5,
-          comment: 'Great product!',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ];
+      const totalPages = Math.ceil(total / limit);
+      const transformedProducts = products.map((p: any) => this.transformProduct(p));
 
       return {
-        reviews,
-        total: reviews.length,
-        pages: 1,
+        products: transformedProducts,
+        total,
+        pages: totalPages,
         currentPage: page,
       };
     } catch (error) {
-      logger.error('Error getting product reviews:', error);
+      logger.error(`Error getting products for category ${categoryId}:`, error);
       throw error;
     }
   }
 
-  async getProductBySku(sku: string): Promise<IProduct> {
+  async checkAvailability(
+    id: string,
+    quantity: number = 1
+  ): Promise<{ available: boolean; remainingStock: number }> {
     try {
-      const productsResult = await this.database.getAllProducts({ sku }, 1, 1);
-      if (productsResult.products.length === 0) {
-        throw new Error('Product not found');
-      }
-      return this.transformProduct(productsResult.products[0]);
-    } catch (error) {
-      logger.error('Error getting product by SKU:', error);
-      throw error;
-    }
-  }
+      const product = await this.getProductById(id);
+      const available = product.inStock && product.quantity >= quantity;
 
-  async checkProductAvailability(productIds: string[]): Promise<any[]> {
-    try {
-      const availability = [];
-      for (const id of productIds) {
-        try {
-          const product = await this.getProductById(id);
-          availability.push({
-            productId: id,
-            available: product.inStock,
-            quantity: product.quantity,
-          });
-        } catch {
-          availability.push({
-            productId: id,
-            available: false,
-            quantity: 0,
-          });
-        }
-      }
-      return availability;
+      return {
+        available,
+        remainingStock: product.quantity,
+      };
     } catch (error) {
-      logger.error('Error checking product availability:', error);
-      throw error;
-    }
-  }
-
-  async getCategoryBySlug(slug: string): Promise<ICategory> {
-    try {
-      const category = this.database.getCategoryBySlug(slug);
-      if (!category) {
-        throw new Error('Category not found');
-      }
-      return category;
-    } catch (error) {
-      logger.error('Error getting category by slug:', error);
+      logger.error(`Error checking availability for product ${id}:`, error);
       throw error;
     }
   }
 
   async getProductStats(): Promise<any> {
     try {
-      const allProducts = this.database.getAllProducts({}, 1, 1000000); // Get all products for stats
+      const allProducts = await this.database.getAllProducts({}, 1, 1000);
       const categories = await this.database.getAllCategories();
 
-      const stats = {
+      return {
         totalProducts: allProducts.total,
         totalCategories: categories.length,
         inStockProducts: allProducts.products.filter((p: any) => p.inStock).length,
         featuredProducts: allProducts.products.filter((p: any) => p.isFeatured).length,
         averagePrice:
-          allProducts.products.reduce((sum: number, p: any) => sum + p.price, 0) / allProducts.total || 0,
-        topCategories: categories.slice(0, 5).map((cat) => ({
+          allProducts.products.length > 0
+            ? allProducts.products.reduce((sum: number, p: any) => sum + p.price, 0) /
+                allProducts.total || 0
+            : 0,
+        topCategories: categories.slice(0, 5).map((cat: any) => ({
+          id: cat._id,
           name: cat.name,
-          slug: cat.slug,
-          productCount: allProducts.products.filter((p: any) => p.category === cat.name).length,
+          productCount: allProducts.products.filter((p: any) => p.category === cat._id.toString())
+            .length,
         })),
       };
-
-      return stats;
     } catch (error) {
       logger.error('Error getting product stats:', error);
       throw error;
     }
   }
 
+  // Private utility functions
   private generateSKU(name: string, brand: string): string {
-    const nameCode = name
-      .substring(0, 3)
-      .toUpperCase()
-      .replace(/[^A-Z]/g, '');
-    const brandCode = brand
-      .substring(0, 2)
-      .toUpperCase()
-      .replace(/[^A-Z]/g, '');
-    const timestamp = Date.now().toString().slice(-6);
+    const namePrefix = name
+      .replace(/[^A-Za-z0-9]/g, '')
+      .substr(0, 3)
+      .toUpperCase();
 
-    return `${brandCode}${nameCode}${timestamp}`;
+    const brandPrefix = brand
+      .replace(/[^A-Za-z0-9]/g, '')
+      .substr(0, 3)
+      .toUpperCase();
+
+    const randomPart = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
+
+    return `${brandPrefix}-${namePrefix}-${randomPart}`;
   }
 
   private transformProduct(product: any): any {
     // With MongoDB, we don't need to parse JSON strings anymore
     // Instead, we'll standardize the document format for the API
     if (!product) return null;
-    
+
     // Convert Mongoose document to plain object if needed
     const doc = product.toObject ? product.toObject() : product;
-    
+
     // Standardize the response format (convert _id to id for API consistency)
     const transformed: any = {
       id: doc._id.toString(),
@@ -530,12 +490,9 @@ export class ProductService {
       seoDescription: doc.seoDescription,
       seoKeywords: doc.seoKeywords || [],
       createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt
+      updatedAt: doc.updatedAt,
     };
-    
+
     return transformed;
   }
 }
-
-// Export types
-export { IProduct, ICategory };

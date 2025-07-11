@@ -68,36 +68,40 @@ app.use('/api/auth', authRoutes);
 
 // Service proxy configurations
 const services = {
+  auth: {
+    target: process.env.AUTH_SERVICE_URL || 'http://localhost:3002',
+    pathRewrite: { '^/api/auth': '/api/auth' },
+  },
   user: {
     target: process.env.USER_SERVICE_URL || 'http://localhost:3001',
     pathRewrite: { '^/api/users': '/api/users' },
   },
   product: {
-    target: process.env.PRODUCT_SERVICE_URL || 'http://localhost:3002',
+    target: process.env.PRODUCT_SERVICE_URL || 'http://localhost:3003',
     pathRewrite: { '^/api/products': '/api/products' },
-  },
-  order: {
-    target: process.env.ORDER_SERVICE_URL || 'http://localhost:3004',
-    pathRewrite: { '^/api/orders': '/api/orders' },
   },
   cart: {
     target: process.env.CART_SERVICE_URL || 'http://localhost:3005',
     pathRewrite: { '^/api/cart': '/api/cart' },
   },
+  order: {
+    target: process.env.ORDER_SERVICE_URL || 'http://localhost:3006',
+    pathRewrite: { '^/api/orders': '/api/orders' },
+  },
   payment: {
-    target: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3006',
+    target: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3007',
     pathRewrite: { '^/api/payments': '/api/payments' },
   },
   notification: {
-    target: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3007',
+    target: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3008',
     pathRewrite: { '^/api/notifications': '/api/notifications' },
   },
   search: {
-    target: process.env.SEARCH_SERVICE_URL || 'http://localhost:3008',
+    target: process.env.SEARCH_SERVICE_URL || 'http://localhost:3009',
     pathRewrite: { '^/api/search': '/api/search' },
   },
   analytics: {
-    target: process.env.ANALYTICS_SERVICE_URL || 'http://localhost:3009',
+    target: process.env.ANALYTICS_SERVICE_URL || 'http://localhost:3010',
     pathRewrite: { '^/api/analytics': '/api/analytics' },
   },
 };
@@ -130,10 +134,19 @@ Object.entries(services).forEach(([serviceName, config]) => {
   // Apply authentication middleware for protected routes
   const protectedRoutes = ['/api/orders', '/api/cart', '/api/payments', '/api/analytics'];
   const routePath = `/api/${
-    serviceName === 'user' ? 'users' : serviceName === 'product' ? 'products' : serviceName
+    serviceName === 'user'
+      ? 'users'
+      : serviceName === 'product'
+        ? 'products'
+        : serviceName === 'auth'
+          ? 'auth'
+          : serviceName
   }`;
 
-  if (protectedRoutes.some((route) => routePath.startsWith(route))) {
+  // Auth routes don't need auth middleware (they provide auth)
+  if (serviceName === 'auth') {
+    app.use(routePath, proxyMiddleware);
+  } else if (protectedRoutes.some((route) => routePath.startsWith(route))) {
     app.use(routePath, authMiddleware, proxyMiddleware);
   } else {
     app.use(routePath, proxyMiddleware);
@@ -152,8 +165,8 @@ app.get('/api/docs', (req, res) => {
       auth: '/api/auth',
       users: '/api/users',
       products: '/api/products',
-      orders: '/api/orders',
       cart: '/api/cart',
+      orders: '/api/orders',
       payments: '/api/payments',
       notifications: '/api/notifications',
       search: '/api/search',

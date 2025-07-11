@@ -1,0 +1,76 @@
+{
+  "products": [
+    {
+      "id": "prod-001",
+      "name": "iPhone 15 Pro",
+      "slug": "iphone-15-pro",
+      "price": 999.99,
+      "discount": 0,
+      "rating": 4.8,
+      "inStock": true,
+      "category": "smartphones",
+      "brand": "Apple",
+      "image": "iphone-15-pro.jpg",
+      "description": "The latest iPhone with innovative features"
+    },
+    {
+      "id": "prod-002",
+      "name": "Samsung Galaxy S23",
+      "slug": "samsung-galaxy-s23",
+      "price": 899.99,
+      "discount": 50,
+      "rating": 4.7,
+      "inStock": true,
+      "category": "smartphones",
+      "brand": "Samsung",
+      "image": "samsung-s23.jpg",
+      "description": "Powerful Android smartphone with excellent camera"
+    },
+    {
+      "id": "prod-003",
+      "name": "MacBook Pro 16",
+      "slug": "macbook-pro-16",
+      "price": 2499.99,
+      "discount": 0,
+      "rating": 4.9,
+      "inStock": true,
+      "category": "laptops",
+      "brand": "Apple",
+      "image": "macbook-pro-16.jpg",
+      "description": "Professional laptop for demanding workloads"
+    }
+  ],
+  "users": [
+    {
+      "id": "user-001",
+      "email": "test@ultramarket.com",
+      "password": "Test123!",
+      "name": "Test User",
+      "role": "customer"
+    },
+    {
+      "id": "admin-001",
+      "email": "admin@ultramarket.com",
+      "password": "Admin123!",
+      "name": "Admin User",
+      "role": "admin"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat-001",
+      "name": "Smartphones",
+      "slug": "smartphones"
+    },
+    {
+      "id": "cat-002",
+      "name": "Laptops",
+      "slug": "laptops"
+    },
+    {
+      "id": "cat-003",
+      "name": "Audio",
+      "slug": "audio"
+    }
+  ]
+}

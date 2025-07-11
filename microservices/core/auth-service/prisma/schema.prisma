@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  username        String    @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  phoneNumber     String?
+  role            UserRole  @default(CUSTOMER)
+  isActive        Boolean   @default(true)
+  isEmailVerified Boolean   @default(false)
+  profileImage    String?
+  bio             String?
+  
+  refreshTokens   RefreshToken[]
+  sessions        Session[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastLoginAt     DateTime?
+  
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  token       String    @unique
+  expiresAt   DateTime
+  
+  createdAt   DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Session {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  token       String    @unique
+  userAgent   String?
+  ipAddress   String?
+  
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model EmailVerification {
+  id          String    @id @default(uuid())
+  email       String
+  token       String    @unique
+  expiresAt   DateTime
+  
+  createdAt   DateTime  @default(now())
+  
+  @@index([email])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("email_verifications")
+}
+
+model PasswordReset {
+  id          String    @id @default(uuid())
+  email       String
+  token       String    @unique
+  expiresAt   DateTime
+  used        Boolean   @default(false)
+  
+  createdAt   DateTime  @default(now())
+  
+  @@index([email])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("password_resets")
+}
+
+model LoginAttempt {
+  id          String    @id @default(uuid())
+  email       String
+  ipAddress   String
+  userAgent   String?
+  success     Boolean
+  failureReason String?
+  
+  createdAt   DateTime  @default(now())
+  
+  @@index([email])
+  @@index([ipAddress])
+  @@index([createdAt])
+  @@map("login_attempts")
+}
+
+enum UserRole {
+  CUSTOMER
+  SELLER
+  ADMIN
+  SUPER_ADMIN
+} 

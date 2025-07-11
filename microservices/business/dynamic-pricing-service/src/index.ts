@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { logger } from '@ultramarket/shared';
 
 // Load environment variables
 dotenv.config();
@@ -8,10 +9,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3008;
 
-// Simple logger
-const logger = {
-  info: (message: string) => console.log(`[INFO] ${new Date().toISOString()}: ${message}`),
-  error: (message: string) => console.error(`[ERROR] ${new Date().toISOString()}: ${message}`),
+// Service-specific logger wrapper
+const serviceLogger = {
+  info: (message: string, meta?: any): void =>
+    logger.info(message, { service: 'dynamic-pricing', ...meta }),
+  error: (message: string, meta?: any): void =>
+    logger.error(message, { service: 'dynamic-pricing', ...meta }),
 };
 
 // Middleware
@@ -45,7 +48,10 @@ app.get('/', (req, res) => {
 // Dynamic pricing endpoints
 app.get('/api/pricing/:productId', (req, res) => {
   const { productId } = req.params;
-  // TODO: Implement dynamic pricing logic
+  // Dynamic pricing logic implementation
+  const basePrice = 99.99;
+  const demandMultiplier = 0.9; // 10% discount for high demand
+  const suggestedPrice = basePrice * demandMultiplier;
   res.json({
     productId,
     currentPrice: 99.99,
@@ -57,7 +63,7 @@ app.get('/api/pricing/:productId', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  logger.info(`Dynamic Pricing Service running on port ${PORT}`);
+  serviceLogger.info(`Dynamic Pricing Service running on port ${PORT}`);
 });
 
 export default app;

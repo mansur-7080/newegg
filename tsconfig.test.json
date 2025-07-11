@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "strict": false,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "exactOptionalPropertyTypes": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  },
+  "include": ["libs/**/*", "microservices/**/*"],
+  "exclude": ["node_modules", "dist", "build", "coverage"]
+}

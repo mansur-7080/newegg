@@ -1,12 +1,14 @@
 import { UserService } from '../services/user.service';
-import { prismaMock } from '../utils/prismaMock';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-// Mock dependencies
+// Mock Prisma client
+jest.mock('@prisma/client');
 jest.mock('bcryptjs');
 jest.mock('jsonwebtoken');
 
+const mockPrisma = new PrismaClient() as jest.Mocked<PrismaClient>;
 const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 const mockJwt = jwt as jest.Mocked<typeof jwt>;
 
@@ -18,322 +20,300 @@ describe('UserService', () => {
     jest.clearAllMocks();
   });
 
-  describe('register', () => {
-    it('should successfully register a new user', async () => {
+  describe('createUser', () => {
+    it('should create a new user with hashed password', async () => {
       const userData = {
         email: 'test@example.com',
+        username: 'testuser',
         password: 'password123',
-        firstName: 'John',
-        lastName: 'Doe',
+        firstName: 'Test',
+        lastName: 'User',
       };
 
       const hashedPassword = 'hashedPassword123';
       const mockUser = {
-        id: '1',
+        id: 'user-id-123',
         email: userData.email,
-        password: hashedPassword,
+        username: userData.username,
+        passwordHash: hashedPassword,
         firstName: userData.firstName,
         lastName: userData.lastName,
-        role: 'user',
+        role: 'CUSTOMER',
         isActive: true,
+        isEmailVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
       mockBcrypt.hash.mockResolvedValue(hashedPassword);
-      prismaMock.user.findUnique.mockResolvedValue(null);
-      prismaMock.user.create.mockResolvedValue(mockUser);
+      (mockPrisma.user.create as jest.Mock).mockResolvedValue(mockUser);
 
-      const result = await userService.register(userData);
+      const result = await userService.createUser(userData);
 
-      expect(mockBcrypt.hash).toHaveBeenCalledWith(userData.password, 10);
-      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
-        where: { email: userData.email },
-      });
-      expect(prismaMock.user.create).toHaveBeenCalledWith({
+      expect(mockBcrypt.hash).toHaveBeenCalledWith(userData.password, 12);
+      expect(mockPrisma.user.create).toHaveBeenCalledWith({
         data: {
           email: userData.email,
-          password: hashedPassword,
+          username: userData.username,
+          passwordHash: hashedPassword,
           firstName: userData.firstName,
           lastName: userData.lastName,
-          role: 'user',
         },
       });
-      expect(result).toEqual({
-        id: mockUser.id,
-        email: mockUser.email,
-        firstName: mockUser.firstName,
-        lastName: mockUser.lastName,
-        role: mockUser.role,
-        isActive: mockUser.isActive,
-      });
+      expect(result).toEqual(mockUser);
     });
 
     it('should throw error if user already exists', async () => {
       const userData = {
-        email: 'test@example.com',
+        email: 'existing@example.com',
+        username: 'existinguser',
         password: 'password123',
-        firstName: 'John',
-        lastName: 'Doe',
+        firstName: 'Test',
+        lastName: 'User',
       };
 
-      const existingUser = {
-        id: '1',
-        email: userData.email,
-        password: 'hashedPassword',
-        firstName: 'Jane',
-        lastName: 'Doe',
-        role: 'user',
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const prismaError = new Error('Unique constraint failed');
+      (prismaError as any).code = 'P2002';
 
-      prismaMock.user.findUnique.mockResolvedValue(existingUser);
+      mockBcrypt.hash.mockResolvedValue('hashedPassword');
+      (mockPrisma.user.create as jest.Mock).mockRejectedValue(prismaError);
 
-      await expect(userService.register(userData)).rejects.toThrow(
-        'User with this email already exists'
-      );
-    });
-
-    it('should throw error if password is too weak', async () => {
-      const userData = {
-        email: 'test@example.com',
-        password: '123',
-        firstName: 'John',
-        lastName: 'Doe',
-      };
-
-      await expect(userService.register(userData)).rejects.toThrow(
-        'Password must be at least 6 characters long'
-      );
+      await expect(userService.createUser(userData)).rejects.toThrow('User already exists');
     });
   });
 
-  describe('login', () => {
-    it('should successfully login with valid credentials', async () => {
-      const loginData = {
-        email: 'test@example.com',
-        password: 'password123',
-      };
+  describe('authenticateUser', () => {
+    it('should authenticate user with correct credentials', async () => {
+      const email = 'test@example.com';
+      const password = 'password123';
+      const hashedPassword = 'hashedPassword123';
 
       const mockUser = {
-        id: '1',
-        email: loginData.email,
-        password: 'hashedPassword123',
-        firstName: 'John',
-        lastName: 'Doe',
-        role: 'user',
+        id: 'user-id-123',
+        email,
+        passwordHash: hashedPassword,
         isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        isEmailVerified: true,
       };
 
-      const mockToken = 'mockJwtToken';
-      const mockRefreshToken = 'mockRefreshToken';
+      const mockTokens = {
+        accessToken: 'access-token-123',
+        refreshToken: 'refresh-token-123',
+      };
 
-      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       mockBcrypt.compare.mockResolvedValue(true);
-      mockJwt.sign.mockReturnValueOnce(mockToken).mockReturnValueOnce(mockRefreshToken);
+      mockJwt.sign.mockReturnValueOnce(mockTokens.accessToken);
+      mockJwt.sign.mockReturnValueOnce(mockTokens.refreshToken);
 
-      const result = await userService.login(loginData);
+      const result = await userService.authenticateUser(email, password);
 
-      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
-        where: { email: loginData.email },
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+        where: { email },
       });
-      expect(mockBcrypt.compare).toHaveBeenCalledWith(loginData.password, mockUser.password);
-      expect(mockJwt.sign).toHaveBeenCalledTimes(2);
+      expect(mockBcrypt.compare).toHaveBeenCalledWith(password, hashedPassword);
       expect(result).toEqual({
-        user: {
-          id: mockUser.id,
-          email: mockUser.email,
-          firstName: mockUser.firstName,
-          lastName: mockUser.lastName,
-          role: mockUser.role,
-          isActive: mockUser.isActive,
-        },
-        token: mockToken,
-        refreshToken: mockRefreshToken,
+        user: mockUser,
+        tokens: mockTokens,
       });
     });
 
-    it('should throw error if user not found', async () => {
-      const loginData = {
-        email: 'nonexistent@example.com',
-        password: 'password123',
-      };
+    it('should throw error for invalid credentials', async () => {
+      const email = 'test@example.com';
+      const password = 'wrongpassword';
 
-      prismaMock.user.findUnique.mockResolvedValue(null);
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(userService.login(loginData)).rejects.toThrow('Invalid credentials');
+      await expect(userService.authenticateUser(email, password)).rejects.toThrow(
+        'Invalid credentials'
+      );
     });
 
-    it('should throw error if password is incorrect', async () => {
-      const loginData = {
-        email: 'test@example.com',
-        password: 'wrongpassword',
-      };
+    it('should throw error for inactive user', async () => {
+      const email = 'test@example.com';
+      const password = 'password123';
 
       const mockUser = {
-        id: '1',
-        email: loginData.email,
-        password: 'hashedPassword123',
-        firstName: 'John',
-        lastName: 'Doe',
-        role: 'user',
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      prismaMock.user.findUnique.mockResolvedValue(mockUser);
-      mockBcrypt.compare.mockResolvedValue(false);
-
-      await expect(userService.login(loginData)).rejects.toThrow('Invalid credentials');
-    });
-
-    it('should throw error if user is not active', async () => {
-      const loginData = {
-        email: 'test@example.com',
-        password: 'password123',
-      };
-
-      const mockUser = {
-        id: '1',
-        email: loginData.email,
-        password: 'hashedPassword123',
-        firstName: 'John',
-        lastName: 'Doe',
-        role: 'user',
+        id: 'user-id-123',
+        email,
+        passwordHash: 'hashedPassword123',
         isActive: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        isEmailVerified: true,
       };
 
-      prismaMock.user.findUnique.mockResolvedValue(mockUser);
-      mockBcrypt.compare.mockResolvedValue(true);
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
 
-      await expect(userService.login(loginData)).rejects.toThrow('User account is deactivated');
+      await expect(userService.authenticateUser(email, password)).rejects.toThrow(
+        'Account is inactive'
+      );
     });
   });
 
   describe('getUserById', () => {
-    it('should return user by id', async () => {
-      const userId = '1';
+    it('should return user by ID', async () => {
+      const userId = 'user-id-123';
       const mockUser = {
         id: userId,
         email: 'test@example.com',
-        password: 'hashedPassword',
-        firstName: 'John',
-        lastName: 'Doe',
-        role: 'user',
+        username: 'testuser',
+        firstName: 'Test',
+        lastName: 'User',
+        role: 'CUSTOMER',
         isActive: true,
+        isEmailVerified: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
 
       const result = await userService.getUserById(userId);
 
-      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
         where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          isActive: true,
+          isEmailVerified: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
-      expect(result).toEqual({
-        id: mockUser.id,
-        email: mockUser.email,
-        firstName: mockUser.firstName,
-        lastName: mockUser.lastName,
-        role: mockUser.role,
-        isActive: mockUser.isActive,
-      });
+      expect(result).toEqual(mockUser);
     });
 
-    it('should throw error if user not found', async () => {
-      const userId = 'nonexistent';
+    it('should return null for non-existent user', async () => {
+      const userId = 'non-existent-id';
 
-      prismaMock.user.findUnique.mockResolvedValue(null);
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(userService.getUserById(userId)).rejects.toThrow('User not found');
+      const result = await userService.getUserById(userId);
+
+      expect(result).toBeNull();
     });
   });
 
   describe('updateUser', () => {
-    it('should successfully update user', async () => {
-      const userId = '1';
+    it('should update user data', async () => {
+      const userId = 'user-id-123';
       const updateData = {
-        firstName: 'Jane',
-        lastName: 'Smith',
+        firstName: 'Updated',
+        lastName: 'Name',
       };
 
-      const existingUser = {
+      const mockUpdatedUser = {
         id: userId,
         email: 'test@example.com',
-        password: 'hashedPassword',
-        firstName: 'John',
-        lastName: 'Doe',
-        role: 'user',
+        username: 'testuser',
+        firstName: updateData.firstName,
+        lastName: updateData.lastName,
+        role: 'CUSTOMER',
         isActive: true,
+        isEmailVerified: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      const updatedUser = {
-        ...existingUser,
-        firstName: updateData.firstName,
-        lastName: updateData.lastName,
-      };
-
-      prismaMock.user.findUnique.mockResolvedValue(existingUser);
-      prismaMock.user.update.mockResolvedValue(updatedUser);
+      (mockPrisma.user.update as jest.Mock).mockResolvedValue(mockUpdatedUser);
 
       const result = await userService.updateUser(userId, updateData);
 
-      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
-        where: { id: userId },
-      });
-      expect(prismaMock.user.update).toHaveBeenCalledWith({
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: userId },
         data: updateData,
       });
-      expect(result).toEqual({
-        id: updatedUser.id,
-        email: updatedUser.email,
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        role: updatedUser.role,
-        isActive: updatedUser.isActive,
+      expect(result).toEqual(mockUpdatedUser);
+    });
+  });
+
+  describe('changePassword', () => {
+    it('should change user password', async () => {
+      const userId = 'user-id-123';
+      const oldPassword = 'oldpassword123';
+      const newPassword = 'newpassword123';
+      const hashedOldPassword = 'hashedOldPassword';
+      const hashedNewPassword = 'hashedNewPassword';
+
+      const mockUser = {
+        id: userId,
+        passwordHash: hashedOldPassword,
+      };
+
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      mockBcrypt.compare.mockResolvedValue(true);
+      mockBcrypt.hash.mockResolvedValue(hashedNewPassword);
+      (mockPrisma.user.update as jest.Mock).mockResolvedValue({
+        ...mockUser,
+        passwordHash: hashedNewPassword,
       });
+
+      const result = await userService.changePassword(userId, oldPassword, newPassword);
+
+      expect(mockBcrypt.compare).toHaveBeenCalledWith(oldPassword, hashedOldPassword);
+      expect(mockBcrypt.hash).toHaveBeenCalledWith(newPassword, 12);
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: { passwordHash: hashedNewPassword },
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should throw error for incorrect old password', async () => {
+      const userId = 'user-id-123';
+      const oldPassword = 'wrongpassword';
+      const newPassword = 'newpassword123';
+
+      const mockUser = {
+        id: userId,
+        passwordHash: 'hashedOldPassword',
+      };
+
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      mockBcrypt.compare.mockResolvedValue(false);
+
+      await expect(userService.changePassword(userId, oldPassword, newPassword)).rejects.toThrow(
+        'Invalid old password'
+      );
     });
   });
 
   describe('deleteUser', () => {
-    it('should successfully delete user', async () => {
-      const userId = '1';
-      const mockUser = {
-        id: userId,
-        email: 'test@example.com',
-        password: 'hashedPassword',
-        firstName: 'John',
-        lastName: 'Doe',
-        role: 'user',
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+    it('should soft delete user', async () => {
+      const userId = 'user-id-123';
 
-      prismaMock.user.findUnique.mockResolvedValue(mockUser);
-      prismaMock.user.delete.mockResolvedValue(mockUser);
+      (mockPrisma.user.update as jest.Mock).mockResolvedValue({ id: userId, isActive: false });
 
       const result = await userService.deleteUser(userId);
 
-      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: userId },
+        data: { isActive: false },
       });
-      expect(prismaMock.user.delete).toHaveBeenCalledWith({
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('verifyEmail', () => {
+    it('should verify user email', async () => {
+      const userId = 'user-id-123';
+
+      (mockPrisma.user.update as jest.Mock).mockResolvedValue({
+        id: userId,
+        isEmailVerified: true,
+      });
+
+      const result = await userService.verifyEmail(userId);
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: userId },
+        data: { isEmailVerified: true },
       });
-      expect(result).toEqual({ message: 'User deleted successfully' });
+      expect(result).toBe(true);
     });
   });
 });

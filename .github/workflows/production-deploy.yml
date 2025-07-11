@@ -1,0 +1,377 @@
+name: Production Deployment Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ultramarket
+  KUBERNETES_NAMESPACE: ultramarket-production
+
+jobs:
+  # =============================================
+  # SECURITY CHECKS
+  # =============================================
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Security audit npm packages
+        run: |
+          npm audit --audit-level high
+
+      - name: Check for hardcoded secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+
+  # =============================================
+  # CODE QUALITY CHECKS
+  # =============================================
+  code-quality:
+    name: Code Quality & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        run: npm run format:check
+
+      - name: TypeScript type checking
+        run: npm run type-check
+
+  # =============================================
+  # COMPREHENSIVE TESTING
+  # =============================================
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: ultramarket_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/ultramarket_test
+          REDIS_URL: redis://localhost:6379
+        run: npm test -- --coverage
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/ultramarket_test
+          REDIS_URL: redis://localhost:6379
+        run: npm run test:integration
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  # =============================================
+  # BUILD & PUSH DOCKER IMAGES
+  # =============================================
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [security-scan, code-quality, test]
+    if: github.event_name != 'pull_request'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push images
+        id: build
+        run: |
+          # Build all services using our optimization script
+          export DOCKER_REGISTRY=${{ env.REGISTRY }}/${{ github.repository }}
+          export DOCKER_TAG=${{ github.sha }}
+          export ENABLE_CACHE=true
+          export ENABLE_BUILDKIT=true
+
+          chmod +x scripts/docker-build-optimize.sh
+          ./scripts/docker-build-optimize.sh
+
+          # Push images
+          docker push --all-tags ${{ env.REGISTRY }}/${{ github.repository }}
+
+  # =============================================
+  # LOAD TESTING
+  # =============================================
+  load-test:
+    name: Load Testing
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run K6 load tests
+        uses: grafana/k6-action@v0.3.0
+        with:
+          filename: tests/performance/load-test.js
+          flags: --out json=results.json
+
+      - name: Upload load test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: load-test-results
+          path: results.json
+
+  # =============================================
+  # STAGING DEPLOYMENT
+  # =============================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    needs: [build-and-push]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
+
+      - name: Deploy to staging
+        run: |
+          # Update image tags in manifests
+          sed -i "s|ultramarket/.*:latest|${{ env.REGISTRY }}/${{ github.repository }}:${{ github.sha }}|g" infrastructure/kubernetes/staging/*.yaml
+
+          # Apply manifests
+          kubectl apply -f infrastructure/kubernetes/staging/ --namespace=ultramarket-staging
+
+          # Wait for rollout
+          kubectl rollout status deployment/api-gateway --namespace=ultramarket-staging --timeout=600s
+
+      - name: Run smoke tests
+        run: |
+          # Wait for services to be ready
+          kubectl wait --for=condition=ready pod -l app=api-gateway --namespace=ultramarket-staging --timeout=300s
+
+          # Run smoke tests
+          npm run test:smoke -- --env=staging
+
+  # =============================================
+  # PRODUCTION DEPLOYMENT
+  # =============================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production
+    needs: [deploy-staging, load-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+
+      - name: Decrypt secrets
+        run: |
+          # Decrypt production secrets using SOPS or similar
+          echo "${{ secrets.PRODUCTION_SECRETS }}" | base64 -d > secrets.enc
+          sops -d secrets.enc > infrastructure/kubernetes/production/secrets.yaml
+
+      - name: Blue-Green Deployment
+        run: |
+          # Generate deployment manifests with new image tags
+          export IMAGE_TAG=${{ github.sha }}
+          envsubst < infrastructure/kubernetes/production/ultramarket-production.yaml > deployment.yaml
+
+          # Apply secrets first
+          kubectl apply -f infrastructure/kubernetes/production/secrets.yaml --namespace=${{ env.KUBERNETES_NAMESPACE }}
+
+          # Deploy new version (green)
+          kubectl apply -f deployment.yaml --namespace=${{ env.KUBERNETES_NAMESPACE }}
+
+          # Wait for new deployment to be ready
+          kubectl rollout status deployment/api-gateway --namespace=${{ env.KUBERNETES_NAMESPACE }} --timeout=600s
+          kubectl rollout status deployment/user-service --namespace=${{ env.KUBERNETES_NAMESPACE }} --timeout=600s
+
+      - name: Health checks
+        run: |
+          # Wait for pods to be ready
+          kubectl wait --for=condition=ready pod -l app=api-gateway --namespace=${{ env.KUBERNETES_NAMESPACE }} --timeout=300s
+
+          # Run health checks
+          API_URL=$(kubectl get ingress ultramarket-ingress --namespace=${{ env.KUBERNETES_NAMESPACE }} -o jsonpath='{.spec.rules[0].host}')
+
+          # Health check loop
+          for i in {1..30}; do
+            if curl -f https://$API_URL/health; then
+              echo "Health check passed"
+              break
+            fi
+            echo "Health check failed, retrying in 10s..."
+            sleep 10
+          done
+
+      - name: Run post-deployment tests
+        run: |
+          # Run comprehensive post-deployment tests
+          npm run test:production
+
+      - name: Notify deployment success
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          channel: '#deployments'
+          text: '🚀 Production deployment successful! Version: ${{ github.sha }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # =============================================
+  # ROLLBACK ON FAILURE
+  # =============================================
+  rollback:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    if: failure() && github.ref == 'refs/heads/main'
+    needs: [deploy-production]
+    steps:
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+
+      - name: Rollback deployment
+        run: |
+          echo "Rolling back deployment due to failure..."
+          kubectl rollout undo deployment/api-gateway --namespace=${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout undo deployment/user-service --namespace=${{ env.KUBERNETES_NAMESPACE }}
+
+          # Wait for rollback to complete
+          kubectl rollout status deployment/api-gateway --namespace=${{ env.KUBERNETES_NAMESPACE }} --timeout=300s
+
+      - name: Notify rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#alerts'
+          text: '🚨 Production deployment failed and rolled back! Commit: ${{ github.sha }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # =============================================
+  # CLEANUP
+  # =============================================
+  cleanup:
+    name: Cleanup Old Images
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [deploy-production]
+    steps:
+      - name: Delete old container images
+        uses: actions/delete-package-versions@v4
+        with:
+          package-name: ultramarket
+          package-type: container
+          min-versions-to-keep: 5
+          delete-only-untagged-versions: true

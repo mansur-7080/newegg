@@ -1,19 +1,43 @@
-import { PrismaClient } from '@prisma/client';
-import { logger } from './logger';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { logger } from './logging/logger';
+
+// Define types for database configuration
+type LogLevel = 'query' | 'info' | 'warn' | 'error';
+
+// Define interfaces
+interface PrismaModel {
+  findMany: (args: any) => Promise<any[]>;
+  count: (args: any) => Promise<number>;
+  createMany: (args: any) => Promise<any>;
+  update: (args: any) => Promise<any>;
+  delete: (args: any) => Promise<any>;
+}
+
+interface QueryOptions {
+  page?: number;
+  limit?: number;
+  where?: Record<string, any>;
+  orderBy?: Record<string, any>;
+  include?: Record<string, any>;
+  select?: Record<string, any>;
+}
+
+type TransactionClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 // Database connection configuration
-const databaseConfig = {
-  url:
-    process.env.DATABASE_URL || 'postgresql://postgres:postgres123@localhost:5432/ultramarket_db',
-  log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
-  errorFormat: 'pretty' as const,
+const databaseConfig: Prisma.PrismaClientOptions = {
   datasources: {
     db: {
-      url:
-        process.env.DATABASE_URL ||
-        'postgresql://postgres:postgres123@localhost:5432/ultramarket_db',
+      url: process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/ultramarket',
     },
   },
+  log: (process.env.NODE_ENV === 'development'
+    ? ['query', 'info', 'warn', 'error']
+    : ['error']) as LogLevel[],
+  errorFormat: 'pretty',
 };
 
 // Create Prisma client instance
@@ -78,6 +102,8 @@ export class DatabaseService {
       const backupPath = `./backups/backup-${timestamp}.sql`;
 
       // This would typically use pg_dump in production
+      await this.client.$executeRaw`SELECT 1`;
+
       logger.info(`Database backup created: ${backupPath}`);
       return backupPath;
     } catch (error) {
@@ -120,7 +146,8 @@ export class DatabaseService {
   async getVersion(): Promise<string> {
     try {
       const result = await this.client.$queryRaw`SELECT version()`;
-      return (result as any)[0]?.version || 'Unknown';
+      const versionResult = result as { version: string }[];
+      return versionResult[0]?.version || 'Unknown';
     } catch (error) {
       logger.error('Failed to get database version:', error);
       return 'Unknown';
@@ -147,30 +174,26 @@ export class TransactionService {
   }
 
   // Execute transaction
-  async executeTransaction<T>(callback: (tx: PrismaClient) => Promise<T>): Promise<T> {
-    return await this.client.$transaction(callback);
+  async executeTransaction<T>(callback: (tx: TransactionClient) => Promise<T>): Promise<T> {
+    return this.client.$transaction(callback);
   }
 
   // Execute transaction with timeout
   async executeTransactionWithTimeout<T>(
-    callback: (tx: PrismaClient) => Promise<T>,
-    timeoutMs: number = 30000
+    callback: (tx: TransactionClient) => Promise<T>,
+    timeoutMs = 30000
   ): Promise<T> {
-    return await this.client.$transaction(callback, {
+    return this.client.$transaction(callback, {
       timeout: timeoutMs,
     });
   }
 
   // Execute transaction with isolation level
   async executeTransactionWithIsolation<T>(
-    callback: (tx: PrismaClient) => Promise<T>,
-    isolationLevel:
-      | 'ReadUncommitted'
-      | 'ReadCommitted'
-      | 'RepeatableRead'
-      | 'Serializable' = 'ReadCommitted'
+    callback: (tx: TransactionClient) => Promise<T>,
+    isolationLevel: Prisma.TransactionIsolationLevel = 'ReadCommitted'
   ): Promise<T> {
-    return await this.client.$transaction(callback, {
+    return this.client.$transaction(callback, {
       isolationLevel,
     });
   }
@@ -186,15 +209,8 @@ export class QueryService {
 
   // Paginated query helper
   async paginatedQuery<T>(
-    model: any,
-    options: {
-      page?: number;
-      limit?: number;
-      where?: any;
-      orderBy?: any;
-      include?: any;
-      select?: any;
-    }
+    model: PrismaModel,
+    options: QueryOptions
   ): Promise<{
     data: T[];
     pagination: {
@@ -217,7 +233,7 @@ export class QueryService {
         select,
         skip,
         take: limit,
-      }),
+      }) as unknown as Promise<T[]>,
       model.count({ where }),
     ]);
 
@@ -238,15 +254,15 @@ export class QueryService {
 
   // Search query helper
   async searchQuery<T>(
-    model: any,
+    model: PrismaModel,
     searchTerm: string,
     searchFields: string[],
     options: {
       page?: number;
       limit?: number;
-      where?: any;
-      orderBy?: any;
-      include?: any;
+      where?: Record<string, any>;
+      orderBy?: Record<string, any>;
+      include?: Record<string, any>;
     }
   ): Promise<{
     data: T[];
@@ -280,7 +296,7 @@ export class QueryService {
         include,
         skip,
         take: limit,
-      }),
+      }) as unknown as Promise<T[]>,
       model.count({ where: searchWhere }),
     ]);
 
@@ -298,14 +314,17 @@ export class QueryService {
   }
 
   // Bulk operations helper
-  async bulkCreate<T>(model: any, data: any[]): Promise<T[]> {
-    return await model.createMany({
+  async bulkCreate<T>(model: PrismaModel, data: Record<string, any>[]): Promise<T[]> {
+    return (await model.createMany({
       data,
       skipDuplicates: true,
-    });
+    })) as unknown as T[];
   }
 
-  async bulkUpdate<T>(model: any, data: Array<{ id: string; [key: string]: any }>): Promise<T[]> {
+  async bulkUpdate<T>(
+    model: PrismaModel,
+    data: Array<{ id: string; [key: string]: any }>
+  ): Promise<T[]> {
     const updates = data.map((item) => {
       const { id, ...updateData } = item;
       return model.update({
@@ -314,17 +333,17 @@ export class QueryService {
       });
     });
 
-    return await Promise.all(updates);
+    return (await Promise.all(updates)) as unknown as T[];
   }
 
-  async bulkDelete<T>(model: any, ids: string[]): Promise<T[]> {
+  async bulkDelete<T>(model: PrismaModel, ids: string[]): Promise<T[]> {
     const deletes = ids.map((id) =>
       model.delete({
         where: { id },
       })
     );
 
-    return await Promise.all(deletes);
+    return (await Promise.all(deletes)) as unknown as T[];
   }
 }
 
@@ -337,7 +356,7 @@ export class DatabaseMonitor {
   }
 
   // Monitor slow queries
-  async getSlowQueries(thresholdMs: number = 1000): Promise<any[]> {
+  async getSlowQueries(thresholdMs = 1000): Promise<any[]> {
     try {
       const result = await this.client.$queryRaw`
         SELECT 
@@ -409,14 +428,28 @@ export const queryService = new QueryService();
 export const databaseMonitor = new DatabaseMonitor();
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  logger.info('Shutting down database connections...');
-  await databaseService.disconnect();
-  process.exit(0);
-});
+if (typeof process !== 'undefined') {
+  process.on('SIGINT', async () => {
+    logger.info('Shutting down database connections...');
+    await databaseService.disconnect();
+    process.exit(0);
+  });
 
-process.on('SIGTERM', async () => {
-  logger.info('Shutting down database connections...');
-  await databaseService.disconnect();
-  process.exit(0);
-});
+  process.on('SIGTERM', async () => {
+    logger.info('Shutting down database connections...');
+    await databaseService.disconnect();
+    process.exit(0);
+  });
+}
+
+export default {
+  prisma,
+  DatabaseService,
+  TransactionService,
+  QueryService,
+  DatabaseMonitor,
+  databaseService,
+  transactionService,
+  queryService,
+  databaseMonitor,
+};

@@ -1,0 +1,388 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "UltraMarket Production Monitoring",
+    "tags": ["ultramarket", "production", "microservices"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "🚦 System Health Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=~\"ultramarket.*\"}",
+            "legendFormat": "{{job}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "options": {
+                  "0": { "text": "DOWN", "color": "red" },
+                  "1": { "text": "UP", "color": "green" }
+                }
+              }
+            ],
+            "thresholds": {
+              "steps": [
+                { "color": "red", "value": 0 },
+                { "color": "green", "value": 1 }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+      },
+      {
+        "id": 2,
+        "title": "💰 Revenue Metrics",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "increase(ultramarket_orders_total{status=\"completed\"}[1h]) * avg(ultramarket_order_value)",
+            "legendFormat": "Hourly Revenue"
+          },
+          {
+            "expr": "increase(ultramarket_orders_total{status=\"completed\"}[24h]) * avg(ultramarket_order_value)",
+            "legendFormat": "Daily Revenue"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+      },
+      {
+        "id": 3,
+        "title": "📊 Order Conversion Funnel",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "increase(ultramarket_cart_created_total[1h])",
+            "legendFormat": "Carts Created"
+          },
+          {
+            "expr": "increase(ultramarket_checkout_started_total[1h])",
+            "legendFormat": "Checkout Started"
+          },
+          {
+            "expr": "increase(ultramarket_payment_attempted_total[1h])",
+            "legendFormat": "Payment Attempted"
+          },
+          {
+            "expr": "increase(ultramarket_orders_total{status=\"completed\"}[1h])",
+            "legendFormat": "Orders Completed"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "orientation": "horizontal",
+              "displayMode": "gradient"
+            },
+            "thresholds": {
+              "steps": [
+                { "color": "red", "value": 0 },
+                { "color": "yellow", "value": 50 },
+                { "color": "green", "value": 100 }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 }
+      },
+      {
+        "id": 4,
+        "title": "⚡ API Performance",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"api-gateway\"}[5m])) by (le))",
+            "legendFormat": "95th Percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"api-gateway\"}[5m])) by (le))",
+            "legendFormat": "50th Percentile"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 2
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 }
+      },
+      {
+        "id": 5,
+        "title": "🔥 Error Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{status=~\"5.*\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
+            "legendFormat": "Error Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": 0 },
+                { "color": "yellow", "value": 1 },
+                { "color": "red", "value": 5 }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 }
+      },
+      {
+        "id": 6,
+        "title": "🛡️ Security Alerts",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"ultramarket-security\"} |= \"SECURITY_ALERT\"",
+            "legendFormat": ""
+          }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+      },
+      {
+        "id": 7,
+        "title": "💾 Database Performance",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(pg_stat_database_tup_inserted[5m])",
+            "legendFormat": "Inserts/sec"
+          },
+          {
+            "expr": "rate(pg_stat_database_tup_updated[5m])",
+            "legendFormat": "Updates/sec"
+          },
+          {
+            "expr": "rate(pg_stat_database_tup_deleted[5m])",
+            "legendFormat": "Deletes/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear"
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }
+      },
+      {
+        "id": 8,
+        "title": "📦 Inventory Alerts",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "ultramarket_product_stock{stock < 10}",
+            "legendFormat": "",
+            "format": "table"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "displayMode": "auto"
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 }
+      },
+      {
+        "id": 9,
+        "title": "🌍 Geographic Distribution",
+        "type": "geomap",
+        "targets": [
+          {
+            "expr": "sum by (country) (increase(ultramarket_orders_total[1h]))",
+            "legendFormat": "{{country}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 }
+      },
+      {
+        "id": 10,
+        "title": "🔄 Cache Hit Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total) * 100",
+            "legendFormat": "Cache Hit Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                { "color": "red", "value": 0 },
+                { "color": "yellow", "value": 80 },
+                { "color": "green", "value": 95 }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 }
+      },
+      {
+        "id": 11,
+        "title": "📱 User Activity Heatmap",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "sum by (hour) (increase(ultramarket_user_activity_total[1h]))",
+            "legendFormat": "{{hour}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 }
+      },
+      {
+        "id": 12,
+        "title": "⚙️ Resource Utilization",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total{container!=\"POD\",container!=\"\"}[5m]) * 100",
+            "legendFormat": "CPU % - {{container}}"
+          },
+          {
+            "expr": "container_memory_working_set_bytes{container!=\"POD\",container!=\"\"} / 1024 / 1024",
+            "legendFormat": "Memory MB - {{container}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear"
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "schemaVersion": 30,
+    "version": 1,
+    "alerts": [
+      {
+        "id": 1,
+        "name": "High Error Rate",
+        "message": "Error rate is above 5%",
+        "frequency": "10s",
+        "conditions": [
+          {
+            "query": {
+              "queryType": "",
+              "refId": "A"
+            },
+            "reducer": {
+              "type": "last",
+              "params": []
+            },
+            "evaluator": {
+              "params": [5],
+              "type": "gt"
+            }
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Low Inventory",
+        "message": "Product inventory is below threshold",
+        "frequency": "1m",
+        "conditions": [
+          {
+            "query": {
+              "queryType": "",
+              "refId": "B"
+            },
+            "reducer": {
+              "type": "min",
+              "params": []
+            },
+            "evaluator": {
+              "params": [10],
+              "type": "lt"
+            }
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "name": "Revenue Drop",
+        "message": "Revenue has dropped significantly",
+        "frequency": "5m",
+        "conditions": [
+          {
+            "query": {
+              "queryType": "",
+              "refId": "C"
+            },
+            "reducer": {
+              "type": "avg",
+              "params": []
+            },
+            "evaluator": {
+              "params": [-20],
+              "type": "lt"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

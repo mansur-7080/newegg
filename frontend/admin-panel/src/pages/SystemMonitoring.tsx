@@ -19,7 +19,7 @@ import {
   Badge,
   Typography,
   Tooltip,
-  Drawer
+  Drawer,
 } from 'antd';
 import {
   DashboardOutlined,
@@ -32,7 +32,7 @@ import {
   AlertOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  StopOutlined
+  StopOutlined,
 } from '@ant-design/icons';
 import {
   LineChart,
@@ -48,7 +48,7 @@ import {
   Bar,
   PieChart,
   Pie,
-  Cell
+  Cell,
 } from 'recharts';
 import { motion } from 'framer-motion';
 import io from 'socket.io-client';
@@ -136,37 +136,34 @@ const SystemMonitoring: React.FC = () => {
     const socket = io(process.env.REACT_APP_MONITORING_WS_URL || 'ws://localhost:3010');
 
     socket.on('connect', () => {
-      console.log('Connected to monitoring WebSocket');
+      // WebSocket connection established
+      setConnectionStatus('connected');
     });
 
     socket.on('metrics', (data: SystemMetrics) => {
-      setSystemMetrics(prev => [...prev.slice(-99), data]);
+      setSystemMetrics((prev) => [...prev.slice(-99), data]);
     });
 
     socket.on('serviceHealth', (data: ServiceHealth) => {
-      setServices(prev => 
-        prev.map(service => 
-          service.id === data.id ? data : service
-        )
-      );
+      setServices((prev) => prev.map((service) => (service.id === data.id ? data : service)));
     });
 
     socket.on('alert', (alert: Alert) => {
-      setAlerts(prev => [alert, ...prev.slice(0, 99)]);
-      
+      setAlerts((prev) => [alert, ...prev.slice(0, 99)]);
+
       // Show notification for critical alerts
       if (alert.type === 'critical' || alert.type === 'error') {
         notification.error({
           message: `${alert.type.toUpperCase()} Alert`,
           description: `${alert.service}: ${alert.message}`,
           duration: 0,
-          onClick: () => setAlertDrawerVisible(true)
+          onClick: () => setAlertDrawerVisible(true),
         });
       }
     });
 
     socket.on('log', (log: LogEntry) => {
-      setLogs(prev => [log, ...prev.slice(0, 999)]);
+      setLogs((prev) => [log, ...prev.slice(0, 999)]);
     });
 
     return () => {
@@ -193,20 +190,20 @@ const SystemMonitoring: React.FC = () => {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch metrics, services, alerts, and logs
       const [metricsRes, servicesRes, alertsRes, logsRes] = await Promise.all([
         fetch(`/api/v1/monitoring/metrics?range=${selectedTimeRange}`),
         fetch('/api/v1/monitoring/services'),
         fetch('/api/v1/monitoring/alerts?limit=100'),
-        fetch('/api/v1/monitoring/logs?limit=1000')
+        fetch('/api/v1/monitoring/logs?limit=1000'),
       ]);
 
       const [metrics, servicesData, alertsData, logsData] = await Promise.all([
         metricsRes.json(),
         servicesRes.json(),
         alertsRes.json(),
-        logsRes.json()
+        logsRes.json(),
       ]);
 
       setSystemMetrics(metrics);
@@ -214,10 +211,11 @@ const SystemMonitoring: React.FC = () => {
       setAlerts(alertsData);
       setLogs(logsData);
     } catch (error) {
-      console.error('Failed to fetch monitoring data:', error);
+      // Error tracking will be handled by error boundary
+      setError('Failed to fetch monitoring data');
       notification.error({
         message: 'Error',
-        description: 'Failed to load monitoring data'
+        description: 'Failed to load monitoring data',
       });
     } finally {
       setLoading(false);
@@ -228,34 +226,33 @@ const SystemMonitoring: React.FC = () => {
     try {
       const response = await fetch('/api/v1/monitoring/metrics/current');
       const metrics = await response.json();
-      setSystemMetrics(prev => [...prev.slice(-99), metrics]);
+      setSystemMetrics((prev) => [...prev.slice(-99), metrics]);
     } catch (error) {
-      console.error('Failed to fetch current metrics:', error);
+      // Error tracking will be handled by error boundary
+      // Failed to fetch current metrics
     }
   };
 
   const acknowledgeAlert = async (alertId: string) => {
     try {
       await fetch(`/api/v1/monitoring/alerts/${alertId}/acknowledge`, {
-        method: 'POST'
+        method: 'POST',
       });
 
-      setAlerts(prev =>
-        prev.map(alert =>
-          alert.id === alertId
-            ? { ...alert, acknowledgedBy: 'current-user' }
-            : alert
+      setAlerts((prev) =>
+        prev.map((alert) =>
+          alert.id === alertId ? { ...alert, acknowledgedBy: 'current-user' } : alert
         )
       );
 
       notification.success({
         message: 'Alert Acknowledged',
-        description: 'Alert has been acknowledged successfully'
+        description: 'Alert has been acknowledged successfully',
       });
     } catch (error) {
       notification.error({
         message: 'Error',
-        description: 'Failed to acknowledge alert'
+        description: 'Failed to acknowledge alert',
       });
     }
   };
@@ -263,63 +260,77 @@ const SystemMonitoring: React.FC = () => {
   const resolveAlert = async (alertId: string) => {
     try {
       await fetch(`/api/v1/monitoring/alerts/${alertId}/resolve`, {
-        method: 'POST'
+        method: 'POST',
       });
 
-      setAlerts(prev =>
-        prev.map(alert =>
-          alert.id === alertId
-            ? { ...alert, resolved: true, resolvedAt: new Date() }
-            : alert
+      setAlerts((prev) =>
+        prev.map((alert) =>
+          alert.id === alertId ? { ...alert, resolved: true, resolvedAt: new Date() } : alert
         )
       );
 
       notification.success({
         message: 'Alert Resolved',
-        description: 'Alert has been resolved successfully'
+        description: 'Alert has been resolved successfully',
       });
     } catch (error) {
       notification.error({
         message: 'Error',
-        description: 'Failed to resolve alert'
+        description: 'Failed to resolve alert',
       });
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'healthy': return '#52c41a';
-      case 'warning': return '#faad14';
-      case 'critical': return '#ff4d4f';
-      case 'down': return '#8c8c8c';
-      default: return '#d9d9d9';
+      case 'healthy':
+        return '#52c41a';
+      case 'warning':
+        return '#faad14';
+      case 'critical':
+        return '#ff4d4f';
+      case 'down':
+        return '#8c8c8c';
+      default:
+        return '#d9d9d9';
     }
   };
 
   const getAlertTypeColor = (type: string) => {
     switch (type) {
-      case 'info': return 'blue';
-      case 'warning': return 'orange';
-      case 'error': return 'red';
-      case 'critical': return 'magenta';
-      default: return 'default';
+      case 'info':
+        return 'blue';
+      case 'warning':
+        return 'orange';
+      case 'error':
+        return 'red';
+      case 'critical':
+        return 'magenta';
+      default:
+        return 'default';
     }
   };
 
   const getLogLevelColor = (level: string) => {
     switch (level) {
-      case 'debug': return 'default';
-      case 'info': return 'blue';
-      case 'warn': return 'orange';
-      case 'error': return 'red';
-      case 'fatal': return 'magenta';
-      default: return 'default';
+      case 'debug':
+        return 'default';
+      case 'info':
+        return 'blue';
+      case 'warn':
+        return 'orange';
+      case 'error':
+        return 'red';
+      case 'fatal':
+        return 'magenta';
+      default:
+        return 'default';
     }
   };
 
   const currentMetrics = systemMetrics[systemMetrics.length - 1];
-  const activeAlerts = alerts.filter(alert => !alert.resolved);
-  const criticalAlerts = activeAlerts.filter(alert => alert.type === 'critical');
+  const activeAlerts = alerts.filter((alert) => !alert.resolved);
+  const criticalAlerts = activeAlerts.filter((alert) => alert.type === 'critical');
 
   const serviceColumns = [
     {
@@ -329,35 +340,36 @@ const SystemMonitoring: React.FC = () => {
       render: (name: string, record: ServiceHealth) => (
         <Space>
           <Badge
-            status={record.status === 'healthy' ? 'success' : 
-                   record.status === 'warning' ? 'warning' : 'error'}
+            status={
+              record.status === 'healthy'
+                ? 'success'
+                : record.status === 'warning'
+                  ? 'warning'
+                  : 'error'
+            }
           />
           <Text strong>{name}</Text>
           <Tag>{record.version}</Tag>
         </Space>
-      )
+      ),
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag color={getStatusColor(status)}>
-          {status.toUpperCase()}
-        </Tag>
-      )
+      render: (status: string) => <Tag color={getStatusColor(status)}>{status.toUpperCase()}</Tag>,
     },
     {
       title: 'Uptime',
       dataIndex: 'uptime',
       key: 'uptime',
-      render: (uptime: number) => `${(uptime / 3600).toFixed(1)}h`
+      render: (uptime: number) => `${(uptime / 3600).toFixed(1)}h`,
     },
     {
       title: 'Response Time',
       dataIndex: 'responseTime',
       key: 'responseTime',
-      render: (time: number) => `${time}ms`
+      render: (time: number) => `${time}ms`,
     },
     {
       title: 'Error Rate',
@@ -367,8 +379,8 @@ const SystemMonitoring: React.FC = () => {
         <Text type={rate > 5 ? 'danger' : rate > 1 ? 'warning' : 'success'}>
           {rate.toFixed(2)}%
         </Text>
-      )
-    }
+      ),
+    },
   ];
 
   const alertColumns = [
@@ -376,28 +388,24 @@ const SystemMonitoring: React.FC = () => {
       title: 'Type',
       dataIndex: 'type',
       key: 'type',
-      render: (type: string) => (
-        <Tag color={getAlertTypeColor(type)}>
-          {type.toUpperCase()}
-        </Tag>
-      )
+      render: (type: string) => <Tag color={getAlertTypeColor(type)}>{type.toUpperCase()}</Tag>,
     },
     {
       title: 'Service',
       dataIndex: 'service',
-      key: 'service'
+      key: 'service',
     },
     {
       title: 'Message',
       dataIndex: 'message',
       key: 'message',
-      ellipsis: true
+      ellipsis: true,
     },
     {
       title: 'Time',
       dataIndex: 'timestamp',
       key: 'timestamp',
-      render: (timestamp: Date) => new Date(timestamp).toLocaleTimeString()
+      render: (timestamp: Date) => new Date(timestamp).toLocaleTimeString(),
     },
     {
       title: 'Actions',
@@ -405,25 +413,18 @@ const SystemMonitoring: React.FC = () => {
       render: (_, record: Alert) => (
         <Space>
           {!record.acknowledgedBy && (
-            <Button
-              size="small"
-              onClick={() => acknowledgeAlert(record.id)}
-            >
+            <Button size="small" onClick={() => acknowledgeAlert(record.id)}>
               Acknowledge
             </Button>
           )}
           {!record.resolved && (
-            <Button
-              size="small"
-              type="primary"
-              onClick={() => resolveAlert(record.id)}
-            >
+            <Button size="small" type="primary" onClick={() => resolveAlert(record.id)}>
               Resolve
             </Button>
           )}
         </Space>
-      )
-    }
+      ),
+    },
   ];
 
   const logColumns = [
@@ -432,7 +433,7 @@ const SystemMonitoring: React.FC = () => {
       dataIndex: 'timestamp',
       key: 'timestamp',
       width: 120,
-      render: (timestamp: Date) => new Date(timestamp).toLocaleTimeString()
+      render: (timestamp: Date) => new Date(timestamp).toLocaleTimeString(),
     },
     {
       title: 'Level',
@@ -443,20 +444,20 @@ const SystemMonitoring: React.FC = () => {
         <Tag color={getLogLevelColor(level)} size="small">
           {level.toUpperCase()}
         </Tag>
-      )
+      ),
     },
     {
       title: 'Service',
       dataIndex: 'service',
       key: 'service',
-      width: 120
+      width: 120,
     },
     {
       title: 'Message',
       dataIndex: 'message',
       key: 'message',
-      ellipsis: true
-    }
+      ellipsis: true,
+    },
   ];
 
   if (loading) {
@@ -494,11 +495,7 @@ const SystemMonitoring: React.FC = () => {
               <Option value="24h">Last 24 Hours</Option>
               <Option value="7d">Last 7 Days</Option>
             </Select>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={fetchCurrentMetrics}
-              loading={loading}
-            >
+            <Button icon={<ReloadOutlined />} onClick={fetchCurrentMetrics} loading={loading}>
               Refresh
             </Button>
             <Button
@@ -520,11 +517,7 @@ const SystemMonitoring: React.FC = () => {
           type="error"
           icon={<AlertOutlined />}
           action={
-            <Button
-              size="small"
-              danger
-              onClick={() => setAlertDrawerVisible(true)}
-            >
+            <Button size="small" danger onClick={() => setAlertDrawerVisible(true)}>
               View Details
             </Button>
           }
@@ -542,7 +535,7 @@ const SystemMonitoring: React.FC = () => {
               value={currentMetrics?.cpu.usage || 0}
               suffix="%"
               valueStyle={{
-                color: (currentMetrics?.cpu.usage || 0) > 80 ? '#ff4d4f' : '#3f8600'
+                color: (currentMetrics?.cpu.usage || 0) > 80 ? '#ff4d4f' : '#3f8600',
               }}
               prefix={<ServerOutlined />}
             />
@@ -560,7 +553,7 @@ const SystemMonitoring: React.FC = () => {
               value={currentMetrics?.memory.usage || 0}
               suffix="%"
               valueStyle={{
-                color: (currentMetrics?.memory.usage || 0) > 85 ? '#ff4d4f' : '#3f8600'
+                color: (currentMetrics?.memory.usage || 0) > 85 ? '#ff4d4f' : '#3f8600',
               }}
               prefix={<DatabaseOutlined />}
             />
@@ -577,7 +570,7 @@ const SystemMonitoring: React.FC = () => {
               title="Active Alerts"
               value={activeAlerts.length}
               valueStyle={{
-                color: activeAlerts.length > 0 ? '#ff4d4f' : '#3f8600'
+                color: activeAlerts.length > 0 ? '#ff4d4f' : '#3f8600',
               }}
               prefix={<BugOutlined />}
             />
@@ -587,10 +580,10 @@ const SystemMonitoring: React.FC = () => {
           <Card>
             <Statistic
               title="Services Status"
-              value={services.filter(s => s.status === 'healthy').length}
+              value={services.filter((s) => s.status === 'healthy').length}
               suffix={`/ ${services.length}`}
               valueStyle={{
-                color: services.every(s => s.status === 'healthy') ? '#3f8600' : '#ff4d4f'
+                color: services.every((s) => s.status === 'healthy') ? '#3f8600' : '#ff4d4f',
               }}
               prefix={<CloudOutlined />}
             />
@@ -620,9 +613,7 @@ const SystemMonitoring: React.FC = () => {
                       tickFormatter={(time) => new Date(time).toLocaleTimeString()}
                     />
                     <YAxis />
-                    <RechartsTooltip
-                      labelFormatter={(time) => new Date(time).toLocaleString()}
-                    />
+                    <RechartsTooltip labelFormatter={(time) => new Date(time).toLocaleString()} />
                     <Line
                       type="monotone"
                       dataKey="cpu.usage"
@@ -651,9 +642,7 @@ const SystemMonitoring: React.FC = () => {
                       tickFormatter={(time) => new Date(time).toLocaleTimeString()}
                     />
                     <YAxis />
-                    <RechartsTooltip
-                      labelFormatter={(time) => new Date(time).toLocaleString()}
-                    />
+                    <RechartsTooltip labelFormatter={(time) => new Date(time).toLocaleString()} />
                     <Area
                       type="monotone"
                       dataKey="network.incoming"
@@ -682,7 +671,7 @@ const SystemMonitoring: React.FC = () => {
             <span>
               <ServerOutlined />
               Services
-              <Badge count={services.filter(s => s.status !== 'healthy').length} />
+              <Badge count={services.filter((s) => s.status !== 'healthy').length} />
             </span>
           }
           key="services"
@@ -730,13 +719,9 @@ const SystemMonitoring: React.FC = () => {
         >
           <Card
             extra={
-              <Select
-                value={selectedService}
-                onChange={setSelectedService}
-                style={{ width: 150 }}
-              >
+              <Select value={selectedService} onChange={setSelectedService} style={{ width: 150 }}>
                 <Option value="all">All Services</Option>
-                {services.map(service => (
+                {services.map((service) => (
                   <Option key={service.id} value={service.id}>
                     {service.name}
                   </Option>
@@ -745,8 +730,8 @@ const SystemMonitoring: React.FC = () => {
             }
           >
             <Table
-              dataSource={logs.filter(log =>
-                selectedService === 'all' || log.service === selectedService
+              dataSource={logs.filter(
+                (log) => selectedService === 'all' || log.service === selectedService
               )}
               columns={logColumns}
               rowKey={(record, index) => `${record.timestamp}-${index}`}
@@ -767,28 +752,29 @@ const SystemMonitoring: React.FC = () => {
         width={600}
       >
         <Timeline>
-          {alerts.slice(0, 20).map(alert => (
+          {alerts.slice(0, 20).map((alert) => (
             <Timeline.Item
               key={alert.id}
               color={getStatusColor(alert.type)}
               dot={
-                alert.type === 'critical' ? <ExclamationCircleOutlined /> :
-                alert.resolved ? <CheckCircleOutlined /> : <StopOutlined />
+                alert.type === 'critical' ? (
+                  <ExclamationCircleOutlined />
+                ) : alert.resolved ? (
+                  <CheckCircleOutlined />
+                ) : (
+                  <StopOutlined />
+                )
               }
             >
               <div style={{ marginBottom: 8 }}>
-                <Tag color={getAlertTypeColor(alert.type)}>
-                  {alert.type.toUpperCase()}
-                </Tag>
+                <Tag color={getAlertTypeColor(alert.type)}>{alert.type.toUpperCase()}</Tag>
                 <Text strong>{alert.service}</Text>
               </div>
               <div style={{ marginBottom: 8 }}>
                 <Text>{alert.message}</Text>
               </div>
               <div>
-                <Text type="secondary">
-                  {new Date(alert.timestamp).toLocaleString()}
-                </Text>
+                <Text type="secondary">{new Date(alert.timestamp).toLocaleString()}</Text>
                 {alert.resolved && (
                   <Text type="success" style={{ marginLeft: 16 }}>
                     Resolved

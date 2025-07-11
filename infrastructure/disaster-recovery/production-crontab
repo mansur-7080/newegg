@@ -1,0 +1,130 @@
+# =============================================
+# ULTRAMARKET PRODUCTION CRONTAB CONFIGURATION
+# =============================================
+# Installation: crontab -e (then paste this content)
+# Environment: Production Kubernetes cluster
+
+# Environment variables for cron jobs
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=devops@ultramarket.com
+
+# Backup database passwords (load from Kubernetes secrets)
+# These should be set in the environment where cron runs
+# POSTGRES_PASSWORD=
+# MONGODB_PASSWORD=  
+# REDIS_PASSWORD=
+# S3_BUCKET=ultramarket-backups
+# AWS_REGION=us-east-1
+# SLACK_WEBHOOK_URL=
+
+# =============================================
+# DAILY BACKUPS
+# =============================================
+# Full system backup every day at 2:00 AM UTC
+0 2 * * * /infrastructure/disaster-recovery/production-backup-strategy.sh >> /var/log/ultramarket-backup.log 2>&1
+
+# Database-only backup every 6 hours for critical data
+0 */6 * * * /infrastructure/disaster-recovery/production-backup-strategy.sh --databases-only >> /var/log/ultramarket-backup-quick.log 2>&1
+
+# =============================================
+# WEEKLY MAINTENANCE
+# =============================================
+# Full system maintenance every Sunday at 1:00 AM UTC
+0 1 * * 0 /infrastructure/maintenance/weekly-maintenance.sh >> /var/log/ultramarket-maintenance.log 2>&1
+
+# Docker image cleanup every Sunday at 3:00 AM UTC
+0 3 * * 0 docker system prune -f --volumes >> /var/log/docker-cleanup.log 2>&1
+
+# Log rotation every Sunday at 4:00 AM UTC
+0 4 * * 0 /usr/sbin/logrotate /etc/logrotate.conf >> /var/log/logrotate.log 2>&1
+
+# =============================================
+# MONITORING AND HEALTH CHECKS
+# =============================================
+# Health check every 5 minutes
+*/5 * * * * curl -f https://api.ultramarket.com/health > /dev/null 2>&1 || echo "$(date): Health check failed" >> /var/log/health-check.log
+
+# Database connection check every 15 minutes
+*/15 * * * * /infrastructure/monitoring/db-health-check.sh >> /var/log/db-health.log 2>&1
+
+# SSL certificate expiry check daily at 6:00 AM UTC
+0 6 * * * /infrastructure/security/ssl-cert-check.sh >> /var/log/ssl-check.log 2>&1
+
+# Disk space monitoring every hour
+0 * * * * df -h | awk '$5 > 80 {print "$(date): Disk " $1 " is " $5 " full"}' >> /var/log/disk-space.log
+
+# =============================================
+# SECURITY MAINTENANCE
+# =============================================
+# Security scan every day at 5:00 AM UTC
+0 5 * * * /infrastructure/security/daily-security-scan.sh >> /var/log/security-scan.log 2>&1
+
+# Update system packages every week on Saturday at 11:00 PM UTC
+0 23 * * 6 apt update && apt upgrade -y >> /var/log/system-updates.log 2>&1
+
+# Firewall rules backup daily at 7:00 AM UTC
+0 7 * * * iptables-save > /backups/ultramarket/firewall/iptables-$(date +\%Y\%m\%d).rules
+
+# =============================================
+# PERFORMANCE OPTIMIZATION
+# =============================================
+# Database statistics update every night at 3:30 AM UTC
+30 3 * * * /infrastructure/database/update-statistics.sh >> /var/log/db-stats.log 2>&1
+
+# Cache warm-up every morning at 6:30 AM UTC
+30 6 * * * /infrastructure/cache/warmup-cache.sh >> /var/log/cache-warmup.log 2>&1
+
+# Performance metrics collection every hour
+0 * * * * /infrastructure/monitoring/collect-metrics.sh >> /var/log/metrics.log 2>&1
+
+# =============================================
+# BUSINESS INTELLIGENCE
+# =============================================
+# Generate daily sales report at 8:00 AM UTC
+0 8 * * * /infrastructure/reports/daily-sales-report.sh >> /var/log/reports.log 2>&1
+
+# Update search indexes every 4 hours
+0 */4 * * * /infrastructure/search/update-indexes.sh >> /var/log/search-index.log 2>&1
+
+# Inventory level alerts every 2 hours during business hours (9 AM - 6 PM UTC)
+0 9-18/2 * * * /infrastructure/inventory/check-stock-levels.sh >> /var/log/inventory-alerts.log 2>&1
+
+# =============================================
+# CLEANUP TASKS
+# =============================================
+# Clean up old session data every night at 1:30 AM UTC
+30 1 * * * redis-cli -h redis-service -a $REDIS_PASSWORD EVAL "for _,k in ipairs(redis.call('keys','session:*')) do if redis.call('ttl',k) == -1 then redis.call('del',k) end end" 0
+
+# Clean up old logs older than 30 days
+0 2 * * 1 find /var/log -name "*.log" -mtime +30 -delete
+
+# Clean up old backup files older than retention period
+0 4 * * 1 find /backups/ultramarket -name "20*" -mtime +30 -exec rm -rf {} \; 2>/dev/null
+
+# Clean up old Docker volumes
+0 5 * * 1 docker volume prune -f >> /var/log/docker-volume-cleanup.log 2>&1
+
+# =============================================
+# SPECIAL MAINTENANCE WINDOWS
+# =============================================
+# Monthly database vacuum and reindex on first Sunday at 12:00 AM UTC
+0 0 1-7 * 0 /infrastructure/database/monthly-maintenance.sh >> /var/log/db-monthly-maintenance.log 2>&1
+
+# Quarterly security audit on first day of quarter at 10:00 PM UTC
+0 22 1 1,4,7,10 * /infrastructure/security/quarterly-audit.sh >> /var/log/quarterly-audit.log 2>&1
+
+# Annual disaster recovery test on January 15th at 11:00 PM UTC
+0 23 15 1 * /infrastructure/disaster-recovery/annual-dr-test.sh >> /var/log/annual-dr-test.log 2>&1
+
+# =============================================
+# NOTIFICATION TASKS
+# =============================================
+# Send daily system status report at 9:00 AM UTC
+0 9 * * * /infrastructure/notifications/daily-status-report.sh >> /var/log/status-report.log 2>&1
+
+# Send weekly performance summary every Monday at 10:00 AM UTC
+0 10 * * 1 /infrastructure/notifications/weekly-performance-summary.sh >> /var/log/weekly-summary.log 2>&1
+
+# Send monthly uptime report on first day of month at 11:00 AM UTC
+0 11 1 * * /infrastructure/notifications/monthly-uptime-report.sh >> /var/log/monthly-uptime.log 2>&1 
