@@ -4,6 +4,7 @@
  */
 
 import { performance } from 'perf_hooks';
+import { logger } from '../logging/logger';
 import { defaultLogger } from '../logging/logger';
 
 // =================== TYPES ===================
@@ -300,7 +301,7 @@ export class DatabaseTestHelper {
       try {
         await transaction.rollback();
       } catch (error) {
-        console.warn('Failed to rollback transaction:', error);
+        logger.warn('Failed to rollback transaction:', error);
       }
     }
     this.transactions = [];
@@ -320,7 +321,7 @@ export class DatabaseTestHelper {
    */
   private async seedTestData(): Promise<void> {
     // Implementation would depend on database type
-    console.log('Seeding test data...');
+    logger.info('Seeding test data...');
   }
 
   /**
@@ -328,7 +329,7 @@ export class DatabaseTestHelper {
    */
   private async cleanupTestData(): Promise<void> {
     // Implementation would depend on database type
-    console.log('Cleaning up test data...');
+    logger.info('Cleaning up test data...');
   }
 }
 

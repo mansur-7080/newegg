@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { spawn, ChildProcess } from 'child_process';
 import { setTimeout } from 'timers/promises';
+import { logger } from '../../libs/shared/src/logging/logger';
 
 describe('API Integration Tests', () => {
   let services: ChildProcess[] = [];
@@ -16,11 +17,11 @@ describe('API Integration Tests', () => {
 
   beforeAll(async () => {
     // Start required services for integration testing
-    console.log('Starting services for integration tests...');
+    logger.info('Starting services for integration tests...');
 
     // Start services in order
     for (const [serviceName, port] of Object.entries(SERVICE_PORTS)) {
-      console.log(`Starting ${serviceName} on port ${port}...`);
+      logger.info(`Starting ${serviceName} on port ${port}...`);
 
       const service = spawn('npm', ['run', 'dev'], {
         cwd: getServicePath(serviceName),
@@ -40,7 +41,7 @@ describe('API Integration Tests', () => {
 
   afterAll(async () => {
     // Clean up services
-    console.log('Stopping services...');
+    logger.info('Stopping services...');
     services.forEach((service) => {
       service.kill('SIGTERM');
     });

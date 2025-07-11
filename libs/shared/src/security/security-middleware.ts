@@ -1,561 +1,442 @@
 import { Request, Response, NextFunction } from 'express';
-import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import cors from 'cors';
-import compression from 'compression';
-import { body, validationResult, param, query } from 'express-validator';
-import DOMPurify from 'isomorphic-dompurify';
-import { logger } from '../logger';
-import { getCache } from '../performance/caching';
+import rateLimit from 'express-rate-limit';
+import { logger } from '../logging/logger';
 
-// Security configuration interface
+// =================== SECURITY CONFIGURATION ===================
+
 export interface SecurityConfig {
-  rateLimiting: {
+  cors: {
+    origin: string | string[];
+    credentials: boolean;
+    methods: string[];
+    allowedHeaders: string[];
+  };
+  rateLimit: {
     windowMs: number;
     max: number;
     message: string;
-  };
-  cors: {
-    origin: string[] | string;
-    credentials: boolean;
-    methods: string[];
+    standardHeaders: boolean;
+    legacyHeaders: boolean;
   };
   helmet: {
+    enabled: boolean;
     contentSecurityPolicy: boolean;
-    crossOriginEmbedderPolicy: boolean;
+    hsts: boolean;
+    noSniff: boolean;
+    frameguard: boolean;
   };
-  compression: {
-    level: number;
-    threshold: number;
+  security: {
+    enableXssProtection: boolean;
+    enableHsts: boolean;
+    enableNoSniff: boolean;
+    enableFrameguard: boolean;
+    enableContentSecurityPolicy: boolean;
   };
 }
 
 // Default security configuration
-const defaultSecurityConfig: SecurityConfig = {
-  rateLimiting: {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again later.',
-  },
+export const defaultSecurityConfig: SecurityConfig = {
   cors: {
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'X-Correlation-ID',
+    ],
+  },
+  rateLimit: {
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
   },
   helmet: {
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
-        connectSrc: ["'self'"],
-        fontSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
-        frameSrc: ["'none'"],
-      },
-    },
-    crossOriginEmbedderPolicy: false,
+    enabled: process.env.HELMET_ENABLED !== 'false',
+    contentSecurityPolicy: process.env.CSP_ENABLED !== 'false',
+    hsts: true,
+    noSniff: true,
+    frameguard: true,
   },
-  compression: {
-    level: 6,
-    threshold: 1024,
+  security: {
+    enableXssProtection: true,
+    enableHsts: true,
+    enableNoSniff: true,
+    enableFrameguard: true,
+    enableContentSecurityPolicy: process.env.CSP_ENABLED !== 'false',
   },
 };
 
-// Security middleware class
-export class SecurityMiddleware {
-  private config: SecurityConfig;
-  private cache: any;
-  private suspiciousIPs: Set<string> = new Set();
-  private blockedIPs: Set<string> = new Set();
+// =================== SECURITY MIDDLEWARE ===================
 
-  constructor(config: Partial<SecurityConfig> = {}) {
-    this.config = { ...defaultSecurityConfig, ...config };
-    this.cache = getCache();
-  }
+/**
+ * CORS middleware with professional configuration
+ */
+export function corsMiddleware(config: Partial<SecurityConfig['cors']> = {}) {
+  const corsConfig = { ...defaultSecurityConfig.cors, ...config };
 
-  /**
-   * Apply all security middleware
-   */
-  applySecurityMiddleware(app: any): void {
-    // Security headers
-    app.use(helmet(this.config.helmet));
+  logger.info('CORS middleware configured', {
+    origins: corsConfig.origin,
+    credentials: corsConfig.credentials,
+    methods: corsConfig.methods,
+  });
 
-    // CORS configuration
-    app.use(cors(this.config.cors));
+  return cors({
+    origin: corsConfig.origin,
+    credentials: corsConfig.credentials,
+    methods: corsConfig.methods,
+    allowedHeaders: corsConfig.allowedHeaders,
+    optionsSuccessStatus: 200,
+  });
+}
 
-    // Compression
-    app.use(compression(this.config.compression));
+/**
+ * Rate limiting middleware
+ */
+export function rateLimitMiddleware(config: Partial<SecurityConfig['rateLimit']> = {}) {
+  const rateLimitConfig = { ...defaultSecurityConfig.rateLimit, ...config };
 
-    // Rate limiting
-    app.use(this.createRateLimiter());
+  logger.info('Rate limiting middleware configured', {
+    windowMs: rateLimitConfig.windowMs,
+    max: rateLimitConfig.max,
+  });
 
-    // IP blocking
-    app.use(this.ipBlockingMiddleware.bind(this));
-
-    // Request sanitization
-    app.use(this.sanitizeInput.bind(this));
-
-    // Security headers
-    app.use(this.securityHeaders.bind(this));
-
-    // Request logging
-    app.use(this.securityLogger.bind(this));
-  }
-
-  /**
-   * Create rate limiter with advanced features
-   */
-  private createRateLimiter() {
-    return rateLimit({
-      windowMs: this.config.rateLimiting.windowMs,
-      max: this.config.rateLimiting.max,
-      message: {
-        success: false,
-        error: {
-          code: 'RATE_LIMIT_EXCEEDED',
-          message: this.config.rateLimiting.message,
-        },
+  return rateLimit({
+    windowMs: rateLimitConfig.windowMs,
+    max: rateLimitConfig.max,
+    message: {
+      success: false,
+      error: {
+        message: rateLimitConfig.message,
+        code: 'RATE_LIMIT_EXCEEDED',
+        timestamp: new Date(),
       },
-      standardHeaders: true,
-      legacyHeaders: false,
-      keyGenerator: (req: Request) => {
-        return req.ip || req.connection.remoteAddress || 'unknown';
-      },
-      onLimitReached: (req: Request) => {
-        const clientIP = req.ip || req.connection.remoteAddress;
-        this.suspiciousIPs.add(clientIP);
-        
-        logger.warn('Rate limit exceeded', {
-          ip: clientIP,
-          userAgent: req.get('User-Agent'),
-          endpoint: req.path,
-          method: req.method,
-        });
-
-        // Block IP after multiple rate limit violations
-        this.checkForIPBlocking(clientIP);
-      },
-    });
-  }
-
-  /**
-   * IP blocking middleware
-   */
-  private ipBlockingMiddleware(req: Request, res: Response, next: NextFunction): void {
-    const clientIP = req.ip || req.connection.remoteAddress;
-
-    if (this.blockedIPs.has(clientIP)) {
-      logger.error('Blocked IP attempted access', {
-        ip: clientIP,
+    },
+    standardHeaders: rateLimitConfig.standardHeaders,
+    legacyHeaders: rateLimitConfig.legacyHeaders,
+    handler: (req: Request, res: Response) => {
+      logger.warn('Rate limit exceeded', {
+        ip: req.ip,
         userAgent: req.get('User-Agent'),
-        endpoint: req.path,
-        method: req.method,
+        url: req.originalUrl,
       });
 
-      return res.status(403).json({
+      res.status(429).json({
         success: false,
         error: {
-          code: 'IP_BLOCKED',
-          message: 'Access denied',
+          message: rateLimitConfig.message,
+          code: 'RATE_LIMIT_EXCEEDED',
+          timestamp: new Date(),
+          path: req.originalUrl,
+          method: req.method,
+        },
+      });
+    },
+  });
+}
+
+/**
+ * Helmet security middleware
+ */
+export function helmetMiddleware(config: Partial<SecurityConfig['helmet']> = {}) {
+  const helmetConfig = { ...defaultSecurityConfig.helmet, ...config };
+
+  if (!helmetConfig.enabled) {
+    logger.warn('Helmet security middleware is disabled');
+    return (req: Request, res: Response, next: NextFunction) => next();
+  }
+
+  logger.info('Helmet security middleware configured', {
+    contentSecurityPolicy: helmetConfig.contentSecurityPolicy,
+    hsts: helmetConfig.hsts,
+    noSniff: helmetConfig.noSniff,
+    frameguard: helmetConfig.frameguard,
+  });
+
+  const helmetOptions: any = {};
+
+  // Content Security Policy
+  if (helmetConfig.contentSecurityPolicy) {
+    helmetOptions.contentSecurityPolicy = {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https:"],
+        scriptSrc: ["'self'"],
+        connectSrc: ["'self'"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    };
+  }
+
+  // HTTP Strict Transport Security
+  if (helmetConfig.hsts) {
+    helmetOptions.hsts = {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    };
+  }
+
+  // X-Content-Type-Options
+  if (helmetConfig.noSniff) {
+    helmetOptions.noSniff = true;
+  }
+
+  // X-Frame-Options
+  if (helmetConfig.frameguard) {
+    helmetOptions.frameguard = {
+      action: 'deny',
+    };
+  }
+
+  return helmet(helmetOptions);
+}
+
+/**
+ * Input validation middleware
+ */
+export function inputValidationMiddleware() {
+  return (req: Request, res: Response, next: NextFunction) => {
+    // Sanitize request body
+    if (req.body) {
+      req.body = sanitizeInput(req.body);
+    }
+
+    // Sanitize query parameters
+    if (req.query) {
+      req.query = sanitizeInput(req.query);
+    }
+
+    // Sanitize URL parameters
+    if (req.params) {
+      req.params = sanitizeInput(req.params);
+    }
+
+    next();
+  };
+}
+
+/**
+ * SQL Injection protection middleware
+ */
+export function sqlInjectionProtectionMiddleware() {
+  const sqlKeywords = [
+    'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER',
+    'UNION', 'EXEC', 'EXECUTE', 'SCRIPT', 'DECLARE', 'CAST', 'CONVERT',
+    'WAITFOR', 'DELAY', 'BENCHMARK', 'SLEEP', 'LOAD_FILE', 'INTO OUTFILE',
+  ];
+
+  return (req: Request, res: Response, next: NextFunction) => {
+    const checkForSqlInjection = (obj: any): boolean => {
+      if (typeof obj === 'string') {
+        const upperStr = obj.toUpperCase();
+        return sqlKeywords.some(keyword => upperStr.includes(keyword));
+      }
+      if (typeof obj === 'object' && obj !== null) {
+        return Object.values(obj).some(value => checkForSqlInjection(value));
+      }
+      return false;
+    };
+
+    const hasSqlInjection = checkForSqlInjection(req.body) || 
+                           checkForSqlInjection(req.query) || 
+                           checkForSqlInjection(req.params);
+
+    if (hasSqlInjection) {
+      logger.warn('Potential SQL injection attempt detected', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        url: req.originalUrl,
+        body: req.body,
+        query: req.query,
+        params: req.params,
+      });
+
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid input detected',
+          code: 'INVALID_INPUT',
+          timestamp: new Date(),
+          path: req.originalUrl,
+          method: req.method,
         },
       });
     }
 
     next();
-  }
+  };
+}
 
-  /**
-   * Input sanitization middleware
-   */
-  private sanitizeInput(req: Request, res: Response, next: NextFunction): void {
-    try {
-      // Sanitize request body
-      if (req.body && typeof req.body === 'object') {
-        req.body = this.sanitizeObject(req.body);
-      }
+/**
+ * XSS Protection middleware
+ */
+export function xssProtectionMiddleware() {
+  return (req: Request, res: Response, next: NextFunction) => {
+    // Set XSS protection headers
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
 
-      // Sanitize query parameters
-      if (req.query && typeof req.query === 'object') {
-        req.query = this.sanitizeObject(req.query);
-      }
+    next();
+  };
+}
 
-      // Sanitize URL parameters
-      if (req.params && typeof req.params === 'object') {
-        req.params = this.sanitizeObject(req.params);
-      }
+/**
+ * Request size limiter middleware
+ */
+export function requestSizeLimiter(maxSize: string = '10mb') {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const contentLength = parseInt(req.headers['content-length'] || '0');
+    const maxSizeBytes = parseSizeString(maxSize);
 
-      next();
-    } catch (error) {
-      logger.error('Input sanitization failed', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        path: req.path,
-        method: req.method,
+    if (contentLength > maxSizeBytes) {
+      logger.warn('Request size limit exceeded', {
+        ip: req.ip,
+        contentLength,
+        maxSizeBytes,
+        url: req.originalUrl,
       });
 
-      res.status(400).json({
+      return res.status(413).json({
         success: false,
         error: {
-          code: 'INVALID_INPUT',
-          message: 'Invalid input data',
+          message: 'Request entity too large',
+          code: 'REQUEST_TOO_LARGE',
+          timestamp: new Date(),
+          path: req.originalUrl,
+          method: req.method,
         },
       });
     }
-  }
 
-  /**
-   * Sanitize object recursively
-   */
-  private sanitizeObject(obj: any): any {
-    if (typeof obj !== 'object' || obj === null) {
-      return typeof obj === 'string' ? DOMPurify.sanitize(obj) : obj;
-    }
+    next();
+  };
+}
 
-    if (Array.isArray(obj)) {
-      return obj.map(item => this.sanitizeObject(item));
-    }
-
-    const sanitized: any = {};
-    for (const [key, value] of Object.entries(obj)) {
-      const sanitizedKey = DOMPurify.sanitize(key);
-      sanitized[sanitizedKey] = this.sanitizeObject(value);
-    }
-
-    return sanitized;
-  }
-
-  /**
-   * Security headers middleware
-   */
-  private securityHeaders(req: Request, res: Response, next: NextFunction): void {
-    // Additional security headers
-    res.setHeader('X-Content-Type-Options', 'nosniff');
+/**
+ * Security headers middleware
+ */
+export function securityHeadersMiddleware() {
+  return (req: Request, res: Response, next: NextFunction) => {
+    // Security headers
     res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
 
-    // Remove server information
+    // Remove sensitive headers
     res.removeHeader('X-Powered-By');
     res.removeHeader('Server');
 
     next();
-  }
-
-  /**
-   * Security logging middleware
-   */
-  private securityLogger(req: Request, res: Response, next: NextFunction): void {
-    const startTime = Date.now();
-    const clientIP = req.ip || req.connection.remoteAddress;
-
-    // Log suspicious patterns
-    this.detectSuspiciousPatterns(req);
-
-    res.on('finish', () => {
-      const duration = Date.now() - startTime;
-      const logData = {
-        method: req.method,
-        path: req.path,
-        statusCode: res.statusCode,
-        duration,
-        ip: clientIP,
-        userAgent: req.get('User-Agent'),
-        contentLength: res.get('content-length'),
-      };
-
-      // Log security events
-      if (res.statusCode >= 400) {
-        logger.warn('Security event detected', logData);
-      } else {
-        logger.info('Request processed', logData);
-      }
-    });
-
-    next();
-  }
-
-  /**
-   * Detect suspicious patterns in requests
-   */
-  private detectSuspiciousPatterns(req: Request): void {
-    const clientIP = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent') || '';
-    const path = req.path;
-    const query = JSON.stringify(req.query);
-    const body = JSON.stringify(req.body);
-
-    // SQL injection patterns
-    const sqlInjectionPatterns = [
-      /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION)\b)/i,
-      /(\b(OR|AND)\s+\d+\s*=\s*\d+)/i,
-      /('|"|`|;|--|\|\||&&)/,
-    ];
-
-    // XSS patterns
-    const xssPatterns = [
-      /<script[^>]*>.*?<\/script>/gi,
-      /javascript:/gi,
-      /on\w+\s*=/gi,
-      /<iframe[^>]*>.*?<\/iframe>/gi,
-    ];
-
-    // Path traversal patterns
-    const pathTraversalPatterns = [
-      /\.\.\//g,
-      /\.\.\\/g,
-      /%2e%2e%2f/gi,
-      /%2e%2e%5c/gi,
-    ];
-
-    // Check for suspicious patterns
-    const suspiciousContent = [path, query, body].join(' ');
-
-    if (sqlInjectionPatterns.some(pattern => pattern.test(suspiciousContent))) {
-      this.logSecurityThreat(clientIP, 'SQL_INJECTION', req);
-    }
-
-    if (xssPatterns.some(pattern => pattern.test(suspiciousContent))) {
-      this.logSecurityThreat(clientIP, 'XSS_ATTEMPT', req);
-    }
-
-    if (pathTraversalPatterns.some(pattern => pattern.test(suspiciousContent))) {
-      this.logSecurityThreat(clientIP, 'PATH_TRAVERSAL', req);
-    }
-
-    // Check for suspicious user agents
-    if (this.isSuspiciousUserAgent(userAgent)) {
-      this.logSecurityThreat(clientIP, 'SUSPICIOUS_USER_AGENT', req);
-    }
-  }
-
-  /**
-   * Check if user agent is suspicious
-   */
-  private isSuspiciousUserAgent(userAgent: string): boolean {
-    const suspiciousPatterns = [
-      /bot|crawler|spider|scraper/i,
-      /curl|wget|python|java|perl/i,
-      /scanner|nikto|sqlmap|burp/i,
-    ];
-
-    return suspiciousPatterns.some(pattern => pattern.test(userAgent));
-  }
-
-  /**
-   * Log security threat
-   */
-  private logSecurityThreat(ip: string, threatType: string, req: Request): void {
-    const threat = {
-      ip,
-      threatType,
-      timestamp: new Date().toISOString(),
-      method: req.method,
-      path: req.path,
-      userAgent: req.get('User-Agent'),
-      query: req.query,
-      body: req.body,
-      severity: 'HIGH',
-    };
-
-    logger.error('Security threat detected', threat);
-
-    // Store in cache for analysis
-    const key = `security:threat:${ip}:${Date.now()}`;
-    this.cache.set(key, threat, 24 * 60 * 60); // 24 hours
-
-    // Check for IP blocking
-    this.checkForIPBlocking(ip);
-  }
-
-  /**
-   * Check if IP should be blocked
-   */
-  private async checkForIPBlocking(ip: string): Promise<void> {
-    const threatCount = await this.getThreatCount(ip);
-    
-    if (threatCount >= 5) {
-      this.blockedIPs.add(ip);
-      
-      logger.error('IP blocked due to multiple threats', {
-        ip,
-        threatCount,
-        timestamp: new Date().toISOString(),
-      });
-
-      // Store blocked IP in cache
-      const key = `security:blocked:${ip}`;
-      await this.cache.set(key, true, 24 * 60 * 60); // 24 hours
-    }
-  }
-
-  /**
-   * Get threat count for IP
-   */
-  private async getThreatCount(ip: string): Promise<number> {
-    const keys = await this.cache.keys(`security:threat:${ip}:*`);
-    return keys.length;
-  }
-
-  /**
-   * Unblock IP address
-   */
-  async unblockIP(ip: string): Promise<void> {
-    this.blockedIPs.delete(ip);
-    this.suspiciousIPs.delete(ip);
-    
-    const key = `security:blocked:${ip}`;
-    await this.cache.del(key);
-    
-    logger.info('IP unblocked', { ip });
-  }
-
-  /**
-   * Get security statistics
-   */
-  async getSecurityStats(): Promise<{
-    blockedIPs: number;
-    suspiciousIPs: number;
-    threats: number;
-    rateLimitViolations: number;
-  }> {
-    const blockedIPKeys = await this.cache.keys('security:blocked:*');
-    const threatKeys = await this.cache.keys('security:threat:*');
-
-    return {
-      blockedIPs: blockedIPKeys.length,
-      suspiciousIPs: this.suspiciousIPs.size,
-      threats: threatKeys.length,
-      rateLimitViolations: 0, // Would need to track this separately
-    };
-  }
-}
-
-// Input validation helpers
-export const validateEmail = body('email')
-  .isEmail()
-  .normalizeEmail()
-  .withMessage('Valid email required');
-
-export const validatePassword = body('password')
-  .isLength({ min: 8, max: 128 })
-  .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-  .withMessage('Password must contain at least 8 characters, including uppercase, lowercase, number, and special character');
-
-export const validateUUID = param('id')
-  .isUUID()
-  .withMessage('Valid UUID required');
-
-export const validatePagination = [
-  query('page')
-    .optional()
-    .isInt({ min: 1, max: 1000 })
-    .withMessage('Page must be between 1 and 1000'),
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
-];
-
-export const validateSortOrder = query('sort')
-  .optional()
-  .isIn(['asc', 'desc'])
-  .withMessage('Sort order must be asc or desc');
-
-// Validation result handler
-export const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => {
-  const errors = validationResult(req);
-  
-  if (!errors.isEmpty()) {
-    logger.warn('Validation errors', {
-      errors: errors.array(),
-      path: req.path,
-      method: req.method,
-      ip: req.ip,
-    });
-
-    return res.status(400).json({
-      success: false,
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid input data',
-        details: errors.array(),
-      },
-    });
-  }
-
-  next();
-};
-
-// Export singleton instance
-let securityMiddleware: SecurityMiddleware;
-
-export function initializeSecurityMiddleware(config?: Partial<SecurityConfig>): SecurityMiddleware {
-  securityMiddleware = new SecurityMiddleware(config);
-  return securityMiddleware;
-}
-
-export function getSecurityMiddleware(): SecurityMiddleware {
-  if (!securityMiddleware) {
-    securityMiddleware = new SecurityMiddleware();
-  }
-  return securityMiddleware;
-}
-
-// CSRF protection middleware
-export const csrfProtection = (req: Request, res: Response, next: NextFunction): void => {
-  const token = req.get('X-CSRF-Token') || req.body._csrf || req.query._csrf;
-  const sessionToken = req.session?.csrfToken;
-
-  if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
-    if (!token || !sessionToken || token !== sessionToken) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: 'CSRF_TOKEN_INVALID',
-          message: 'Invalid CSRF token',
-        },
-      });
-    }
-  }
-
-  next();
-};
-
-// File upload security
-export const secureFileUpload = (allowedTypes: string[], maxSize: number = 5 * 1024 * 1024) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.file) {
-      return next();
-    }
-
-    // Check file type
-    if (!allowedTypes.includes(req.file.mimetype)) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_FILE_TYPE',
-          message: 'File type not allowed',
-        },
-      });
-    }
-
-    // Check file size
-    if (req.file.size > maxSize) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'FILE_TOO_LARGE',
-          message: 'File size exceeds limit',
-        },
-      });
-    }
-
-    // Scan file for malware (placeholder)
-    // In production, integrate with antivirus scanning service
-
-    next();
   };
+}
+
+// =================== UTILITY FUNCTIONS ===================
+
+/**
+ * Sanitize input data
+ */
+function sanitizeInput(data: any): any {
+  if (typeof data === 'string') {
+    return data
+      .replace(/[<>]/g, '') // Remove < and >
+      .replace(/javascript:/gi, '') // Remove javascript: protocol
+      .replace(/on\w+=/gi, '') // Remove event handlers
+      .trim();
+  }
+
+  if (Array.isArray(data)) {
+    return data.map(item => sanitizeInput(item));
+  }
+
+  if (typeof data === 'object' && data !== null) {
+    const sanitized: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      sanitized[key] = sanitizeInput(value);
+    }
+    return sanitized;
+  }
+
+  return data;
+}
+
+/**
+ * Parse size string to bytes
+ */
+function parseSizeString(sizeStr: string): number {
+  const units: { [key: string]: number } = {
+    'b': 1,
+    'kb': 1024,
+    'mb': 1024 * 1024,
+    'gb': 1024 * 1024 * 1024,
+  };
+
+  const match = sizeStr.toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(b|kb|mb|gb)$/);
+  if (!match) {
+    return 10 * 1024 * 1024; // Default 10MB
+  }
+
+  const [, size, unit] = match;
+  return parseFloat(size) * units[unit];
+}
+
+/**
+ * Comprehensive security middleware setup
+ */
+export function setupSecurityMiddleware(config: Partial<SecurityConfig> = {}) {
+  const securityConfig = {
+    cors: { ...defaultSecurityConfig.cors, ...config.cors },
+    rateLimit: { ...defaultSecurityConfig.rateLimit, ...config.rateLimit },
+    helmet: { ...defaultSecurityConfig.helmet, ...config.helmet },
+    security: { ...defaultSecurityConfig.security, ...config.security },
+  };
+
+  logger.info('Setting up security middleware', {
+    corsEnabled: true,
+    rateLimitEnabled: true,
+    helmetEnabled: securityConfig.helmet.enabled,
+    cspEnabled: securityConfig.helmet.contentSecurityPolicy,
+  });
+
+  return [
+    corsMiddleware(securityConfig.cors),
+    rateLimitMiddleware(securityConfig.rateLimit),
+    helmetMiddleware(securityConfig.helmet),
+    inputValidationMiddleware(),
+    sqlInjectionProtectionMiddleware(),
+    xssProtectionMiddleware(),
+    requestSizeLimiter(),
+    securityHeadersMiddleware(),
+  ];
+}
+
+// =================== EXPORTS ===================
+
+export {
+  corsMiddleware,
+  rateLimitMiddleware,
+  helmetMiddleware,
+  inputValidationMiddleware,
+  sqlInjectionProtectionMiddleware,
+  xssProtectionMiddleware,
+  requestSizeLimiter,
+  securityHeadersMiddleware,
+  setupSecurityMiddleware,
+};
+
+export type {
+  SecurityConfig,
 }; 

@@ -3,79 +3,253 @@
  * Standardized response formats for all microservices
  */
 
-// Base response interface
-export interface BaseApiResponse<T = any> {
+// =================== API RESPONSE TYPES ===================
+
+export interface ApiResponse<T = any> {
   success: boolean;
-  message: string;
   data?: T;
   error?: ApiError;
-  meta?: ResponseMeta;
-  timestamp: string;
-  requestId: string;
-  version: string;
+  meta?: ApiMeta;
 }
 
-// Success response
-export interface SuccessResponse<T = any> extends BaseApiResponse<T> {
-  success: true;
-  data: T;
-  error?: never;
-}
-
-// Error response
-export interface ErrorResponse extends BaseApiResponse<never> {
-  success: false;
-  data?: never;
-  error: ApiError;
-}
-
-// Paginated response
-export interface PaginatedResponse<T = any> extends SuccessResponse<T[]> {
-  meta: PaginationMeta;
-}
-
-// API Error structure
 export interface ApiError {
   code: string;
   message: string;
   details?: ErrorDetail[];
-  stack?: string; // Only in development
-  timestamp: string;
+  timestamp: Date;
   path?: string;
   method?: string;
+  correlationId?: string;
 }
 
-// Error detail for validation errors
 export interface ErrorDetail {
-  field: string;
+  field?: string;
   message: string;
   value?: any;
   code?: string;
 }
 
-// Response metadata
-export interface ResponseMeta {
-  requestId: string;
-  timestamp: string;
-  processingTime: number;
-  service: string;
+export interface ApiMeta {
+  timestamp: Date;
   version: string;
-  environment: string;
+  correlationId?: string;
+  pagination?: PaginationMeta;
+  rateLimit?: RateLimitMeta;
 }
 
-// Pagination metadata
-export interface PaginationMeta extends ResponseMeta {
+export interface PaginationMeta {
   page: number;
   limit: number;
   total: number;
   totalPages: number;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
-  nextPage?: number;
-  prevPage?: number;
+  hasNext: boolean;
+  hasPrev: boolean;
 }
 
-// Standard HTTP status codes
+export interface RateLimitMeta {
+  limit: number;
+  remaining: number;
+  reset: Date;
+}
+
+// =================== SUCCESS RESPONSE BUILDERS ===================
+
+/**
+ * Create success response
+ */
+export function createSuccessResponse<T>(
+  data: T,
+  meta?: Omit<ApiMeta, 'timestamp'>
+): ApiResponse<T> {
+  return {
+    success: true,
+    data,
+    meta: {
+      timestamp: new Date(),
+      version: process.env.APP_VERSION || '1.0.0',
+      ...meta,
+    },
+  };
+}
+
+/**
+ * Create paginated success response
+ */
+export function createPaginatedResponse<T>(
+  data: T[],
+  pagination: Omit<PaginationMeta, 'hasNext' | 'hasPrev'>,
+  meta?: Omit<ApiMeta, 'timestamp' | 'pagination'>
+): ApiResponse<T[]> {
+  const totalPages = Math.ceil(pagination.total / pagination.limit);
+  const hasNext = pagination.page < totalPages;
+  const hasPrev = pagination.page > 1;
+
+  return {
+    success: true,
+    data,
+    meta: {
+      timestamp: new Date(),
+      version: process.env.APP_VERSION || '1.0.0',
+      pagination: {
+        ...pagination,
+        totalPages,
+        hasNext,
+        hasPrev,
+      },
+      ...meta,
+    },
+  };
+}
+
+/**
+ * Create empty success response
+ */
+export function createEmptyResponse(meta?: Omit<ApiMeta, 'timestamp'>): ApiResponse<null> {
+  return {
+    success: true,
+    data: null,
+    meta: {
+      timestamp: new Date(),
+      version: process.env.APP_VERSION || '1.0.0',
+      ...meta,
+    },
+  };
+}
+
+// =================== ERROR RESPONSE BUILDERS ===================
+
+/**
+ * Create error response
+ */
+export function createErrorResponse(
+  code: string,
+  message: string,
+  details?: ErrorDetail[],
+  meta?: Omit<ApiMeta, 'timestamp'>
+): ApiResponse<null> {
+  return {
+    success: false,
+    error: {
+      code,
+      message,
+      details,
+      timestamp: new Date(),
+    },
+    meta: {
+      timestamp: new Date(),
+      version: process.env.APP_VERSION || '1.0.0',
+      ...meta,
+    },
+  };
+}
+
+/**
+ * Create validation error response
+ */
+export function createValidationErrorResponse(
+  details: ErrorDetail[],
+  meta?: Omit<ApiMeta, 'timestamp'>
+): ApiResponse<null> {
+  return createErrorResponse(
+    'VALIDATION_ERROR',
+    'Validation failed',
+    details,
+    meta
+  );
+}
+
+/**
+ * Create not found error response
+ */
+export function createNotFoundResponse(
+  resource: string = 'Resource',
+  meta?: Omit<ApiMeta, 'timestamp'>
+): ApiResponse<null> {
+  return createErrorResponse(
+    'NOT_FOUND',
+    `${resource} not found`,
+    undefined,
+    meta
+  );
+}
+
+/**
+ * Create unauthorized error response
+ */
+export function createUnauthorizedResponse(
+  message: string = 'Unauthorized',
+  meta?: Omit<ApiMeta, 'timestamp'>
+): ApiResponse<null> {
+  return createErrorResponse(
+    'UNAUTHORIZED',
+    message,
+    undefined,
+    meta
+  );
+}
+
+/**
+ * Create forbidden error response
+ */
+export function createForbiddenResponse(
+  message: string = 'Access denied',
+  meta?: Omit<ApiMeta, 'timestamp'>
+): ApiResponse<null> {
+  return createErrorResponse(
+    'FORBIDDEN',
+    message,
+    undefined,
+    meta
+  );
+}
+
+/**
+ * Create conflict error response
+ */
+export function createConflictResponse(
+  message: string = 'Resource conflict',
+  meta?: Omit<ApiMeta, 'timestamp'>
+): ApiResponse<null> {
+  return createErrorResponse(
+    'CONFLICT',
+    message,
+    undefined,
+    meta
+  );
+}
+
+/**
+ * Create rate limit error response
+ */
+export function createRateLimitResponse(
+  retryAfter: number,
+  meta?: Omit<ApiMeta, 'timestamp'>
+): ApiResponse<null> {
+  return createErrorResponse(
+    'RATE_LIMIT_EXCEEDED',
+    'Too many requests',
+    undefined,
+    meta
+  );
+}
+
+/**
+ * Create internal server error response
+ */
+export function createInternalErrorResponse(
+  message: string = 'Internal server error',
+  meta?: Omit<ApiMeta, 'timestamp'>
+): ApiResponse<null> {
+  return createErrorResponse(
+    'INTERNAL_SERVER_ERROR',
+    message,
+    undefined,
+    meta
+  );
+}
+
+// =================== HTTP STATUS CODES ===================
+
 export enum HttpStatusCode {
   OK = 200,
   CREATED = 201,
@@ -92,187 +266,151 @@ export enum HttpStatusCode {
   INTERNAL_SERVER_ERROR = 500,
   BAD_GATEWAY = 502,
   SERVICE_UNAVAILABLE = 503,
-  GATEWAY_TIMEOUT = 504,
 }
 
-// Error codes
+// =================== ERROR CODES ===================
+
 export enum ErrorCode {
-  // Authentication & Authorization
+  // Validation errors
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  INVALID_INPUT = 'INVALID_INPUT',
+  MISSING_REQUIRED_FIELD = 'MISSING_REQUIRED_FIELD',
+  INVALID_FORMAT = 'INVALID_FORMAT',
+  INVALID_LENGTH = 'INVALID_LENGTH',
+  INVALID_RANGE = 'INVALID_RANGE',
+
+  // Authentication errors
+  UNAUTHORIZED = 'UNAUTHORIZED',
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
   TOKEN_EXPIRED = 'TOKEN_EXPIRED',
+  INVALID_TOKEN = 'INVALID_TOKEN',
+  TOKEN_MISSING = 'TOKEN_MISSING',
+
+  // Authorization errors
+  FORBIDDEN = 'FORBIDDEN',
   INSUFFICIENT_PERMISSIONS = 'INSUFFICIENT_PERMISSIONS',
-  ACCOUNT_LOCKED = 'ACCOUNT_LOCKED',
+  ROLE_REQUIRED = 'ROLE_REQUIRED',
 
-  // Validation
-  VALIDATION_ERROR = 'VALIDATION_ERROR',
-  REQUIRED_FIELD_MISSING = 'REQUIRED_FIELD_MISSING',
-  INVALID_FORMAT = 'INVALID_FORMAT',
-  INVALID_VALUE = 'INVALID_VALUE',
-
-  // Business Logic
+  // Resource errors
+  NOT_FOUND = 'NOT_FOUND',
   RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND',
+  CONFLICT = 'CONFLICT',
   RESOURCE_ALREADY_EXISTS = 'RESOURCE_ALREADY_EXISTS',
-  BUSINESS_RULE_VIOLATION = 'BUSINESS_RULE_VIOLATION',
-  INSUFFICIENT_STOCK = 'INSUFFICIENT_STOCK',
-  PAYMENT_FAILED = 'PAYMENT_FAILED',
+  RESOURCE_IN_USE = 'RESOURCE_IN_USE',
 
-  // System
-  INTERNAL_ERROR = 'INTERNAL_ERROR',
-  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
-  DATABASE_ERROR = 'DATABASE_ERROR',
-  EXTERNAL_SERVICE_ERROR = 'EXTERNAL_SERVICE_ERROR',
+  // Rate limiting
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
+  TOO_MANY_REQUESTS = 'TOO_MANY_REQUESTS',
+
+  // Database errors
+  DATABASE_ERROR = 'DATABASE_ERROR',
+  CONNECTION_ERROR = 'CONNECTION_ERROR',
+  QUERY_ERROR = 'QUERY_ERROR',
+  TRANSACTION_ERROR = 'TRANSACTION_ERROR',
+
+  // External service errors
+  EXTERNAL_SERVICE_ERROR = 'EXTERNAL_SERVICE_ERROR',
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
+  TIMEOUT_ERROR = 'TIMEOUT_ERROR',
+
+  // File errors
+  FILE_TOO_LARGE = 'FILE_TOO_LARGE',
+  INVALID_FILE_TYPE = 'INVALID_FILE_TYPE',
+  FILE_UPLOAD_ERROR = 'FILE_UPLOAD_ERROR',
+
+  // Business logic errors
+  BUSINESS_RULE_VIOLATION = 'BUSINESS_RULE_VIOLATION',
+  INVALID_STATE = 'INVALID_STATE',
+  OPERATION_NOT_ALLOWED = 'OPERATION_NOT_ALLOWED',
+
+  // System errors
+  INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR',
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 
-// Service-specific response types
-export interface UserResponse {
-  id: string;
-  email: string;
-  username: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  isActive: boolean;
-  isEmailVerified: boolean;
-  createdAt: string;
-  updatedAt: string;
+// =================== RESPONSE HELPERS ===================
+
+/**
+ * Add correlation ID to response
+ */
+export function addCorrelationId(
+  response: ApiResponse,
+  correlationId: string
+): ApiResponse {
+  if (response.meta) {
+    response.meta.correlationId = correlationId;
+  } else {
+    response.meta = { correlationId };
+  }
+
+  if (response.error) {
+    response.error.correlationId = correlationId;
+  }
+
+  return response;
 }
 
-export interface ProductResponse {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  price: number;
-  currency: string;
-  status: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+/**
+ * Add request context to error response
+ */
+export function addRequestContext(
+  response: ApiResponse,
+  path: string,
+  method: string
+): ApiResponse {
+  if (response.error) {
+    response.error.path = path;
+    response.error.method = method;
+  }
+
+  return response;
 }
 
-export interface OrderResponse {
-  id: string;
-  orderNumber: string;
-  userId: string;
-  status: string;
-  totalAmount: number;
-  currency: string;
-  createdAt: string;
-  updatedAt: string;
+/**
+ * Sanitize response for production
+ */
+export function sanitizeResponse(response: ApiResponse): ApiResponse {
+  if (process.env.NODE_ENV === 'production') {
+    // Remove sensitive information in production
+    if (response.error?.details) {
+      response.error.details = response.error.details.map(detail => ({
+        field: detail.field,
+        message: detail.message,
+        code: detail.code,
+        // Remove value in production
+      }));
+    }
+  }
+
+  return response;
 }
 
-// Authentication responses
-export interface AuthResponse {
-  user: UserResponse;
-  tokens: {
-    accessToken: string;
-    refreshToken: string;
-    expiresIn: number;
-    tokenType: string;
-  };
-}
+// =================== EXPORTS ===================
 
-export interface RefreshTokenResponse {
-  accessToken: string;
-  expiresIn: number;
-  tokenType: string;
-}
+export {
+  createSuccessResponse,
+  createPaginatedResponse,
+  createEmptyResponse,
+  createErrorResponse,
+  createValidationErrorResponse,
+  createNotFoundResponse,
+  createUnauthorizedResponse,
+  createForbiddenResponse,
+  createConflictResponse,
+  createRateLimitResponse,
+  createInternalErrorResponse,
+  addCorrelationId,
+  addRequestContext,
+  sanitizeResponse,
+  HttpStatusCode,
+  ErrorCode,
+};
 
-// Health check response
-export interface HealthCheckResponse {
-  status: 'healthy' | 'unhealthy' | 'degraded';
-  version: string;
-  uptime: number;
-  timestamp: string;
-  checks: {
-    database: HealthCheckDetail;
-    cache: HealthCheckDetail;
-    externalServices?: HealthCheckDetail[];
-  };
-}
-
-export interface HealthCheckDetail {
-  status: 'healthy' | 'unhealthy';
-  responseTime: number;
-  message?: string;
-  lastChecked: string;
-}
-
-// File upload response
-export interface FileUploadResponse {
-  id: string;
-  filename: string;
-  originalName: string;
-  mimeType: string;
-  size: number;
-  url: string;
-  thumbnailUrl?: string;
-  metadata?: Record<string, any>;
-  uploadedAt: string;
-}
-
-// Search response
-export interface SearchResponse<T = any> {
-  results: T[];
-  query: string;
-  filters?: Record<string, any>;
-  suggestions?: string[];
-  meta: SearchMeta;
-}
-
-export interface SearchMeta extends PaginationMeta {
-  query: string;
-  totalResults: number;
-  searchTime: number;
-  filters: Record<string, any>;
-  facets?: Record<string, SearchFacet[]>;
-}
-
-export interface SearchFacet {
-  value: string;
-  count: number;
-  selected: boolean;
-}
-
-// Analytics response
-export interface AnalyticsResponse {
-  metrics: Record<string, number>;
-  timeRange: {
-    start: string;
-    end: string;
-  };
-  granularity: string;
-  data: AnalyticsDataPoint[];
-}
-
-export interface AnalyticsDataPoint {
-  timestamp: string;
-  value: number;
-  metadata?: Record<string, any>;
-}
-
-// Utility types for response builders
-export type ApiResponse<T = any> = SuccessResponse<T> | ErrorResponse;
-export type PaginatedApiResponse<T = any> = PaginatedResponse<T> | ErrorResponse;
-
-// Response builder utility types
-export interface ResponseBuilderOptions {
-  requestId?: string;
-  service?: string;
-  version?: string;
-  environment?: string;
-  processingTime?: number;
-}
-
-// Export all types for easy import
 export type {
-  BaseApiResponse,
-  SuccessResponse,
-  ErrorResponse,
-  PaginatedResponse,
+  ApiResponse,
   ApiError,
   ErrorDetail,
-  ResponseMeta,
+  ApiMeta,
   PaginationMeta,
+  RateLimitMeta,
 };

@@ -187,12 +187,12 @@ services:
       dockerfile: Dockerfile
     container_name: ultramarket-auth-service
     environment:
-      NODE_ENV: development
-      PORT: 3002
-      DATABASE_URL: postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket_auth
-      REDIS_URL: redis://:ultramarket_password@redis:6379
-      JWT_SECRET: your-super-secret-jwt-key-for-development
-      JWT_REFRESH_SECRET: your-super-secret-jwt-refresh-key-for-development
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${AUTH_SERVICE_PORT:-3002}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}_auth
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
     ports:
       - '3002:3002'
     depends_on:
@@ -217,12 +217,12 @@ services:
       dockerfile: Dockerfile
     container_name: ultramarket-product-service
     environment:
-      NODE_ENV: development
-      PORT: 3003
-      MONGODB_URI: mongodb://ultramarket_admin:ultramarket_password@mongodb:27017/ultramarket_products?authSource=admin
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      REDIS_URL: redis://:ultramarket_password@redis:6379
-      KAFKA_BROKERS: kafka:9092
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PRODUCT_SERVICE_PORT:-3003}
+      MONGODB_URI: mongodb://${MONGODB_USERNAME}:${MONGODB_PASSWORD}@mongodb:27017/${MONGODB_DATABASE}?authSource=admin
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
     ports:
       - '3003:3003'
     depends_on:
@@ -249,14 +249,14 @@ services:
       dockerfile: Dockerfile
     container_name: ultramarket-order-service
     environment:
-      NODE_ENV: development
-      PORT: 3004
-      DATABASE_URL: postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket_orders
-      REDIS_URL: redis://:ultramarket_password@redis:6379
-      KAFKA_BROKERS: kafka:9092
-      USER_SERVICE_URL: http://user-service:3001
-      PRODUCT_SERVICE_URL: http://product-service:3003
-      PAYMENT_SERVICE_URL: http://payment-service:3005
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${ORDER_SERVICE_PORT:-3004}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}_orders
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
+      USER_SERVICE_URL: http://user-service:${USER_SERVICE_PORT:-3001}
+      PRODUCT_SERVICE_URL: http://product-service:${PRODUCT_SERVICE_PORT:-3003}
+      PAYMENT_SERVICE_URL: http://payment-service:${PAYMENT_SERVICE_PORT:-3005}
     ports:
       - '3004:3004'
     depends_on:
@@ -281,13 +281,13 @@ services:
       dockerfile: Dockerfile
     container_name: ultramarket-payment-service
     environment:
-      NODE_ENV: development
-      PORT: 3005
-      DATABASE_URL: postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket_payments
-      REDIS_URL: redis://:ultramarket_password@redis:6379
-      KAFKA_BROKERS: kafka:9092
-      STRIPE_SECRET_KEY: sk_test_your_stripe_test_key
-      STRIPE_WEBHOOK_SECRET: whsec_your_stripe_webhook_secret
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PAYMENT_SERVICE_PORT:-3005}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}_payments
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
     ports:
       - '3005:3005'
     depends_on:
@@ -314,14 +314,14 @@ services:
       dockerfile: Dockerfile
     container_name: ultramarket-notification-service
     environment:
-      NODE_ENV: development
-      PORT: 3006
-      REDIS_URL: redis://:ultramarket_password@redis:6379
-      KAFKA_BROKERS: kafka:9092
-      SMTP_HOST: mailhog
-      SMTP_PORT: 1025
-      SMTP_USER: ''
-      SMTP_PASS: ''
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${NOTIFICATION_SERVICE_PORT:-3006}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
+      SMTP_HOST: ${SMTP_HOST:-mailhog}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-''}
+      SMTP_PASS: ${SMTP_PASSWORD:-''}
     ports:
       - '3006:3006'
     depends_on:
@@ -346,12 +346,12 @@ services:
       dockerfile: Dockerfile
     container_name: ultramarket-search-service
     environment:
-      NODE_ENV: development
-      PORT: 3007
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      REDIS_URL: redis://:ultramarket_password@redis:6379
-      KAFKA_BROKERS: kafka:9092
-      PRODUCT_SERVICE_URL: http://product-service:3003
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${SEARCH_SERVICE_PORT:-3007}
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
+      PRODUCT_SERVICE_URL: http://product-service:${PRODUCT_SERVICE_PORT:-3003}
     ports:
       - '3007:3007'
     depends_on:
