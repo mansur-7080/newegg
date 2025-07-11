@@ -76,4 +76,5 @@ const ReviewSchema = new Schema<IReview>(
 ReviewSchema.index({ productId: 1, userId: 1 }, { unique: true });
 
 // Create the Review model
-export const Review: Model<IReview> = mongoose.model<IReview>('Review', ReviewSchema);
+export const Review: Model<IReview> =
+  mongoose.models.Review || mongoose.model<IReview>('Review', ReviewSchema);

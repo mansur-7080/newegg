@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { logger } from '@ultramarket/common';
+import { logger } from '@ultramarket/shared';
 
 export interface NotificationPayload {
   userId: string;
@@ -66,10 +66,10 @@ export class NotificationService {
    */
   async sendNotification(payload: NotificationPayload): Promise<void> {
     try {
-      logger.info('Sending notification', { 
-        userId: payload.userId, 
-        type: payload.type, 
-        template: payload.template 
+      logger.info('Sending notification', {
+        userId: payload.userId,
+        type: payload.type,
+        template: payload.template,
       });
 
       // If scheduled, store for later processing
@@ -80,14 +80,11 @@ export class NotificationService {
 
       // Send based on channels
       const channels = payload.channels || [payload.type];
-      
-      await Promise.all(
-        channels.map(channel => this.sendByChannel(channel as any, payload))
-      );
+
+      await Promise.all(channels.map((channel) => this.sendByChannel(channel as any, payload)));
 
       // Store notification history
       await this.storeNotificationHistory(payload);
-
     } catch (error) {
       logger.error('Failed to send notification:', error);
       throw error;
@@ -113,16 +110,15 @@ export class NotificationService {
         subject: this.renderTemplate(notification.subject || template.subject, notification.data),
         html: htmlContent,
         text: textContent,
-        attachments: notification.attachments
+        attachments: notification.attachments,
       };
 
       const info = await this.emailTransporter.sendMail(mailOptions);
-      
-      logger.info('Email sent successfully', { 
-        messageId: info.messageId, 
-        to: notification.to 
-      });
 
+      logger.info('Email sent successfully', {
+        messageId: info.messageId,
+        to: notification.to,
+      });
     } catch (error) {
       logger.error('Failed to send email:', error);
       throw error;
@@ -146,14 +142,13 @@ export class NotificationService {
 
       // Implementation would use SMS service (Twilio, AWS SNS, etc.)
       // For now, we'll log the SMS
-      logger.info('SMS sent', { 
-        to: notification.to, 
-        message: message.substring(0, 50) + '...' 
+      logger.info('SMS sent', {
+        to: notification.to,
+        message: message.substring(0, 50) + '...',
       });
 
       // Actual SMS implementation would go here
       // await smsProvider.send({ to: notification.to, message });
-
     } catch (error) {
       logger.error('Failed to send SMS:', error);
       throw error;
@@ -166,9 +161,9 @@ export class NotificationService {
   async sendPush(notification: PushNotification): Promise<void> {
     try {
       // Implementation would use FCM, APNS, etc.
-      logger.info('Push notification sent', { 
-        userId: notification.userId, 
-        title: notification.title 
+      logger.info('Push notification sent', {
+        userId: notification.userId,
+        title: notification.title,
       });
 
       // Actual push implementation would go here
@@ -180,7 +175,6 @@ export class NotificationService {
       //   },
       //   data: notification.data
       // });
-
     } catch (error) {
       logger.error('Failed to send push notification:', error);
       throw error;
@@ -194,14 +188,13 @@ export class NotificationService {
     try {
       // Store in database for user to see in app
       // Implementation would save to database
-      logger.info('In-app notification created', { 
-        userId: notification.userId, 
-        title: notification.title 
+      logger.info('In-app notification created', {
+        userId: notification.userId,
+        title: notification.title,
       });
 
       // Emit real-time event via WebSocket
       // socketService.emit(notification.userId, 'notification', notification);
-
     } catch (error) {
       logger.error('Failed to send in-app notification:', error);
       throw error;
@@ -214,22 +207,19 @@ export class NotificationService {
   async sendBulkNotifications(notifications: NotificationPayload[]): Promise<void> {
     try {
       const batchSize = 100;
-      
+
       for (let i = 0; i < notifications.length; i += batchSize) {
         const batch = notifications.slice(i, i + batchSize);
-        
-        await Promise.all(
-          batch.map(notification => this.sendNotification(notification))
-        );
+
+        await Promise.all(batch.map((notification) => this.sendNotification(notification)));
 
         // Small delay between batches to avoid rate limits
         if (i + batchSize < notifications.length) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
       }
 
       logger.info('Bulk notifications sent', { count: notifications.length });
-
     } catch (error) {
       logger.error('Failed to send bulk notifications:', error);
       throw error;
@@ -248,18 +238,18 @@ export class NotificationService {
           orderUpdates: true,
           promotions: true,
           newsletter: false,
-          security: true
+          security: true,
         },
         sms: {
           orderUpdates: true,
           promotions: false,
-          security: true
+          security: true,
         },
         push: {
           orderUpdates: true,
           promotions: true,
-          inApp: true
-        }
+          inApp: true,
+        },
       };
     } catch (error) {
       logger.error('Failed to get user preferences:', error);
@@ -284,7 +274,7 @@ export class NotificationService {
    * Get notification history for user
    */
   async getNotificationHistory(
-    userId: string, 
+    userId: string,
     options: { limit?: number; offset?: number; type?: string }
   ): Promise<any[]> {
     try {
@@ -297,8 +287,8 @@ export class NotificationService {
           template: 'order-confirmation',
           status: 'sent',
           sentAt: new Date(),
-          metadata: {}
-        }
+          metadata: {},
+        },
       ];
     } catch (error) {
       logger.error('Failed to get notification history:', error);
@@ -329,7 +319,7 @@ export class NotificationService {
           to: await this.getUserEmail(payload.userId),
           subject: '',
           template: payload.template,
-          data: payload.data
+          data: payload.data,
         });
         break;
 
@@ -338,7 +328,7 @@ export class NotificationService {
           to: await this.getUserPhone(payload.userId),
           message: '',
           template: payload.template,
-          data: payload.data
+          data: payload.data,
         });
         break;
 
@@ -347,7 +337,7 @@ export class NotificationService {
           userId: payload.userId,
           title: payload.data.title || 'Notification',
           body: payload.data.message || '',
-          data: payload.data
+          data: payload.data,
         });
         break;
 
@@ -357,7 +347,7 @@ export class NotificationService {
           title: payload.data.title || 'Notification',
           message: payload.data.message || '',
           type: payload.data.type || 'info',
-          metadata: payload.metadata
+          metadata: payload.metadata,
         });
         break;
 
@@ -372,8 +362,8 @@ export class NotificationService {
         service: process.env.EMAIL_SERVICE || 'sendgrid',
         auth: {
           user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS
-        }
+          pass: process.env.EMAIL_PASS,
+        },
       });
     } else {
       return nodemailer.createTransporter({
@@ -382,8 +372,8 @@ export class NotificationService {
         secure: false,
         auth: {
           user: process.env.ETHEREAL_USER || 'test@example.com',
-          pass: process.env.ETHEREAL_PASS || 'test123'
-        }
+          pass: process.env.ETHEREAL_PASS || 'test123',
+        },
       });
     }
   }
@@ -398,7 +388,7 @@ export class NotificationService {
         <p>Total: {{total}}</p>
       `,
       text: 'Thank you for your order! Your order {{orderNumber}} has been confirmed. Total: {{total}}',
-      sms: 'Your order {{orderNumber}} is confirmed. Total: {{total}}'
+      sms: 'Your order {{orderNumber}} is confirmed. Total: {{total}}',
     });
 
     this.templates.set('order-shipped', {
@@ -409,7 +399,7 @@ export class NotificationService {
         <p>Tracking: {{trackingNumber}}</p>
       `,
       text: 'Your order {{orderNumber}} has been shipped. Tracking: {{trackingNumber}}',
-      sms: 'Order {{orderNumber}} shipped. Track: {{trackingNumber}}'
+      sms: 'Order {{orderNumber}} shipped. Track: {{trackingNumber}}',
     });
 
     this.templates.set('password-reset', {
@@ -420,13 +410,13 @@ export class NotificationService {
         <a href="{{resetLink}}">Reset Password</a>
       `,
       text: 'Password reset requested. Click: {{resetLink}}',
-      sms: 'Password reset code: {{resetCode}}'
+      sms: 'Password reset code: {{resetCode}}',
     });
   }
 
   private renderTemplate(template: string, data: Record<string, any>): string {
     let result = template;
-    Object.keys(data).forEach(key => {
+    Object.keys(data).forEach((key) => {
       const regex = new RegExp(`{{${key}}}`, 'g');
       result = result.replace(regex, data[key]?.toString() || '');
     });
@@ -445,9 +435,9 @@ export class NotificationService {
 
   private async scheduleNotification(payload: NotificationPayload): Promise<void> {
     // Implementation would store in database or queue for later processing
-    logger.info('Notification scheduled', { 
-      userId: payload.userId, 
-      scheduledAt: payload.scheduledAt 
+    logger.info('Notification scheduled', {
+      userId: payload.userId,
+      scheduledAt: payload.scheduledAt,
     });
   }
 
@@ -482,4 +472,4 @@ export class NotificationService {
   }
 }
 
-export const notificationService = new NotificationService(); 
+export const notificationService = new NotificationService();

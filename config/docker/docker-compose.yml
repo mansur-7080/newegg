@@ -187,12 +187,12 @@ services:
       dockerfile: Dockerfile
     container_name: ultramarket-auth-service
     environment:
-      NODE_ENV: development
-      PORT: 3002
-      DATABASE_URL: postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket_auth
-      REDIS_URL: redis://:ultramarket_password@redis:6379
-      JWT_SECRET: your-super-secret-jwt-key-for-development
-      JWT_REFRESH_SECRET: your-super-secret-jwt-refresh-key-for-development
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${AUTH_SERVICE_PORT:-3002}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
     ports:
       - '3002:3002'
     depends_on:

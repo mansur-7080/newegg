@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { logger } from '@ultramarket/common';
+import { logger } from '@ultramarket/shared';
 
 // Load environment variables
 dotenv.config();

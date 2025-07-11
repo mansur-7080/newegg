@@ -1,5 +1,5 @@
 import { Product, Category, Review, IProduct, ICategory, IReview } from '../models/Product';
-import { logger } from '@ultramarket/common';
+import { logger } from '@ultramarket/shared';
 import mongoose from 'mongoose';
 
 export interface ProductFilters {

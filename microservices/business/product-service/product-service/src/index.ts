@@ -13,6 +13,17 @@ import { setupSwagger } from './docs/swagger';
 // Load environment variables
 dotenv.config();
 
+// Basic environment validation
+const requiredEnvVars = ['MONGODB_URI'];
+const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  logger.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  process.exit(1);
+}
+
+logger.info('✅ Environment validation passed for product-service');
+
 const app = express();
 const PORT = process.env.PORT || 4002;
 

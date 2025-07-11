@@ -19,7 +19,7 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-COPY prisma ./prisma/ 2>/dev/null || true
+COPY prisma ./prisma/
 
 # =============================================
 # Dependencies stage
@@ -66,14 +66,14 @@ RUN adduser -S nodeuser -u 1001
 WORKDIR /app
 
 # Copy built application from builder stage
-COPY --from=builder --chown=nodeuser:nodejs /app/dist ./dist 2>/dev/null || true
-COPY --from=builder --chown=nodeuser:nodejs /app/src ./src 2>/dev/null || true
-COPY --from=builder --chown=nodeuser:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodeuser:nodejs /app/dist ./dist/
+COPY --from=builder --chown=nodeuser:nodejs /app/src ./src/
+COPY --from=builder --chown=nodeuser:nodejs /app/node_modules ./node_modules/
 COPY --from=builder --chown=nodeuser:nodejs /app/package*.json ./
-COPY --from=builder --chown=nodeuser:nodejs /app/prisma ./prisma 2>/dev/null || true
+COPY --from=builder --chown=nodeuser:nodejs /app/prisma ./prisma/
 
 # Copy health check script if exists
-COPY --chown=nodeuser:nodejs healthcheck.js ./ 2>/dev/null || echo "console.log('Health check passed')" > healthcheck.js
+COPY --chown=nodeuser:nodejs healthcheck.js ./
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R nodeuser:nodejs /app/logs

@@ -13,10 +13,10 @@ services:
       POSTGRES_USER: ultramarket_dev_user
       POSTGRES_PASSWORD: dev_password_123
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+      - ../../scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
     networks:
       - ultramarket-dev-network
     healthcheck:
@@ -34,7 +34,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: dev_password_123
       MONGO_INITDB_DATABASE: ultramarket_products_dev
     ports:
-      - '27017:27017'
+      - '27018:27017'
     volumes:
       - mongodb_dev_data:/data/db
     networks:
@@ -51,7 +51,7 @@ services:
     container_name: ultramarket-redis-dev
     command: redis-server --requirepass dev_password_123
     ports:
-      - '6379:6379'
+      - '6380:6379'
     volumes:
       - redis_dev_data:/data
     networks:
@@ -87,7 +87,7 @@ services:
   # API Gateway
   api-gateway:
     build:
-      context: ./microservices/core/api-gateway/api-gateway
+      context: ../../microservices/core/api-gateway/api-gateway
       dockerfile: Dockerfile.dev
     container_name: ultramarket-api-gateway-dev
     environment:
@@ -108,7 +108,7 @@ services:
     networks:
       - ultramarket-dev-network
     volumes:
-      - ./microservices/core/api-gateway/api-gateway:/app
+      - ../../microservices/core/api-gateway/api-gateway:/app
       - /app/node_modules
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
@@ -119,7 +119,7 @@ services:
   # User Service
   user-service:
     build:
-      context: ./microservices/core/user-service/user-service
+      context: ../../microservices/core/user-service/user-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-user-service-dev
     environment:
@@ -141,7 +141,7 @@ services:
     networks:
       - ultramarket-dev-network
     volumes:
-      - ./microservices/core/user-service/user-service:/app
+      - ../../microservices/core/user-service/user-service:/app
       - /app/node_modules
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
@@ -152,7 +152,7 @@ services:
   # Auth Service
   auth-service:
     build:
-      context: ./microservices/core/auth-service
+      context: ../../microservices/core/auth-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-auth-service-dev
     environment:
@@ -173,7 +173,7 @@ services:
     networks:
       - ultramarket-dev-network
     volumes:
-      - ./microservices/core/auth-service:/app
+      - ../../microservices/core/auth-service:/app
       - /app/node_modules
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3002/health']
@@ -186,7 +186,7 @@ services:
   # Product Service
   product-service:
     build:
-      context: ./microservices/business/product-service/product-service
+      context: ../../microservices/business/product-service/product-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-product-service-dev
     environment:
@@ -208,7 +208,7 @@ services:
     networks:
       - ultramarket-dev-network
     volumes:
-      - ./microservices/business/product-service/product-service:/app
+      - ../../microservices/business/product-service/product-service:/app
       - /app/node_modules
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3003/health']
@@ -219,7 +219,7 @@ services:
   # Order Service
   order-service:
     build:
-      context: ./microservices/business/order-service/order-service
+      context: ../../microservices/business/order-service/order-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-order-service-dev
     environment:
@@ -241,7 +241,7 @@ services:
     networks:
       - ultramarket-dev-network
     volumes:
-      - ./microservices/business/order-service/order-service:/app
+      - ../../microservices/business/order-service/order-service:/app
       - /app/node_modules
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3004/health']
@@ -252,7 +252,7 @@ services:
   # Payment Service
   payment-service:
     build:
-      context: ./microservices/business/payment-service/payment-service
+      context: ../../microservices/business/payment-service/payment-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-payment-service-dev
     environment:
@@ -273,7 +273,7 @@ services:
     networks:
       - ultramarket-dev-network
     volumes:
-      - ./microservices/business/payment-service/payment-service:/app
+      - ../../microservices/business/payment-service/payment-service:/app
       - /app/node_modules
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3005/health']
@@ -284,7 +284,7 @@ services:
   # Cart Service
   cart-service:
     build:
-      context: ./microservices/business/cart-service/cart-service
+      context: ../../microservices/business/cart-service/cart-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-cart-service-dev
     environment:
@@ -304,7 +304,7 @@ services:
     networks:
       - ultramarket-dev-network
     volumes:
-      - ./microservices/business/cart-service/cart-service:/app
+      - ../../microservices/business/cart-service/cart-service:/app
       - /app/node_modules
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3006/health']
@@ -317,7 +317,7 @@ services:
   # Notification Service
   notification-service:
     build:
-      context: ./microservices/platform/notification-service/notification-service
+      context: ../../microservices/platform/notification-service/notification-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-notification-service-dev
     environment:
@@ -339,7 +339,7 @@ services:
     networks:
       - ultramarket-dev-network
     volumes:
-      - ./microservices/platform/notification-service/notification-service:/app
+      - ../../microservices/platform/notification-service/notification-service:/app
       - /app/node_modules
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3007/health']
@@ -350,7 +350,7 @@ services:
   # Search Service
   search-service:
     build:
-      context: ./microservices/platform/search-service/search-service
+      context: ../../microservices/platform/search-service/search-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket-search-service-dev
     environment:
@@ -370,7 +370,7 @@ services:
     networks:
       - ultramarket-dev-network
     volumes:
-      - ./microservices/platform/search-service/search-service:/app
+      - ../../microservices/platform/search-service/search-service:/app
       - /app/node_modules
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3008/health']
@@ -383,7 +383,7 @@ services:
   # Web Application
   web-app:
     build:
-      context: ./frontend/web-app
+      context: ../../frontend/web-app
       dockerfile: Dockerfile.dev
     container_name: ultramarket-web-app-dev
     environment:
@@ -398,7 +398,7 @@ services:
     networks:
       - ultramarket-dev-network
     volumes:
-      - ./frontend/web-app:/app
+      - ../../frontend/web-app:/app
       - /app/node_modules
       - /app/.next
     healthcheck:
@@ -410,7 +410,7 @@ services:
   # Admin Panel
   admin-panel:
     build:
-      context: ./frontend/admin-panel
+      context: ../../frontend/admin-panel
       dockerfile: Dockerfile.dev
     container_name: ultramarket-admin-panel-dev
     environment:
@@ -425,7 +425,7 @@ services:
     networks:
       - ultramarket-dev-network
     volumes:
-      - ./frontend/admin-panel:/app
+      - ../../frontend/admin-panel:/app
       - /app/node_modules
       - /app/build
     healthcheck:

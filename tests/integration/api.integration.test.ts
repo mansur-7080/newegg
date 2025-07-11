@@ -16,10 +16,12 @@ describe('API Integration Tests', () => {
 
   beforeAll(async () => {
     // Start required services for integration testing
+    // Use console.log for test setup since logger might not be available
     console.log('Starting services for integration tests...');
 
     // Start services in order
     for (const [serviceName, port] of Object.entries(SERVICE_PORTS)) {
+      // Use console.log for test setup since logger might not be available
       console.log(`Starting ${serviceName} on port ${port}...`);
 
       const service = spawn('npm', ['run', 'dev'], {
@@ -40,6 +42,7 @@ describe('API Integration Tests', () => {
 
   afterAll(async () => {
     // Clean up services
+    // Use console.log for test cleanup since logger might not be available
     console.log('Stopping services...');
     services.forEach((service) => {
       service.kill('SIGTERM');

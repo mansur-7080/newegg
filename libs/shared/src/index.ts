@@ -1,32 +1,16 @@
-// Auth exports
+// Core exports
 export * from './auth';
-
-// Cache exports
 export * from './cache';
-
-// Constants exports
 export * from './constants';
-
-// Database exports
 export * from './database';
-
-// Error exports
 export * from './errors';
-
-// Logger exports
-export * from './logger';
-
-// Messaging exports
 export * from './messaging';
-
-// Middleware exports
-export * from './middleware';
-
-// Types exports
 export * from './types';
-
-// Utils exports
 export * from './utils';
 
-// Validation exports
-export * from './validation';
+// Specific exports to avoid conflicts
+export { logger } from './logging/logger';
+export { createError } from './errors';
+export { errorHandler } from './middleware/error-handler';
+export { securityMiddleware } from './middleware/security';
+export { validateEnvironmentOnStartup } from './validation/environment';

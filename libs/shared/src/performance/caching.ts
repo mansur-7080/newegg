@@ -71,16 +71,9 @@ export class AdvancedCache {
       db: config.db,
       keyPrefix: config.keyPrefix,
       lazyConnect: true,
-      // Performance optimizations
       connectTimeout: 10000,
       commandTimeout: 5000,
-      enableReadyCheck: false,
-      maxLoadingTimeout: 3000,
-      // Connection pooling
       family: 4,
-      keepAlive: true,
-      // Retry configuration
-      retryDelayOnFailover: 100,
       maxRetriesPerRequest: 3,
     });
 

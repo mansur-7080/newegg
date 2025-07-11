@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import axios from 'axios';
-import { createError, logger } from '@ultramarket/common';
+import { createError, logger } from '@ultramarket/shared';
 
 export interface ShippingProvider {
   id: string;
@@ -118,7 +118,14 @@ export interface Shipment {
   trackingNumber: string;
   providerId: string;
   serviceId: string;
-  status: 'created' | 'booked' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'exception' | 'returned';
+  status:
+    | 'created'
+    | 'booked'
+    | 'in_transit'
+    | 'out_for_delivery'
+    | 'delivered'
+    | 'exception'
+    | 'returned';
   fromAddress: ShippingAddress;
   toAddress: ShippingAddress;
   packages: Package[];
@@ -219,7 +226,12 @@ export class ShippingService extends EventEmitter {
         if (serviceFilters?.providers && !serviceFilters.providers.includes(providerId)) continue;
 
         try {
-          const providerRates = await this.getProviderRates(provider, fromAddress, toAddress, packages);
+          const providerRates = await this.getProviderRates(
+            provider,
+            fromAddress,
+            toAddress,
+            packages
+          );
           rates.push(...providerRates);
         } catch (error) {
           logger.warn('Provider rate fetch failed', { providerId, error });
@@ -231,19 +243,19 @@ export class ShippingService extends EventEmitter {
       let filteredRates = rates;
 
       if (serviceFilters?.maxCost) {
-        filteredRates = filteredRates.filter(rate => rate.totalCost <= serviceFilters.maxCost!);
+        filteredRates = filteredRates.filter((rate) => rate.totalCost <= serviceFilters.maxCost!);
       }
 
       if (serviceFilters?.maxDeliveryTime) {
-        filteredRates = filteredRates.filter(rate => 
-          rate.deliveryTime.max <= serviceFilters.maxDeliveryTime!
+        filteredRates = filteredRates.filter(
+          (rate) => rate.deliveryTime.max <= serviceFilters.maxDeliveryTime!
         );
       }
 
       if (serviceFilters?.features) {
-        filteredRates = filteredRates.filter(rate =>
-          serviceFilters.features!.every(feature => 
-            rate.features[feature as keyof typeof rate.features]
+        filteredRates = filteredRates.filter((rate) =>
+          serviceFilters.features!.every(
+            (feature) => rate.features[feature as keyof typeof rate.features]
           )
         );
       }
@@ -255,7 +267,7 @@ export class ShippingService extends EventEmitter {
         fromCountry: fromAddress.country,
         toCountry: toAddress.country,
         packagesCount: packages.length,
-        ratesCount: filteredRates.length
+        ratesCount: filteredRates.length,
       });
 
       return filteredRates;
@@ -288,7 +300,7 @@ export class ShippingService extends EventEmitter {
         throw createError(404, 'Shipping provider not found');
       }
 
-      const service = provider.supportedServices.find(s => s.id === serviceId);
+      const service = provider.supportedServices.find((s) => s.id === serviceId);
       if (!service) {
         throw createError(404, 'Shipping service not found');
       }
@@ -321,15 +333,17 @@ export class ShippingService extends EventEmitter {
         label: shipmentData.label,
         tracking: {
           events: [],
-          estimatedDelivery: shipmentData.estimatedDelivery
+          estimatedDelivery: shipmentData.estimatedDelivery,
         },
-        insurance: options?.insurance ? {
-          value: options.insurance.value,
-          cost: shipmentData.insuranceCost || 0
-        } : undefined,
+        insurance: options?.insurance
+          ? {
+              value: options.insurance.value,
+              cost: shipmentData.insuranceCost || 0,
+            }
+          : undefined,
         customs: options?.customs,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       // Store shipment (in real implementation, this would be saved to database)
@@ -342,7 +356,7 @@ export class ShippingService extends EventEmitter {
         orderId,
         trackingNumber: shipment.trackingNumber,
         providerId,
-        serviceId
+        serviceId,
       });
 
       return shipment;
@@ -390,7 +404,7 @@ export class ShippingService extends EventEmitter {
       logger.info('Shipment tracked successfully', {
         trackingNumber,
         providerId,
-        eventsCount: events.length
+        eventsCount: events.length,
       });
 
       return events;
@@ -407,7 +421,7 @@ export class ShippingService extends EventEmitter {
     try {
       // In real implementation, get shipment from database
       // const shipment = await this.getShipment(shipmentId);
-      
+
       // For now, create a mock shipment
       const shipment = this.getMockShipment(shipmentId);
 
@@ -430,7 +444,7 @@ export class ShippingService extends EventEmitter {
 
       logger.info('Shipment cancelled successfully', {
         shipmentId,
-        trackingNumber: shipment.trackingNumber
+        trackingNumber: shipment.trackingNumber,
       });
     } catch (error) {
       logger.error('Cancel shipment failed', { shipmentId, error });
@@ -445,9 +459,7 @@ export class ShippingService extends EventEmitter {
     const zones = Array.from(this.zones.values());
 
     if (country) {
-      return zones.filter(zone =>
-        zone.regions.some(region => region.country === country)
-      );
+      return zones.filter((zone) => zone.regions.some((region) => region.country === country));
     }
 
     return zones;
@@ -476,14 +488,15 @@ export class ShippingService extends EventEmitter {
       const businessDays = zone.deliveryTime.max;
       const estimatedDelivery = this.calculateBusinessDays(new Date(), businessDays);
 
-      const transitTime = zone.deliveryTime.unit === 'hours' ?
-        `${zone.deliveryTime.min}-${zone.deliveryTime.max} hours` :
-        `${zone.deliveryTime.min}-${zone.deliveryTime.max} business days`;
+      const transitTime =
+        zone.deliveryTime.unit === 'hours'
+          ? `${zone.deliveryTime.min}-${zone.deliveryTime.max} hours`
+          : `${zone.deliveryTime.min}-${zone.deliveryTime.max} business days`;
 
       return {
         estimatedDelivery,
         businessDays,
-        transitTime
+        transitTime,
       };
     } catch (error) {
       logger.error('Delivery estimate failed', { fromAddress, toAddress, serviceId, error });
@@ -523,7 +536,7 @@ export class ShippingService extends EventEmitter {
       return {
         valid: errors.length === 0,
         suggestions: suggestions.length > 0 ? suggestions : undefined,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
       };
     } catch (error) {
       logger.error('Address validation failed', { address, error });
@@ -545,7 +558,7 @@ export class ShippingService extends EventEmitter {
 
     for (const service of provider.supportedServices) {
       const weight = packages.reduce((total, pkg) => total + pkg.weight, 0);
-      const baseCost = service.pricing.baseRate + (weight * service.pricing.weightRate);
+      const baseCost = service.pricing.baseRate + weight * service.pricing.weightRate;
       const taxes = baseCost * 0.1; // 10% tax
       const totalCost = baseCost + taxes;
 
@@ -558,12 +571,14 @@ export class ShippingService extends EventEmitter {
         deliveryTime: service.deliveryTime,
         features: service.features,
         taxes,
-        fees: [{
-          type: 'fuel_surcharge',
-          amount: service.pricing.fuelSurcharge,
-          description: 'Fuel surcharge'
-        }],
-        totalCost
+        fees: [
+          {
+            type: 'fuel_surcharge',
+            amount: service.pricing.fuelSurcharge,
+            description: 'Fuel surcharge',
+          },
+        ],
+        totalCost,
       });
     }
 
@@ -587,13 +602,16 @@ export class ShippingService extends EventEmitter {
       estimatedDelivery: new Date(Date.now() + service.deliveryTime.max * 24 * 60 * 60 * 1000),
       label: {
         url: 'https://example.com/label.pdf',
-        format: 'pdf' as const
+        format: 'pdf' as const,
       },
-      insuranceCost: options?.insurance?.value ? options.insurance.value * 0.01 : 0
+      insuranceCost: options?.insurance?.value ? options.insurance.value * 0.01 : 0,
     };
   }
 
-  private async getProviderTracking(provider: ShippingProvider, trackingNumber: string): Promise<TrackingEvent[]> {
+  private async getProviderTracking(
+    provider: ShippingProvider,
+    trackingNumber: string
+  ): Promise<TrackingEvent[]> {
     // Mock implementation - in reality, call provider tracking API
     return [
       {
@@ -603,8 +621,8 @@ export class ShippingService extends EventEmitter {
         location: {
           city: 'Los Angeles',
           state: 'CA',
-          country: 'US'
-        }
+          country: 'US',
+        },
       },
       {
         timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
@@ -613,24 +631,30 @@ export class ShippingService extends EventEmitter {
         location: {
           city: 'San Francisco',
           state: 'CA',
-          country: 'US'
-        }
-      }
+          country: 'US',
+        },
+      },
     ];
   }
 
-  private async cancelProviderShipment(provider: ShippingProvider, trackingNumber: string): Promise<void> {
+  private async cancelProviderShipment(
+    provider: ShippingProvider,
+    trackingNumber: string
+  ): Promise<void> {
     // Mock implementation - in reality, call provider cancellation API
     logger.info('Cancellation request sent to provider', {
       providerId: provider.id,
-      trackingNumber
+      trackingNumber,
     });
   }
 
   private validatePackages(packages: Package[], service: ShippingService): void {
     for (const pkg of packages) {
       if (pkg.weight > service.maxWeight) {
-        throw createError(400, `Package weight exceeds service limit: ${pkg.weight} > ${service.maxWeight}`);
+        throw createError(
+          400,
+          `Package weight exceeds service limit: ${pkg.weight} > ${service.maxWeight}`
+        );
       }
 
       const { length, width, height } = pkg.dimensions;
@@ -661,7 +685,7 @@ export class ShippingService extends EventEmitter {
 
     while (addedDays < businessDays) {
       result.setDate(result.getDate() + 1);
-      
+
       // Skip weekends (0 = Sunday, 6 = Saturday)
       if (result.getDay() !== 0 && result.getDay() !== 6) {
         addedDays++;
@@ -686,7 +710,7 @@ export class ShippingService extends EventEmitter {
         city: 'San Francisco',
         state: 'CA',
         country: 'US',
-        zipCode: '94102'
+        zipCode: '94102',
       },
       toAddress: {
         name: 'John Doe',
@@ -694,33 +718,37 @@ export class ShippingService extends EventEmitter {
         city: 'Los Angeles',
         state: 'CA',
         country: 'US',
-        zipCode: '90210'
+        zipCode: '90210',
       },
-      packages: [{
-        id: 'PKG-1',
-        weight: 2.5,
-        dimensions: { length: 10, width: 8, height: 6 },
-        value: 99.99,
-        contents: [{
-          description: 'Electronics',
-          quantity: 1,
+      packages: [
+        {
+          id: 'PKG-1',
+          weight: 2.5,
+          dimensions: { length: 10, width: 8, height: 6 },
           value: 99.99,
-          weight: 2.5
-        }],
-        fragile: false,
-        hazardous: false
-      }],
+          contents: [
+            {
+              description: 'Electronics',
+              quantity: 1,
+              value: 99.99,
+              weight: 2.5,
+            },
+          ],
+          fragile: false,
+          hazardous: false,
+        },
+      ],
       cost: 15.99,
       currency: 'USD',
       label: {
         url: 'https://example.com/label.pdf',
-        format: 'pdf'
+        format: 'pdf',
       },
       tracking: {
-        events: []
+        events: [],
       },
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
   }
 
@@ -743,17 +771,17 @@ export class ShippingService extends EventEmitter {
           maxDimensions: { length: 48, width: 48, height: 48 },
           deliveryTime: { min: 1, max: 5, unit: 'days' },
           features: { tracking: true, insurance: true, signature: false, cashOnDelivery: false },
-          pricing: { baseRate: 8.99, weightRate: 1.2, dimensionRate: 0.1, fuelSurcharge: 2.5 }
-        }
+          pricing: { baseRate: 8.99, weightRate: 1.2, dimensionRate: 0.1, fuelSurcharge: 2.5 },
+        },
       ],
       settings: {
         defaultService: 'ups-ground',
         trackingEnabled: true,
         insuranceEnabled: true,
-        signatureRequired: false
+        signatureRequired: false,
       },
       regions: ['US', 'CA'],
-      status: 'active'
+      status: 'active',
     };
 
     this.providers.set('ups', upsProvider);
@@ -764,19 +792,21 @@ export class ShippingService extends EventEmitter {
       name: 'US Domestic',
       providerId: 'ups',
       regions: [{ country: 'US' }],
-      rates: [{
-        serviceId: 'ups-ground',
-        baseRate: 8.99,
-        weightRate: 1.2,
-        freeShippingThreshold: 50
-      }],
+      rates: [
+        {
+          serviceId: 'ups-ground',
+          baseRate: 8.99,
+          weightRate: 1.2,
+          freeShippingThreshold: 50,
+        },
+      ],
       deliveryTime: { min: 1, max: 5, unit: 'days' },
       restrictions: {
         maxWeight: 150,
         maxValue: 10000,
         hazardousMaterials: false,
-        fragileItems: true
-      }
+        fragileItems: true,
+      },
     };
 
     this.zones.set('us-domestic', usZone);

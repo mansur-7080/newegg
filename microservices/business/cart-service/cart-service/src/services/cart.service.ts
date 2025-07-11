@@ -70,7 +70,7 @@ export class CartService {
       };
 
       // Cache the result
-      await this.redisClient.setEx(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
+      await this.redisClient.setex(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
 
       return cart;
     } catch (error) {
@@ -111,7 +111,7 @@ export class CartService {
       this.updateCartSummary(cart);
 
       // Update cache
-      await this.redisClient.setEx(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
+      await this.redisClient.setex(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
 
       logger.info(`Item added to cart for user ${userId}: ${item.productId}`);
       return cart;
@@ -182,7 +182,7 @@ export class CartService {
       this.updateCartSummary(cart);
 
       // Update cache
-      await this.redisClient.setEx(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
+      await this.redisClient.setex(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
 
       logger.info(`Cart item quantity updated for user ${userId}: ${productId} -> ${quantity}`);
       return cart;
@@ -209,7 +209,7 @@ export class CartService {
       this.updateCartSummary(cart);
 
       // Update cache
-      await this.redisClient.setEx(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
+      await this.redisClient.setex(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
 
       logger.info(`Item removed from cart for user ${userId}: ${productId}`);
       return cart;
@@ -231,7 +231,7 @@ export class CartService {
       this.updateCartSummary(cart);
 
       // Update cache
-      await this.redisClient.setEx(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
+      await this.redisClient.setex(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
 
       logger.info(`Cart cleared for user ${userId}`);
       return cart;
@@ -319,7 +319,7 @@ export class CartService {
       });
 
       // Update cache
-      await this.redisClient.setEx(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
+      await this.redisClient.setex(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
 
       logger.info(`Coupon ${couponCode} applied to cart for user ${userId}`);
       return cart;

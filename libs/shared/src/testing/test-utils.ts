@@ -300,6 +300,7 @@ export class DatabaseTestHelper {
       try {
         await transaction.rollback();
       } catch (error) {
+        // Use console.warn for test cleanup since logger might not be available
         console.warn('Failed to rollback transaction:', error);
       }
     }
@@ -320,6 +321,7 @@ export class DatabaseTestHelper {
    */
   private async seedTestData(): Promise<void> {
     // Implementation would depend on database type
+    // Use console.log for test setup since logger might not be available
     console.log('Seeding test data...');
   }
 
@@ -328,6 +330,7 @@ export class DatabaseTestHelper {
    */
   private async cleanupTestData(): Promise<void> {
     // Implementation would depend on database type
+    // Use console.log for test cleanup since logger might not be available
     console.log('Cleaning up test data...');
   }
 }

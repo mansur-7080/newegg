@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '@ultramarket/common';
+// TODO: Move AuthenticatedRequest and HTTP_STATUS to shared library
+// import { AuthenticatedRequest } from '@ultramarket/common';
+// import { HTTP_STATUS } from '@ultramarket/common';
 import * as userService from '../services/userService';
-import { HTTP_STATUS } from '@ultramarket/common';
 
 export class UserController {
   async register(req: Request, res: Response, next: NextFunction) {

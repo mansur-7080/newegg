@@ -47,7 +47,14 @@ export interface IPaymentInfo {
 export interface IOrder extends Document {
   orderNumber: string;
   userId: string;
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+  status:
+    | 'pending'
+    | 'confirmed'
+    | 'processing'
+    | 'shipped'
+    | 'delivered'
+    | 'cancelled'
+    | 'refunded';
   items: IOrderItem[];
   subtotal: number;
   taxTotal: number;
@@ -92,7 +99,7 @@ const OrderItemSchema = new Schema({
   discount: { type: Number, default: 0, min: 0 },
   tax: { type: Number, default: 0, min: 0 },
   total: { type: Number, required: true, min: 0 },
-  metadata: { type: Schema.Types.Mixed }
+  metadata: { type: Schema.Types.Mixed },
 });
 
 const ShippingInfoSchema = new Schema({
@@ -112,8 +119,8 @@ const ShippingInfoSchema = new Schema({
     state: { type: String, required: true },
     postalCode: { type: String, required: true },
     country: { type: String, required: true },
-    phone: { type: String, required: true }
-  }
+    phone: { type: String, required: true },
+  },
 });
 
 const PaymentInfoSchema = new Schema({
@@ -124,120 +131,125 @@ const PaymentInfoSchema = new Schema({
   currency: { type: String, required: true },
   paidAt: { type: Date },
   refundedAmount: { type: Number, default: 0, min: 0 },
-  metadata: { type: Schema.Types.Mixed }
+  metadata: { type: Schema.Types.Mixed },
 });
 
 const TimelineSchema = new Schema({
   event: { type: String, required: true },
   timestamp: { type: Date, required: true, default: Date.now },
   description: { type: String },
-  performedBy: { type: String }
+  performedBy: { type: String },
 });
 
-const OrderSchema = new Schema<IOrder>({
-  orderNumber: {
-    type: String,
-    required: true,
-    unique: true,
-    index: true
-  },
-  userId: {
-    type: String,
-    required: true,
-    index: true
-  },
-  status: {
-    type: String,
-    required: true,
-    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'],
-    default: 'pending',
-    index: true
-  },
-  items: {
-    type: [OrderItemSchema],
-    required: true,
-    validate: {
-      validator: function(items: IOrderItem[]) {
-        return items.length > 0;
+const OrderSchema = new Schema<IOrder>(
+  {
+    orderNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    userId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    status: {
+      type: String,
+      required: true,
+      enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'],
+      default: 'pending',
+      index: true,
+    },
+    items: {
+      type: [OrderItemSchema],
+      required: true,
+      validate: {
+        validator: function (items: IOrderItem[]) {
+          return items.length > 0;
+        },
+        message: 'Order must contain at least one item',
       },
-      message: 'Order must contain at least one item'
-    }
+    },
+    subtotal: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    taxTotal: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    shippingTotal: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    discountTotal: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    grandTotal: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    currency: {
+      type: String,
+      required: true,
+      default: 'USD',
+      enum: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'],
+    },
+    shipping: {
+      type: ShippingInfoSchema,
+      required: true,
+    },
+    billing: {
+      firstName: { type: String, required: true },
+      lastName: { type: String, required: true },
+      company: { type: String },
+      addressLine1: { type: String, required: true },
+      addressLine2: { type: String },
+      city: { type: String, required: true },
+      state: { type: String, required: true },
+      postalCode: { type: String, required: true },
+      country: { type: String, required: true },
+      phone: { type: String, required: true },
+      email: { type: String, required: true },
+    },
+    payment: {
+      type: PaymentInfoSchema,
+      required: true,
+    },
+    notes: {
+      type: String,
+      maxlength: 1000,
+    },
+    tags: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    metadata: {
+      type: Schema.Types.Mixed,
+    },
+    timeline: {
+      type: [TimelineSchema],
+      default: [],
+    },
   },
-  subtotal: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  taxTotal: {
-    type: Number,
-    required: true,
-    min: 0,
-    default: 0
-  },
-  shippingTotal: {
-    type: Number,
-    required: true,
-    min: 0,
-    default: 0
-  },
-  discountTotal: {
-    type: Number,
-    required: true,
-    min: 0,
-    default: 0
-  },
-  grandTotal: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  currency: {
-    type: String,
-    required: true,
-    default: 'USD',
-    enum: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD']
-  },
-  shipping: {
-    type: ShippingInfoSchema,
-    required: true
-  },
-  billing: {
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
-    company: { type: String },
-    addressLine1: { type: String, required: true },
-    addressLine2: { type: String },
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    postalCode: { type: String, required: true },
-    country: { type: String, required: true },
-    phone: { type: String, required: true },
-    email: { type: String, required: true }
-  },
-  payment: {
-    type: PaymentInfoSchema,
-    required: true
-  },
-  notes: {
-    type: String,
-    maxlength: 1000
-  },
-  tags: [{
-    type: String,
-    trim: true
-  }],
-  metadata: {
-    type: Schema.Types.Mixed
-  },
-  timeline: {
-    type: [TimelineSchema],
-    default: []
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
+);
 
 // Indexes for performance
 OrderSchema.index({ createdAt: -1 });
@@ -247,22 +259,22 @@ OrderSchema.index({ userId: 1, createdAt: -1 });
 OrderSchema.index({ status: 1, createdAt: -1 });
 
 // Virtual for order age
-OrderSchema.virtual('orderAge').get(function() {
+OrderSchema.virtual('orderAge').get(function () {
   return Math.floor((Date.now() - this.createdAt.getTime()) / (1000 * 60 * 60 * 24));
 });
 
 // Virtual for is paid
-OrderSchema.virtual('isPaid').get(function() {
+OrderSchema.virtual('isPaid').get(function () {
   return this.payment.status === 'completed' || this.payment.status === 'paid';
 });
 
 // Virtual for is shipped
-OrderSchema.virtual('isShipped').get(function() {
+OrderSchema.virtual('isShipped').get(function () {
   return ['shipped', 'delivered'].includes(this.status);
 });
 
 // Pre-save middleware
-OrderSchema.pre('save', async function(next) {
+OrderSchema.pre('save', async function (next: any) {
   // Generate order number if not exists
   if (!this.orderNumber) {
     const date = new Date();
@@ -274,7 +286,7 @@ OrderSchema.pre('save', async function(next) {
   }
 
   // Calculate totals
-  this.subtotal = this.items.reduce((sum, item) => sum + item.total, 0);
+  this.subtotal = this.items.reduce((sum: number, item: IOrderItem) => sum + item.total, 0);
   this.grandTotal = this.subtotal + this.taxTotal + this.shippingTotal - this.discountTotal;
 
   // Add timeline entry for status changes
@@ -282,7 +294,7 @@ OrderSchema.pre('save', async function(next) {
     this.timeline.push({
       event: `Status changed to ${this.status}`,
       timestamp: new Date(),
-      description: `Order status updated to ${this.status}`
+      description: `Order status updated to ${this.status}`,
     });
   }
 
@@ -290,75 +302,83 @@ OrderSchema.pre('save', async function(next) {
 });
 
 // Static methods
-OrderSchema.statics.findByUserId = function(userId: string) {
+OrderSchema.statics.findByUserId = function (userId: string) {
   return this.find({ userId }).sort({ createdAt: -1 });
 };
 
-OrderSchema.statics.findByStatus = function(status: string) {
+OrderSchema.statics.findByStatus = function (status: string) {
   return this.find({ status }).sort({ createdAt: -1 });
 };
 
-OrderSchema.statics.findByDateRange = function(startDate: Date, endDate: Date) {
+OrderSchema.statics.findByDateRange = function (startDate: Date, endDate: Date) {
   return this.find({
     createdAt: {
       $gte: startDate,
-      $lte: endDate
-    }
+      $lte: endDate,
+    },
   }).sort({ createdAt: -1 });
 };
 
 // Instance methods
-OrderSchema.methods.addTimelineEvent = function(event: string, description?: string, performedBy?: string) {
+OrderSchema.methods.addTimelineEvent = function (
+  event: string,
+  description?: string,
+  performedBy?: string
+) {
   this.timeline.push({
     event,
     timestamp: new Date(),
     description,
-    performedBy
+    performedBy,
   });
   return this.save();
 };
 
-OrderSchema.methods.updateStatus = async function(newStatus: string, performedBy?: string) {
+OrderSchema.methods.updateStatus = async function (newStatus: string, performedBy?: string) {
   const oldStatus = this.status;
   this.status = newStatus;
-  
+
   await this.addTimelineEvent(
     'Status Update',
     `Status changed from ${oldStatus} to ${newStatus}`,
     performedBy
   );
-  
+
   return this;
 };
 
-OrderSchema.methods.cancelOrder = async function(reason: string, performedBy?: string) {
+OrderSchema.methods.cancelOrder = async function (reason: string, performedBy?: string) {
   if (['delivered', 'cancelled', 'refunded'].includes(this.status)) {
     throw new Error('Cannot cancel order in current status');
   }
-  
+
   this.status = 'cancelled';
   await this.addTimelineEvent('Order Cancelled', reason, performedBy);
-  
+
   return this;
 };
 
-OrderSchema.methods.processRefund = async function(amount: number, reason: string, performedBy?: string) {
+OrderSchema.methods.processRefund = async function (
+  amount: number,
+  reason: string,
+  performedBy?: string
+) {
   if (!this.isPaid) {
     throw new Error('Cannot refund unpaid order');
   }
-  
+
   this.payment.refundedAmount = (this.payment.refundedAmount || 0) + amount;
-  
+
   if (this.payment.refundedAmount >= this.payment.amount) {
     this.status = 'refunded';
   }
-  
+
   await this.addTimelineEvent(
     'Refund Processed',
     `Refunded ${amount} ${this.currency}. Reason: ${reason}`,
     performedBy
   );
-  
+
   return this;
 };
 

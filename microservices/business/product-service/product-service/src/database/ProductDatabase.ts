@@ -6,7 +6,7 @@ import { ICategory } from '../models/Category';
 import { IReview } from '../models/Review';
 
 // Re-export interfaces for convenience
-export { IProduct as Product, ICategory as Category, IReview as Review };
+export type { IProduct as Product, ICategory as Category, IReview as Review };
 
 class ProductDatabase {
   constructor() {

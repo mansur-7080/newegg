@@ -42,4 +42,5 @@ CategorySchema.virtual('subcategories', {
 CategorySchema.index({ name: 'text', description: 'text' });
 
 // Create the Category model
-export const Category: Model<ICategory> = mongoose.model<ICategory>('Category', CategorySchema);
+export const Category: Model<ICategory> =
+  mongoose.models.Category || mongoose.model<ICategory>('Category', CategorySchema);

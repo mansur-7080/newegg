@@ -1,6 +1,6 @@
 import ProductDatabase from '../database/ProductDatabase';
 import { IProduct, ICategory, IReview } from '../models';
-import { logger } from '@ultramarket/common';
+import { logger } from '@ultramarket/shared';
 
 export interface ProductFilters {
   category?: string;

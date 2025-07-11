@@ -309,9 +309,11 @@ productSchema.index({ category: 1, inStock: 1 });
 productSchema.index({ price: 1 });
 productSchema.index({ 'rating.average': -1 });
 productSchema.index({ createdAt: -1 });
-productSchema.index({ sku: 1 }, { unique: true });
+// Index for SKU already defined in the schema, so we don't need to redefine it here
+// productSchema.index({ sku: 1 }, { unique: true });
 
-categorySchema.index({ slug: 1 }, { unique: true });
+// Index for slug already defined in the schema, so we don't need to redefine it here
+// categorySchema.index({ slug: 1 }, { unique: true });
 categorySchema.index({ parentCategory: 1 });
 
 reviewSchema.index({ productId: 1, createdAt: -1 });
@@ -338,6 +340,9 @@ productSchema.pre('save', function (next) {
 });
 
 // Models
-export const Product: Model<IProduct> = mongoose.model<IProduct>('Product', productSchema);
-export const Category: Model<ICategory> = mongoose.model<ICategory>('Category', categorySchema);
-export const Review: Model<IReview> = mongoose.model<IReview>('Review', reviewSchema);
+export const Product: Model<IProduct> =
+  mongoose.models.Product || mongoose.model<IProduct>('Product', productSchema);
+export const Category: Model<ICategory> =
+  mongoose.models.Category || mongoose.model<ICategory>('Category', categorySchema);
+export const Review: Model<IReview> =
+  mongoose.models.Review || mongoose.model<IReview>('Review', reviewSchema);

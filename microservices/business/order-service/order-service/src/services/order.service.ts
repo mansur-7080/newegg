@@ -232,8 +232,8 @@ export class OrderService {
       };
 
       if (
-        invalidTransitions[order.status] &&
-        invalidTransitions[order.status].includes(newStatus)
+        invalidTransitions[order.status as keyof typeof invalidTransitions] &&
+        invalidTransitions[order.status as keyof typeof invalidTransitions]?.includes(newStatus)
       ) {
         return {
           success: false,
@@ -253,7 +253,7 @@ export class OrderService {
       const updatedOrder = await prisma.order.update({
         where: { id: orderId },
         data: {
-          status: newStatus,
+          status: newStatus as any,
           updatedAt: new Date(),
         },
       });

@@ -1,7 +1,6 @@
 import Stripe from 'stripe';
 import { PaymentMethod, PaymentStatus, Currency } from '../types/payment.types';
-import { logger } from '@ultramarket/common';
-import { createError } from '@ultramarket/common';
+import { logger, createError } from '@ultramarket/shared';
 import { PaymentModel } from '../models/Payment';
 import { EventEmitter } from 'events';
 

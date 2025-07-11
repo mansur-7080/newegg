@@ -23,15 +23,28 @@ const redis = new Redis({
 
 // Redis connection events
 redis.on('connect', () => {
-  logger.info('✅ Connected to Redis for Cart Service');
+  logger.info('Redis connection established', {
+    service: 'cart-service',
+    component: 'redis',
+    status: 'connected',
+  });
 });
 
 redis.on('error', (error) => {
-  logger.error('❌ Redis connection error:', error);
+  logger.error('Redis connection error', {
+    service: 'cart-service',
+    component: 'redis',
+    error: error instanceof Error ? error.message : 'Unknown error',
+    stack: error instanceof Error ? error.stack : undefined,
+  });
 });
 
 redis.on('ready', () => {
-  logger.info('🚀 Redis is ready for Cart Service operations');
+  logger.info('Redis ready for operations', {
+    service: 'cart-service',
+    component: 'redis',
+    status: 'ready',
+  });
 });
 
 // Middleware
@@ -157,7 +170,13 @@ const validateProduct = async (productId: string, quantity: number): Promise<Pro
       maxQuantity: product.quantity,
     };
   } catch (error) {
-    logger.error(`Product validation failed for ${productId}:`, error);
+    logger.error('Product validation failed', {
+      productId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      service: 'cart-service',
+      operation: 'product_validation',
+    });
     return { productId, isValid: false, error: 'Product service unavailable' };
   }
 };

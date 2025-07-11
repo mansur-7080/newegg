@@ -1,4 +1,6 @@
 // Simple logger utility for standardized logging
+// Note: This is a simple console-based logger for development
+// In production, this should be replaced with a proper logging library
 export const logger = {
   info: (message: string, ...args: unknown[]): void => {
     console.info(`[INFO] ${message}`, ...args);

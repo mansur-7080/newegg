@@ -30,14 +30,6 @@ export const generateTokens = (payload: JwtPayload): TokenPair => {
   return { accessToken, refreshToken };
 };
 
-export const generateToken = (
-  payload: string | object | Buffer,
-  secret: string,
-  expiresIn: string | number
-): string => {
-  return jwt.sign(payload, secret, { expiresIn });
-};
-
 // JWT token verification
 export const verifyAccessToken = (token: string): JwtPayload => {
   try {
