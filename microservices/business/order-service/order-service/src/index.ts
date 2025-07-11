@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { OrderService } from './services/order.service';
+import { setupSwagger } from './docs/swagger';
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -11,6 +12,9 @@ app.use(cors());
 app.use(express.json());
 
 const orderService = new OrderService();
+
+// Setup Swagger
+setupSwagger(app);
 
 // Health check
 app.get('/health', (req, res) => {

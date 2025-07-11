@@ -23,6 +23,55 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Notification endpoints
+app.post('/api/v1/notifications/send', (req, res) => {
+  const { userId, type, title, message, channel } = req.body;
+  res.status(201).json({
+    message: 'Send notification',
+    data: {
+      notificationId: 'notif_' + Date.now(),
+      userId,
+      type,
+      title,
+      message,
+      channel: channel || 'email',
+      status: 'sent'
+    }
+  });
+});
+
+app.get('/api/v1/notifications/:userId', (req, res) => {
+  res.json({
+    message: `Get notifications for user ${req.params.userId}`,
+    data: {
+      notifications: [
+        { id: 'notif_1', title: 'Order Confirmed', message: 'Your order has been confirmed', read: false },
+        { id: 'notif_2', title: 'Shipment Update', message: 'Your order is on the way', read: true }
+      ],
+      unreadCount: 1
+    }
+  });
+});
+
+app.put('/api/v1/notifications/:notificationId/read', (req, res) => {
+  res.json({
+    message: `Mark notification ${req.params.notificationId} as read`,
+    data: { marked: true }
+  });
+});
+
+app.post('/api/v1/notifications/bulk-send', (req, res) => {
+  const { userIds, type, title, message } = req.body;
+  res.status(201).json({
+    message: 'Send bulk notifications',
+    data: {
+      batchId: 'batch_' + Date.now(),
+      userCount: userIds?.length || 0,
+      status: 'queued'
+    }
+  });
+});
+
 // Routes
 app.get('/', (req, res) => {
   res.json({
