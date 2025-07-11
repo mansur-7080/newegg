@@ -4,6 +4,7 @@
  */
 
 import Joi from 'joi';
+import { logger } from '../logging/logger';
 
 // Base environment schema
 const baseEnvironmentSchema = Joi.object({
@@ -303,7 +304,7 @@ export function createEnvironmentValidator(serviceName: string) {
     const { error } = validateEnvironment(serviceName);
 
     if (error) {
-      console.error(`Environment validation error: ${error}`);
+      logger.error(`Environment validation error: ${error}`);
       process.exit(1);
     }
 
@@ -316,16 +317,15 @@ export function validateEnvironmentOnStartup(serviceName: string): void {
   const { error, value } = validateEnvironment(serviceName);
 
   if (error) {
-    console.error(`🚨 Environment validation failed for ${serviceName}:`);
-    console.error(error);
+    logger.error(`🚨 Environment validation failed for ${serviceName}:`, error);
     process.exit(1);
   }
 
-  console.log(`✅ Environment validation passed for ${serviceName}`);
+  logger.info(`✅ Environment validation passed for ${serviceName}`);
 
   // Log important configuration in development
   if (process.env.NODE_ENV === 'development') {
-    console.log('📋 Configuration:', {
+    logger.info('📋 Configuration:', {
       NODE_ENV: value?.NODE_ENV,
       PORT: value?.PORT,
       HOST: value?.HOST,

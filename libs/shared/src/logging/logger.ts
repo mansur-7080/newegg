@@ -4,206 +4,117 @@
  */
 
 import winston from 'winston';
-import path from 'path';
+import DailyRotateFile from 'winston-daily-rotate-file';
+import { config } from 'dotenv';
 
-// Log levels
-const LOG_LEVELS = {
+// Load environment variables
+config();
+
+// Log levels configuration
+const levels = {
   error: 0,
   warn: 1,
   info: 2,
-  debug: 3,
-  trace: 4,
-} as const;
+  http: 3,
+  debug: 4,
+};
 
-// Environment configuration
-const NODE_ENV = process.env.NODE_ENV || 'development';
-const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
-const LOG_FILE = process.env.LOG_FILE || 'app.log';
-const LOG_DIR = process.env.LOG_DIR || 'logs';
+// Colors for different log levels
+const colors = {
+  error: 'red',
+  warn: 'yellow',
+  info: 'green',
+  http: 'magenta',
+  debug: 'white',
+};
 
-// Create logs directory if it doesn't exist
-import fs from 'fs';
-if (!fs.existsSync(LOG_DIR)) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
-}
+// Add colors to winston
+winston.addColors(colors);
 
-// Custom format for structured logging
-const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }),
-  winston.format.json(),
-  winston.format.prettyPrint()
+// Custom format for logs
+const format = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+  winston.format.colorize({ all: true }),
+  winston.format.printf(
+    (info) => `${info.timestamp} ${info.level}: ${info.message}`,
+  ),
 );
 
-// Console format for development
-const consoleFormat = winston.format.combine(
-  winston.format.colorize(),
-  winston.format.timestamp({ format: 'HH:mm:ss' }),
-  winston.format.printf(({ timestamp, level, message, service, ...meta }) => {
-    let metaStr = '';
-    if (Object.keys(meta).length > 0) {
-      metaStr = ` ${JSON.stringify(meta)}`;
-    }
-    const serviceStr = service ? `[${service}]` : '';
-    return `${timestamp} ${level}${serviceStr}: ${message}${metaStr}`;
-  })
-);
+// Transports configuration
+const transports = [
+  // Console transport
+  new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple()
+    ),
+  }),
+  
+  // File transport for errors
+  new DailyRotateFile({
+    filename: 'logs/error-%DATE%.log',
+    datePattern: 'YYYY-MM-DD',
+    level: 'error',
+    maxSize: '20m',
+    maxFiles: '14d',
+  }),
+  
+  // File transport for all logs
+  new DailyRotateFile({
+    filename: 'logs/combined-%DATE%.log',
+    datePattern: 'YYYY-MM-DD',
+    maxSize: '20m',
+    maxFiles: '14d',
+  }),
+];
 
-// Create winston logger instance
-const logger = winston.createLogger({
-  level: LOG_LEVEL,
-  levels: LOG_LEVELS,
-  format: logFormat,
-  defaultMeta: {
-    service: 'ultramarket',
-    environment: NODE_ENV,
-    version: process.env.APP_VERSION || '1.0.0',
-  },
-  transports: [
-    // File transport for all logs
-    new winston.transports.File({
-      filename: path.join(LOG_DIR, 'error.log'),
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      tailable: true,
-    }),
-    new winston.transports.File({
-      filename: path.join(LOG_DIR, LOG_FILE),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      tailable: true,
-    }),
-  ],
+// Create logger instance
+export const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  levels,
+  format,
+  transports,
   exitOnError: false,
 });
 
-// Add console transport for development
-if (NODE_ENV === 'development') {
-  logger.add(
-    new winston.transports.Console({
-      format: consoleFormat,
-    })
-  );
-}
+// Professional logging methods
+export const logInfo = (message: string, meta?: any) => {
+  logger.info(message, meta);
+};
 
-// Add production-specific transports
-if (NODE_ENV === 'production') {
-  // Add external logging services here (e.g., Loggly, Splunk, etc.)
-  // logger.add(new winston.transports.Http({
-  //   host: 'logs.example.com',
-  //   port: 80,
-  //   path: '/logs'
-  // }));
-}
+export const logError = (message: string, error?: any, meta?: any) => {
+  logger.error(message, { error: error?.message || error, stack: error?.stack, ...meta });
+};
 
-// Enhanced logging methods
-const enhancedLogger = {
-  error: (message: string, meta?: Record<string, unknown>) => {
-    logger.error(message, meta);
-  },
+export const logWarn = (message: string, meta?: any) => {
+  logger.warn(message, meta);
+};
 
-  warn: (message: string, meta?: Record<string, unknown>) => {
-    logger.warn(message, meta);
-  },
+export const logDebug = (message: string, meta?: any) => {
+  logger.debug(message, meta);
+};
 
-  info: (message: string, meta?: Record<string, unknown>) => {
-    logger.info(message, meta);
-  },
+export const logHttp = (message: string, meta?: any) => {
+  logger.http(message, meta);
+};
 
-  debug: (message: string, meta?: Record<string, unknown>) => {
-    logger.debug(message, meta);
-  },
-
-  trace: (message: string, meta?: Record<string, unknown>) => {
-    logger.log('trace', message, meta);
-  },
-
-  // HTTP request logging
-  http: (
-    req: { method: string; url: string; ip: string },
-    res: { statusCode: number },
-    responseTime: number
-  ) => {
+// Request logging middleware
+export const requestLogger = (req: any, res: any, next: any) => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
     logger.info('HTTP Request', {
       method: req.method,
       url: req.url,
-      ip: req.ip,
-      statusCode: res.statusCode,
-      responseTime: `${responseTime}ms`,
-    });
-  },
-
-  // Database query logging
-  query: (query: string, params?: unknown[], duration?: number) => {
-    logger.debug('Database Query', {
-      query,
-      params,
-      duration: duration ? `${duration}ms` : undefined,
-    });
-  },
-
-  // Security event logging
-  security: (event: string, details: Record<string, unknown>) => {
-    logger.warn('Security Event', {
-      event,
-      ...details,
-      timestamp: new Date().toISOString(),
-    });
-  },
-
-  // Performance logging
-  performance: (operation: string, duration: number, meta?: Record<string, unknown>) => {
-    const level = duration > 1000 ? 'warn' : 'info';
-    logger.log(level, 'Performance', {
-      operation,
+      status: res.statusCode,
       duration: `${duration}ms`,
-      ...meta,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip,
     });
-  },
-
-  // Business logic logging
-  business: (event: string, meta?: Record<string, unknown>) => {
-    logger.info('Business Event', {
-      event,
-      ...meta,
-    });
-  },
-
-  // Create child logger with additional context
-  child: (context: Record<string, unknown>) => {
-    return logger.child(context);
-  },
+  });
+  
+  next();
 };
 
-// Export both the winston logger and enhanced logger
-export { logger as winstonLogger };
-export { enhancedLogger as logger };
-export default enhancedLogger;
-
-// Handle uncaught exceptions and unhandled rejections
-process.on('uncaughtException', (error: Error) => {
-  logger.error('Uncaught Exception', {
-    error: error.message,
-    stack: error.stack,
-  });
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-  logger.error('Unhandled Rejection', {
-    reason: reason instanceof Error ? reason.message : String(reason),
-    promise: promise.toString(),
-  });
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
-  logger.end();
-});
-
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  logger.end();
-});
+export default logger;

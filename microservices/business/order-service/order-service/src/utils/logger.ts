@@ -1,15 +1,20 @@
-// Simple logger utility for standardized logging
-export const logger = {
+import { logger as sharedLogger } from '@ultramarket/shared';
+
+// Professional logger utility for standardized logging
+export const orderLogger = {
   info: (message: string, ...args: unknown[]): void => {
-    console.info(`[INFO] ${message}`, ...args);
+    sharedLogger.info(message, ...args);
   },
   error: (message: string, ...args: unknown[]): void => {
-    console.error(`[ERROR] ${message}`, ...args);
+    sharedLogger.error(message, ...args);
   },
   warn: (message: string, ...args: unknown[]): void => {
-    console.warn(`[WARNING] ${message}`, ...args);
+    sharedLogger.warn(message, ...args);
   },
   debug: (message: string, ...args: unknown[]): void => {
-    console.debug(`[DEBUG] ${message}`, ...args);
+    sharedLogger.debug(message, ...args);
   },
 };
+
+// Export for backward compatibility
+export { orderLogger as logger };
