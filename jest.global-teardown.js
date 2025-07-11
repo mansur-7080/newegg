@@ -1,3 +1,5 @@
+import { logger } from '@ultramarket/shared/logging';
+
 /**
  * Jest Global Teardown
  * Runs once after all test suites
@@ -5,5 +7,5 @@
 
 module.exports = async () => {
   // Clean up any global resources
-  console.log('🧹 Jest global teardown completed');
+  logger.log('🧹 Jest global teardown completed');
 };

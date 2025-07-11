@@ -1,15 +1,17 @@
+import { logger } from '@ultramarket/shared/logging';
+
 // Simple logger utility for standardized logging
 export const logger = {
   info: (message: string, ...args: unknown[]): void => {
-    console.info(`[INFO] ${message}`, ...args);
+    logger.info(`[INFO] ${message}`, ...args);
   },
   error: (message: string, ...args: unknown[]): void => {
-    console.error(`[ERROR] ${message}`, ...args);
+    logger.error(`[ERROR] ${message}`, ...args);
   },
   warn: (message: string, ...args: unknown[]): void => {
-    console.warn(`[WARNING] ${message}`, ...args);
+    logger.warn(`[WARNING] ${message}`, ...args);
   },
   debug: (message: string, ...args: unknown[]): void => {
-    console.debug(`[DEBUG] ${message}`, ...args);
+    logger.debug(`[DEBUG] ${message}`, ...args);
   },
 };

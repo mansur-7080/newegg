@@ -55,13 +55,13 @@ metadata:
 type: Opaque
 stringData:
   # Database Passwords (Base64 encoded in real deployment)
-  POSTGRES_PASSWORD: 'REPLACE_WITH_STRONG_PASSWORD'
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
   MONGODB_PASSWORD: 'REPLACE_WITH_STRONG_PASSWORD'
   REDIS_PASSWORD: 'REPLACE_WITH_STRONG_PASSWORD'
 
   # JWT Secrets
   JWT_ACCESS_SECRET: 'REPLACE_WITH_64_CHAR_SECRET'
-  JWT_REFRESH_SECRET: 'REPLACE_WITH_64_CHAR_SECRET'
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
   JWT_RESET_SECRET: 'REPLACE_WITH_64_CHAR_SECRET'
   JWT_VERIFICATION_SECRET: 'REPLACE_WITH_64_CHAR_SECRET'
 
@@ -197,8 +197,7 @@ spec:
             - containerPort: 6379
           command:
             - redis-server
-            - --requirepass
-            - $(REDIS_PASSWORD)
+            - --requirepass ${REDIS_PASSWORD} $(REDIS_PASSWORD)
             - --appendonly
             - 'yes'
           env:

@@ -1,3 +1,5 @@
+import { logger } from '@ultramarket/shared/logging';
+
 #!/usr/bin/env node
 
 /**
@@ -112,7 +114,7 @@ class HealthChecker {
       data: result.data,
     };
 
-    console.log(JSON.stringify(logData, null, 2));
+    logger.log(JSON.stringify(logData, null, 2));
   }
 
   logError(error, duration) {
@@ -126,7 +128,7 @@ class HealthChecker {
       message: 'Health check failed',
     };
 
-    console.error(JSON.stringify(logData, null, 2));
+    logger.error(JSON.stringify(logData, null, 2));
   }
 }
 
@@ -140,12 +142,11 @@ async function healthCheckWithRetry() {
       return; // Success, exit
     } catch (error) {
       if (attempt === HEALTH_CHECK_CONFIG.retries) {
-        console.error(`Health check failed after ${attempt} attempts`);
+        logger.error(`Health check failed after ${attempt} attempts`);
         process.exit(1);
       }
 
-      console.warn(
-        `Health check attempt ${attempt} failed, retrying in ${HEALTH_CHECK_CONFIG.retryDelay}ms...`
+      logger.warn(`Health check attempt ${attempt} failed, retrying in ${HEALTH_CHECK_CONFIG.retryDelay}ms...`
       );
       await new Promise((resolve) => setTimeout(resolve, HEALTH_CHECK_CONFIG.retryDelay));
     }
@@ -154,19 +155,19 @@ async function healthCheckWithRetry() {
 
 // Handle process signals gracefully
 process.on('SIGINT', () => {
-  console.log('Health check interrupted');
+  logger.log('Health check interrupted');
   process.exit(1);
 });
 
 process.on('SIGTERM', () => {
-  console.log('Health check terminated');
+  logger.log('Health check terminated');
   process.exit(1);
 });
 
 // Execute health check
 if (require.main === module) {
   healthCheckWithRetry().catch((error) => {
-    console.error('Unexpected error during health check:', error);
+    logger.error('Unexpected error during health check:', error);
     process.exit(1);
   });
 }

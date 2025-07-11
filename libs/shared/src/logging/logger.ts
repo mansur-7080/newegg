@@ -119,6 +119,12 @@ const enhancedLogger = {
     logger.log('trace', message, meta);
   },
 
+  // Console.log replacement for production
+  log: (message: string, ...args: unknown[]) => {
+    const meta = args.length > 0 ? { additionalData: args } : undefined;
+    logger.info(message, meta);
+  },
+
   // HTTP request logging
   http: (
     req: { method: string; url: string; ip: string },
@@ -200,10 +206,14 @@ process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) =>
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
-  logger.end();
+  logger.end(() => {
+    process.exit(0);
+  });
 });
 
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
-  logger.end();
+  logger.end(() => {
+    process.exit(0);
+  });
 });

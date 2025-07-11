@@ -1,3 +1,5 @@
+import { logger } from '@ultramarket/shared/logging';
+
 const http = require('http');
 
 const options = {
@@ -10,21 +12,21 @@ const options = {
 
 const request = http.request(options, (response) => {
   if (response.statusCode === 200) {
-    console.log('Config Service health check passed');
+    logger.log('Config Service health check passed');
     process.exit(0);
   } else {
-    console.error(`Config Service health check failed with status: ${response.statusCode}`);
+    logger.error(`Config Service health check failed with status: ${response.statusCode}`);
     process.exit(1);
   }
 });
 
 request.on('error', (error) => {
-  console.error(`Config Service health check failed: ${error.message}`);
+  logger.error(`Config Service health check failed: ${error.message}`);
   process.exit(1);
 });
 
 request.on('timeout', () => {
-  console.error('Config Service health check timed out');
+  logger.error('Config Service health check timed out');
   request.destroy();
   process.exit(1);
 });

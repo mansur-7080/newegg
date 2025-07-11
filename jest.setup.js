@@ -1,3 +1,5 @@
+import { logger } from '@ultramarket/shared/logging';
+
 /**
  * UltraMarket Jest Setup
  * Global test configuration and setup
@@ -8,8 +10,8 @@ process.env.NODE_ENV = 'test';
 process.env.LOG_LEVEL = 'error';
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/ultramarket_test';
 process.env.REDIS_URL = 'redis://localhost:6379/15';
-process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-purposes-only';
-process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-key-for-testing-purposes-only';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-purposes-only';
+process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret-key-for-testing-purposes-only';
 
 // Mock console methods to reduce test noise
 const originalConsole = { ...console };
@@ -156,12 +158,12 @@ jest.mock('winston', () => ({
 
 // Global error handler for unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 // Global error handler for uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  logger.error('Uncaught Exception:', error);
 });
 
 // Clean up after all tests

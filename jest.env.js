@@ -1,3 +1,5 @@
+import { logger } from '@ultramarket/shared/logging';
+
 /**
  * Jest Environment Variables Setup
  * Sets up environment variables for testing
@@ -12,7 +14,7 @@ process.env.DB_HOST = 'localhost';
 process.env.DB_PORT = '5432';
 process.env.DB_NAME = 'ultramarket_test';
 process.env.DB_USER = 'test';
-process.env.DB_PASSWORD = 'test';
+process.env.DB_PASSWORD = process.env.DB_PASSWORD || 'test';
 
 // Redis configuration
 process.env.REDIS_URL = 'redis://localhost:6379/15';
@@ -21,10 +23,8 @@ process.env.REDIS_PORT = '6379';
 process.env.REDIS_DB = '15';
 
 // JWT configuration
-process.env.JWT_SECRET =
-  'test-jwt-secret-key-for-testing-purposes-only-must-be-at-least-32-characters';
-process.env.JWT_REFRESH_SECRET =
-  'test-jwt-refresh-secret-key-for-testing-purposes-only-must-be-at-least-32-characters';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-purposes-only-must-be-at-least-32-characters';
+process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret-key-for-testing-purposes-only-must-be-at-least-32-characters';
 process.env.JWT_EXPIRES_IN = '1h';
 process.env.JWT_REFRESH_EXPIRES_IN = '7d';
 
@@ -90,4 +90,4 @@ process.env.SKIP_REDIS_SETUP = 'false';
 process.env.MOCK_EXTERNAL_SERVICES = 'true';
 process.env.DISABLE_LOGS = 'true';
 
-console.log('🔧 Jest environment variables configured');
+logger.log('🔧 Jest environment variables configured');
