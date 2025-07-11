@@ -11,6 +11,7 @@ import { validateEnvironmentOnStartup } from '@ultramarket/shared/validation/env
 import { logger } from '@ultramarket/shared/logging/logger';
 import { errorHandler } from '@ultramarket/shared/middleware/error-handler';
 import { securityMiddleware } from '@ultramarket/shared/middleware/security';
+import authRoutes from './routes/authRoutes';
 
 // Validate environment on startup
 validateEnvironmentOnStartup('auth-service');
@@ -52,22 +53,33 @@ app.get('/health', (req, res) => {
     service: 'auth-service',
     timestamp: new Date().toISOString(),
     version: process.env.APP_VERSION ?? '1.0.0',
+    environment: process.env.NODE_ENV ?? 'development',
+    database: 'PostgreSQL',
+  });
+});
+
+// API documentation endpoint
+app.get('/api/v1', (req, res) => {
+  res.status(200).json({
+    message: 'Auth service is running',
+    version: '1.0.0',
+    endpoints: [
+      'POST /api/v1/auth/register',
+      'POST /api/v1/auth/login',
+      'POST /api/v1/auth/refresh',
+      'POST /api/v1/auth/logout',
+      'GET /api/v1/auth/profile',
+      'PUT /api/v1/auth/profile',
+      'PUT /api/v1/auth/change-password',
+      'POST /api/v1/auth/verify',
+      'GET /api/v1/auth/stats',
+    ],
+    documentation: '/api/v1/docs',
   });
 });
 
 // API routes
-app.use('/api/v1/auth', (req, res) => {
-  res.status(200).json({
-    message: 'Auth service is running',
-    endpoints: [
-      'POST /api/v1/auth/login',
-      'POST /api/v1/auth/register',
-      'POST /api/v1/auth/refresh',
-      'POST /api/v1/auth/logout',
-      'GET /api/v1/auth/profile',
-    ],
-  });
-});
+app.use('/api/v1/auth', authRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
@@ -83,11 +95,17 @@ app.use('*', (req, res) => {
 
 // Start server
 app.listen(PORT, HOST, () => {
-  logger.info('Auth service started successfully', {
+  logger.info('🚀 Auth Service started successfully!', {
     port: PORT,
     host: HOST,
     environment: process.env.NODE_ENV ?? 'development',
+    version: process.env.APP_VERSION ?? '1.0.0',
   });
+  
+  logger.info(`🌐 Server running on http://${HOST}:${PORT}`);
+  logger.info(`🔗 Health check: http://${HOST}:${PORT}/health`);
+  logger.info(`📚 API: http://${HOST}:${PORT}/api/v1`);
+  logger.info(`🔐 Auth endpoints: http://${HOST}:${PORT}/api/v1/auth`);
 });
 
 // Graceful shutdown
