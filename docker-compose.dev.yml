@@ -98,8 +98,8 @@ services:
       PRODUCT_SERVICE_URL: http://product-service:3003
       ORDER_SERVICE_URL: http://order-service:3004
       PAYMENT_SERVICE_URL: http://payment-service:3005
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      JWT_SECRET: dev-jwt-secret-key-minimum-32-characters-long-for-development-only
+      REDIS_URL: redis://:${REDIS_PASSWORD:-dev_password_123}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-key-minimum-32-characters-long-for-development-only}
     ports:
       - '3000:3000'
     depends_on:
@@ -126,10 +126,10 @@ services:
       NODE_ENV: development
       PORT: 3001
       SERVICE_NAME: user-service
-      DATABASE_URL: postgresql://ultramarket_dev_user:dev_password_123@postgres:5432/ultramarket_dev
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      JWT_SECRET: dev-jwt-secret-key-minimum-32-characters-long-for-development-only
-      JWT_REFRESH_SECRET: dev-jwt-refresh-secret-key-minimum-32-characters-long-for-development-only
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ultramarket_dev_user}:${POSTGRES_PASSWORD:-dev_password_123}@postgres:5432/${POSTGRES_DB:-ultramarket_dev}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-dev_password_123}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-key-minimum-32-characters-long-for-development-only}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-jwt-refresh-secret-key-minimum-32-characters-long-for-development-only}
       BCRYPT_ROUNDS: 10
     ports:
       - '3001:3001'
@@ -159,10 +159,10 @@ services:
       NODE_ENV: development
       PORT: 3002
       SERVICE_NAME: auth-service
-      DATABASE_URL: postgresql://ultramarket_dev_user:dev_password_123@postgres:5432/ultramarket_dev
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      JWT_SECRET: dev-jwt-secret-key-minimum-32-characters-long-for-development-only
-      JWT_REFRESH_SECRET: dev-jwt-refresh-secret-key-minimum-32-characters-long-for-development-only
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ultramarket_dev_user}:${POSTGRES_PASSWORD:-dev_password_123}@postgres:5432/${POSTGRES_DB:-ultramarket_dev}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-dev_password_123}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-key-minimum-32-characters-long-for-development-only}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-jwt-refresh-secret-key-minimum-32-characters-long-for-development-only}
     ports:
       - '3002:3002'
     depends_on:
@@ -193,9 +193,9 @@ services:
       NODE_ENV: development
       PORT: 3003
       SERVICE_NAME: product-service
-      MONGODB_URL: mongodb://ultramarket_dev_admin:dev_password_123@mongodb:27017/ultramarket_products_dev?authSource=admin
+      MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-ultramarket_dev_admin}:${MONGO_ROOT_PASSWORD:-dev_password_123}@mongodb:27017/${MONGO_DATABASE:-ultramarket_products_dev}?authSource=admin
       ELASTICSEARCH_URL: http://elasticsearch:9200
-      REDIS_URL: redis://:dev_password_123@redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-dev_password_123}@redis:6379
     ports:
       - '3003:3003'
     depends_on:
@@ -226,8 +226,8 @@ services:
       NODE_ENV: development
       PORT: 3004
       SERVICE_NAME: order-service
-      DATABASE_URL: postgresql://ultramarket_dev_user:dev_password_123@postgres:5432/ultramarket_dev
-      REDIS_URL: redis://:dev_password_123@redis:6379
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ultramarket_dev_user}:${POSTGRES_PASSWORD:-dev_password_123}@postgres:5432/${POSTGRES_DB:-ultramarket_dev}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-dev_password_123}@redis:6379
       USER_SERVICE_URL: http://user-service:3001
       PRODUCT_SERVICE_URL: http://product-service:3003
       PAYMENT_SERVICE_URL: http://payment-service:3005
@@ -259,10 +259,10 @@ services:
       NODE_ENV: development
       PORT: 3005
       SERVICE_NAME: payment-service
-      DATABASE_URL: postgresql://ultramarket_dev_user:dev_password_123@postgres:5432/ultramarket_dev
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      STRIPE_SECRET_KEY: sk_test_your_stripe_test_key_here
-      STRIPE_WEBHOOK_SECRET: whsec_your_stripe_webhook_secret_here
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ultramarket_dev_user}:${POSTGRES_PASSWORD:-dev_password_123}@postgres:5432/${POSTGRES_DB:-ultramarket_dev}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-dev_password_123}@redis:6379
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_your_stripe_test_key_here}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_your_stripe_webhook_secret_here}
     ports:
       - '3005:3005'
     depends_on:
