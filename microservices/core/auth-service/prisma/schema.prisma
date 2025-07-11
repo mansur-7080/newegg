@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,114 +11,148 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(uuid())
+  id              String    @id @default(cuid())
   email           String    @unique
-  username        String    @unique
-  passwordHash    String
+  password        String
   firstName       String
   lastName        String
-  phoneNumber     String?
-  role            UserRole  @default(CUSTOMER)
+  phone           String?
+  role            String    @default("USER")
   isActive        Boolean   @default(true)
   isEmailVerified Boolean   @default(false)
-  profileImage    String?
-  bio             String?
-  
-  refreshTokens   RefreshToken[]
-  sessions        Session[]
-  
+  lastLoginAt     DateTime?
+  lastLogoutAt    DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  lastLoginAt     DateTime?
-  
-  @@index([email])
-  @@index([username])
-  @@index([role])
+
+  // Relations
+  profile                UserProfile?
+  refreshTokens          RefreshToken[]
+  passwordResetTokens    PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  userSessions           UserSession[]
+
   @@map("users")
 }
 
-model RefreshToken {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  token       String    @unique
-  expiresAt   DateTime
-  
+model UserProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  firstName   String
+  lastName    String
+  phone       String?
+  avatar      String?
+  dateOfBirth DateTime?
+  address     String?
+  city        String?
+  country     String?
+  postalCode  String?
   createdAt   DateTime  @default(now())
-  
-  @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  isRevoked Boolean   @default(false)
+  revokedAt DateTime?
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("refresh_tokens")
 }
 
-model Session {
-  id          String    @id @default(uuid())
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  isUsed    Boolean   @default(false)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  isUsed    Boolean   @default(false)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_verification_tokens")
+}
+
+model UserSession {
+  id          String    @id @default(cuid())
   userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  token       String    @unique
+  sessionId   String    @unique
   userAgent   String?
   ipAddress   String?
-  
-  expiresAt   DateTime
+  isActive    Boolean   @default(true)
+  lastActivity DateTime @default(now())
   createdAt   DateTime  @default(now())
-  
-  @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
-  @@map("sessions")
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
 }
 
-model EmailVerification {
-  id          String    @id @default(uuid())
-  email       String
-  token       String    @unique
-  expiresAt   DateTime
-  
+model Role {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  permissions Permission[]
   createdAt   DateTime  @default(now())
-  
-  @@index([email])
-  @@index([token])
-  @@index([expiresAt])
-  @@map("email_verifications")
+  updatedAt   DateTime  @updatedAt
+
+  @@map("roles")
 }
 
-model PasswordReset {
-  id          String    @id @default(uuid())
-  email       String
-  token       String    @unique
-  expiresAt   DateTime
-  used        Boolean   @default(false)
-  
+model Permission {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  roles       Role[]
   createdAt   DateTime  @default(now())
-  
-  @@index([email])
-  @@index([token])
-  @@index([expiresAt])
-  @@map("password_resets")
+  updatedAt   DateTime  @updatedAt
+
+  @@map("permissions")
 }
 
-model LoginAttempt {
-  id          String    @id @default(uuid())
-  email       String
-  ipAddress   String
+model AuditLog {
+  id          String    @id @default(cuid())
+  userId      String?
+  action      String
+  resource    String?
+  resourceId  String?
+  details     Json?
+  ipAddress   String?
   userAgent   String?
-  success     Boolean
-  failureReason String?
-  
   createdAt   DateTime  @default(now())
-  
-  @@index([email])
-  @@index([ipAddress])
-  @@index([createdAt])
-  @@map("login_attempts")
-}
 
-enum UserRole {
-  CUSTOMER
-  SELLER
-  ADMIN
-  SUPER_ADMIN
+  @@map("audit_logs")
 } 
