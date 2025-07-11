@@ -17,7 +17,7 @@ export class AuthController {
       const { email, password, firstName, lastName, phone } = req.body;
       
       if (!email || !password || !firstName || !lastName) {
-        throw new ValidationError('Missing required fields: email, password, firstName, lastName');
+        throw new BadRequestError('Missing required fields: email, password, firstName, lastName');
       }
 
       // Check if user already exists
@@ -26,7 +26,7 @@ export class AuthController {
       });
 
       if (existingUser) {
-        throw new ValidationError('User with this email already exists');
+        throw new BadRequestError('User with this email already exists');
       }
 
       // Hash password
@@ -115,7 +115,7 @@ export class AuthController {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        throw new ValidationError('Email and password are required');
+        throw new BadRequestError('Email and password are required');
       }
 
       // Find user
@@ -211,7 +211,7 @@ export class AuthController {
       const { refreshToken } = req.body;
 
       if (!refreshToken) {
-        throw new ValidationError('Refresh token is required');
+        throw new BadRequestError('Refresh token is required');
       }
 
       // Verify refresh token
@@ -364,7 +364,7 @@ export class AuthController {
       const { firstName, lastName, phone } = req.body;
 
       if (!userId) {
-        throw new AuthenticationError('User not authenticated');
+        throw new UnauthorizedError('User not authenticated');
       }
 
       const updatedUser = await prisma.user.update({
@@ -408,11 +408,11 @@ export class AuthController {
       const { currentPassword, newPassword } = req.body;
 
       if (!userId) {
-        throw new AuthenticationError('User not authenticated');
+        throw new UnauthorizedError('User not authenticated');
       }
 
       if (!currentPassword || !newPassword) {
-        throw new ValidationError('Current password and new password are required');
+        throw new BadRequestError('Current password and new password are required');
       }
 
       // Get user with password
@@ -421,13 +421,13 @@ export class AuthController {
       });
 
       if (!user) {
-        throw new AuthenticationError('User not found');
+        throw new UnauthorizedError('User not found');
       }
 
       // Verify current password
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
       if (!isCurrentPasswordValid) {
-        throw new ValidationError('Current password is incorrect');
+        throw new BadRequestError('Current password is incorrect');
       }
 
       // Hash new password
@@ -464,7 +464,7 @@ export class AuthController {
       const { token } = req.params;
 
       if (!token) {
-        throw new ValidationError('Verification token is required');
+        throw new BadRequestError('Verification token is required');
       }
 
       // Verify token and update user
@@ -494,7 +494,7 @@ export class AuthController {
       const { email } = req.body;
 
       if (!email) {
-        throw new ValidationError('Email is required');
+        throw new BadRequestError('Email is required');
       }
 
       const user = await prisma.user.findUnique({
@@ -540,14 +540,14 @@ export class AuthController {
       const { token, newPassword } = req.body;
 
       if (!token || !newPassword) {
-        throw new ValidationError('Token and new password are required');
+        throw new BadRequestError('Token and new password are required');
       }
 
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_PASSWORD_RESET_SECRET!) as any;
       
       if (decoded.type !== 'password-reset') {
-        throw new AuthenticationError('Invalid token type');
+        throw new UnauthorizedError('Invalid token type');
       }
 
       // Check if token exists and is valid
@@ -560,7 +560,7 @@ export class AuthController {
       });
 
       if (!resetToken) {
-        throw new AuthenticationError('Invalid or expired reset token');
+        throw new UnauthorizedError('Invalid or expired reset token');
       }
 
       // Hash new password

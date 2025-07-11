@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,115 +10,190 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  CUSTOMER
+  VENDOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
 model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  username        String    @unique
-  passwordHash    String
-  firstName       String
-  lastName        String
-  phoneNumber     String?
-  role            UserRole  @default(CUSTOMER)
-  isActive        Boolean   @default(true)
-  isEmailVerified Boolean   @default(false)
-  profileImage    String?
-  bio             String?
+  id                String      @id @default(cuid())
+  email             String      @unique
+  password          String
+  firstName         String
+  lastName          String
+  phone             String?
+  avatar            String?
+  role              UserRole    @default(CUSTOMER)
+  status            UserStatus  @default(PENDING_VERIFICATION)
+  isActive          Boolean     @default(true)
+  emailVerified     Boolean     @default(false)
+  phoneVerified     Boolean     @default(false)
+  twoFactorEnabled  Boolean     @default(false)
   
-  refreshTokens   RefreshToken[]
-  sessions        Session[]
+  // Timestamps
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  lastLoginAt       DateTime?
+  emailVerifiedAt   DateTime?
+  phoneVerifiedAt   DateTime?
   
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  lastLoginAt     DateTime?
+  // Profile information
+  dateOfBirth       DateTime?
+  gender            String?
+  country           String?
+  city              String?
+  address           String?
+  postalCode        String?
   
-  @@index([email])
-  @@index([username])
-  @@index([role])
+  // Preferences
+  language          String      @default("en")
+  timezone          String      @default("UTC")
+  marketingEmails   Boolean     @default(true)
+  notifications     Boolean     @default(true)
+  
+  // Relations
+  refreshTokens     RefreshToken[]
+  passwordResets    PasswordReset[]
+  emailVerifications EmailVerification[]
+  sessions          UserSession[]
+  loginAttempts     LoginAttempt[]
+  
   @@map("users")
 }
 
 model RefreshToken {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  token       String    @unique
-  expiresAt   DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  createdAt   DateTime  @default(now())
-  
-  @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
   @@map("refresh_tokens")
 }
 
-model Session {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  token       String    @unique
-  userAgent   String?
-  ipAddress   String?
-  
-  expiresAt   DateTime
-  createdAt   DateTime  @default(now())
-  
-  @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
-  @@map("sessions")
-}
-
-model EmailVerification {
-  id          String    @id @default(uuid())
-  email       String
-  token       String    @unique
-  expiresAt   DateTime
-  
-  createdAt   DateTime  @default(now())
-  
-  @@index([email])
-  @@index([token])
-  @@index([expiresAt])
-  @@map("email_verifications")
-}
-
 model PasswordReset {
-  id          String    @id @default(uuid())
-  email       String
-  token       String    @unique
-  expiresAt   DateTime
-  used        Boolean   @default(false)
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
   
-  createdAt   DateTime  @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  @@index([email])
-  @@index([token])
-  @@index([expiresAt])
   @@map("password_resets")
 }
 
+model EmailVerification {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  email     String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  verifiedAt DateTime?
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("email_verifications")
+}
+
+model UserSession {
+  id          String   @id @default(cuid())
+  sessionId   String   @unique
+  userId      String
+  ipAddress   String?
+  userAgent   String?
+  device      String?
+  location    String?
+  isActive    Boolean  @default(true)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastActiveAt DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_sessions")
+}
+
 model LoginAttempt {
-  id          String    @id @default(uuid())
+  id          String   @id @default(cuid())
+  userId      String?
   email       String
-  ipAddress   String
+  ipAddress   String?
   userAgent   String?
   success     Boolean
   failureReason String?
+  createdAt   DateTime @default(now())
   
-  createdAt   DateTime  @default(now())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  @@index([email])
-  @@index([ipAddress])
-  @@index([createdAt])
   @@map("login_attempts")
 }
 
-enum UserRole {
-  CUSTOMER
-  SELLER
-  ADMIN
-  SUPER_ADMIN
-} 
+// Audit log for security events
+model SecurityEvent {
+  id          String   @id @default(cuid())
+  userId      String?
+  eventType   String   // LOGIN, LOGOUT, PASSWORD_CHANGE, etc.
+  description String
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+  severity    String   @default("INFO") // INFO, WARNING, CRITICAL
+  createdAt   DateTime @default(now())
+  
+  @@map("security_events")
+}
+
+// API Keys for service-to-service authentication
+model ApiKey {
+  id          String   @id @default(cuid())
+  name        String
+  keyHash     String   @unique
+  permissions Json?    // JSON array of permissions
+  isActive    Boolean  @default(true)
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("api_keys")
+}
+
+// Rate limiting for security
+model RateLimit {
+  id          String   @id @default(cuid())
+  identifier  String   // IP address, user ID, etc.
+  action      String   // login, register, etc.
+  count       Int      @default(0)
+  windowStart DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([identifier, action, windowStart])
+  @@map("rate_limits")
+}
+
+// Indexes for performance
+// @@index([email])
+// @@index([role])
+// @@index([status])
+// @@index([createdAt])
+// @@index([lastLoginAt]) 
