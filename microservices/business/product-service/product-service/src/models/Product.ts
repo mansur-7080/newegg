@@ -1,343 +1,383 @@
-import mongoose, { Document, Schema, Model } from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 
-// Product interfaces
 export interface IProduct extends Document {
-  _id: string;
   name: string;
   description: string;
-  shortDescription?: string;
-  price: number;
-  originalPrice?: number;
-  discount?: number;
+  shortDescription: string;
+  sku: string;
   category: string;
   subcategory?: string;
   brand: string;
-  sku: string;
-  images: string[];
-  specifications: Record<string, any>;
-  inStock: boolean;
-  quantity: number;
-  minQuantity: number;
-  weight?: number;
-  dimensions?: {
-    length: number;
-    width: number;
-    height: number;
+  price: {
+    current: number;
+    original?: number;
+    currency: string;
   };
+  images: {
+    primary: string;
+    gallery: string[];
+  };
+  specifications: Record<string, any>;
+  features: string[];
   tags: string[];
+  variants: {
+    id: string;
+    name: string;
+    sku: string;
+    price: number;
+    stock: number;
+    attributes: Record<string, any>;
+  }[];
+  inventory: {
+    totalStock: number;
+    lowStockThreshold: number;
+    trackInventory: boolean;
+  };
+  shipping: {
+    weight: number;
+    dimensions: {
+      length: number;
+      width: number;
+      height: number;
+    };
+    freeShipping: boolean;
+    shippingClass: string;
+  };
+  seo: {
+    metaTitle: string;
+    metaDescription: string;
+    slug: string;
+    keywords: string[];
+  };
+  status: 'active' | 'inactive' | 'draft';
+  visibility: 'public' | 'private' | 'password';
+  featured: boolean;
+  bestSeller: boolean;
+  newArrival: boolean;
   rating: {
     average: number;
     count: number;
   };
-  reviews: mongoose.Types.ObjectId[];
-  isActive: boolean;
-  isFeatured: boolean;
-  seoTitle?: string;
-  seoDescription?: string;
-  seoKeywords?: string[];
+  vendor: {
+    id: string;
+    name: string;
+  };
   createdAt: Date;
   updatedAt: Date;
+  publishedAt?: Date;
 }
 
-export interface ICategory extends Document {
-  _id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  parentCategory?: mongoose.Types.ObjectId;
-  image?: string;
-  isActive: boolean;
-  sortOrder: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface IReview extends Document {
-  _id: string;
-  productId: mongoose.Types.ObjectId;
-  userId: string;
-  rating: number;
-  title: string;
-  comment: string;
-  verified: boolean;
-  helpful: number;
-  notHelpful: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Product Schema
-const productSchema = new Schema<IProduct>(
-  {
+const ProductSchema = new Schema<IProduct>({
+  name: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 200
+  },
+  description: {
+    type: String,
+    required: true,
+    maxlength: 5000
+  },
+  shortDescription: {
+    type: String,
+    required: true,
+    maxlength: 500
+  },
+  sku: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+  category: {
+    type: String,
+    required: true,
+    index: true
+  },
+  subcategory: {
+    type: String,
+    index: true
+  },
+  brand: {
+    type: String,
+    required: true,
+    index: true
+  },
+  price: {
+    current: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    original: {
+      type: Number,
+      min: 0
+    },
+    currency: {
+      type: String,
+      default: 'USD',
+      enum: ['USD', 'EUR', 'GBP', 'UZS']
+    }
+  },
+  images: {
+    primary: {
+      type: String,
+      required: true
+    },
+    gallery: [{
+      type: String
+    }]
+  },
+  specifications: {
+    type: Schema.Types.Mixed,
+    default: {}
+  },
+  features: [{
+    type: String
+  }],
+  tags: [{
+    type: String,
+    index: true
+  }],
+  variants: [{
+    id: {
+      type: String,
+      required: true
+    },
     name: {
       type: String,
-      required: true,
-      trim: true,
-      maxlength: 200,
+      required: true
     },
-    description: {
+    sku: {
       type: String,
-      required: true,
-      maxlength: 2000,
-    },
-    shortDescription: {
-      type: String,
-      maxlength: 300,
+      required: true
     },
     price: {
       type: Number,
       required: true,
-      min: 0,
+      min: 0
     },
-    originalPrice: {
+    stock: {
       type: Number,
-      min: 0,
+      default: 0,
+      min: 0
     },
-    discount: {
+    attributes: {
+      type: Schema.Types.Mixed,
+      default: {}
+    }
+  }],
+  inventory: {
+    totalStock: {
       type: Number,
-      min: 0,
-      max: 100,
+      default: 0,
+      min: 0
     },
-    category: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    subcategory: {
-      type: String,
-      trim: true,
-    },
-    brand: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    sku: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
-    images: [
-      {
-        type: String,
-        validate: {
-          validator: (v: string) => /^https?:\/\/.+/.test(v),
-          message: 'Image must be a valid URL',
-        },
-      },
-    ],
-    specifications: {
-      type: Map,
-      of: Schema.Types.Mixed,
-    },
-    inStock: {
-      type: Boolean,
-      default: true,
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    minQuantity: {
+    lowStockThreshold: {
       type: Number,
       default: 5,
-      min: 0,
+      min: 0
     },
+    trackInventory: {
+      type: Boolean,
+      default: true
+    }
+  },
+  shipping: {
     weight: {
       type: Number,
-      min: 0,
+      required: true,
+      min: 0
     },
     dimensions: {
-      length: { type: Number, min: 0 },
-      width: { type: Number, min: 0 },
-      height: { type: Number, min: 0 },
-    },
-    tags: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    rating: {
-      average: {
+      length: {
         type: Number,
-        default: 0,
-        min: 0,
-        max: 5,
+        required: true,
+        min: 0
       },
-      count: {
+      width: {
         type: Number,
-        default: 0,
-        min: 0,
+        required: true,
+        min: 0
       },
+      height: {
+        type: Number,
+        required: true,
+        min: 0
+      }
     },
-    reviews: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'Review',
-      },
-    ],
-    isActive: {
+    freeShipping: {
       type: Boolean,
-      default: true,
+      default: false
     },
-    isFeatured: {
-      type: Boolean,
-      default: false,
-    },
-    seoTitle: {
+    shippingClass: {
       type: String,
-      maxlength: 60,
-    },
-    seoDescription: {
-      type: String,
-      maxlength: 160,
-    },
-    seoKeywords: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
+      default: 'standard'
+    }
   },
-  {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
-  }
-);
-
-// Category Schema
-const categorySchema = new Schema<ICategory>(
-  {
-    name: {
+  seo: {
+    metaTitle: {
       type: String,
-      required: true,
-      trim: true,
-      maxlength: 100,
+      maxlength: 60
+    },
+    metaDescription: {
+      type: String,
+      maxlength: 160
     },
     slug: {
       type: String,
       required: true,
       unique: true,
       lowercase: true,
-      trim: true,
+      trim: true
     },
-    description: {
-      type: String,
-      maxlength: 500,
-    },
-    parentCategory: {
-      type: Schema.Types.ObjectId,
-      ref: 'Category',
-    },
-    image: {
-      type: String,
-      validate: {
-        validator: (v: string) => !v || /^https?:\/\/.+/.test(v),
-        message: 'Image must be a valid URL',
-      },
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    sortOrder: {
-      type: Number,
-      default: 0,
-    },
+    keywords: [{
+      type: String
+    }]
   },
-  {
-    timestamps: true,
-  }
-);
-
-// Review Schema
-const reviewSchema = new Schema<IReview>(
-  {
-    productId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true,
-    },
-    userId: {
-      type: String,
-      required: true,
-    },
-    rating: {
-      type: Number,
-      required: true,
-      min: 1,
-      max: 5,
-    },
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 100,
-    },
-    comment: {
-      type: String,
-      required: true,
-      maxlength: 1000,
-    },
-    verified: {
-      type: Boolean,
-      default: false,
-    },
-    helpful: {
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'draft'],
+    default: 'draft'
+  },
+  visibility: {
+    type: String,
+    enum: ['public', 'private', 'password'],
+    default: 'public'
+  },
+  featured: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  bestSeller: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  newArrival: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  rating: {
+    average: {
       type: Number,
       default: 0,
       min: 0,
+      max: 5
     },
-    notHelpful: {
+    count: {
       type: Number,
       default: 0,
-      min: 0,
-    },
+      min: 0
+    }
   },
-  {
-    timestamps: true,
+  vendor: {
+    id: {
+      type: String,
+      required: true
+    },
+    name: {
+      type: String,
+      required: true
+    }
   }
-);
-
-// Indexes for performance
-productSchema.index({ name: 'text', description: 'text', tags: 'text' });
-productSchema.index({ category: 1, inStock: 1 });
-productSchema.index({ price: 1 });
-productSchema.index({ 'rating.average': -1 });
-productSchema.index({ createdAt: -1 });
-productSchema.index({ sku: 1 }, { unique: true });
-
-categorySchema.index({ slug: 1 }, { unique: true });
-categorySchema.index({ parentCategory: 1 });
-
-reviewSchema.index({ productId: 1, createdAt: -1 });
-reviewSchema.index({ userId: 1 });
-
-// Virtual fields
-productSchema.virtual('discountedPrice').get(function () {
-  if (this.discount && this.discount > 0) {
-    return this.price * (1 - this.discount / 100);
-  }
-  return this.price;
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-productSchema.virtual('isOnSale').get(function () {
-  return this.discount && this.discount > 0;
+// Indexes for better query performance
+ProductSchema.index({ name: 'text', description: 'text', tags: 'text' });
+ProductSchema.index({ 'price.current': 1 });
+ProductSchema.index({ 'inventory.totalStock': 1 });
+ProductSchema.index({ status: 1, visibility: 1 });
+ProductSchema.index({ createdAt: -1 });
+ProductSchema.index({ 'rating.average': -1 });
+ProductSchema.index({ featured: 1, status: 1 });
+ProductSchema.index({ bestSeller: 1, status: 1 });
+ProductSchema.index({ newArrival: 1, status: 1 });
+
+// Virtual for discount percentage
+ProductSchema.virtual('discountPercentage').get(function() {
+  if (this.price.original && this.price.original > this.price.current) {
+    return Math.round(((this.price.original - this.price.current) / this.price.original) * 100);
+  }
+  return 0;
 });
 
-// Pre-save middleware
-productSchema.pre('save', function (next) {
-  if (this.quantity <= this.minQuantity) {
-    this.inStock = false;
+// Virtual for stock status
+ProductSchema.virtual('stockStatus').get(function() {
+  if (!this.inventory.trackInventory) return 'unlimited';
+  if (this.inventory.totalStock === 0) return 'out_of_stock';
+  if (this.inventory.totalStock <= this.inventory.lowStockThreshold) return 'low_stock';
+  return 'in_stock';
+});
+
+// Pre-save middleware to update total stock from variants
+ProductSchema.pre('save', function(next) {
+  if (this.variants && this.variants.length > 0) {
+    this.inventory.totalStock = this.variants.reduce((total, variant) => total + variant.stock, 0);
   }
   next();
 });
 
-// Models
-export const Product: Model<IProduct> = mongoose.model<IProduct>('Product', productSchema);
-export const Category: Model<ICategory> = mongoose.model<ICategory>('Category', categorySchema);
-export const Review: Model<IReview> = mongoose.model<IReview>('Review', reviewSchema);
+// Static method to find products by category
+ProductSchema.statics.findByCategory = function(category: string) {
+  return this.find({ category, status: 'active', visibility: 'public' });
+};
+
+// Static method to find featured products
+ProductSchema.statics.findFeatured = function() {
+  return this.find({ 
+    featured: true, 
+    status: 'active', 
+    visibility: 'public' 
+  }).sort({ createdAt: -1 });
+};
+
+// Static method to find best sellers
+ProductSchema.statics.findBestSellers = function() {
+  return this.find({ 
+    bestSeller: true, 
+    status: 'active', 
+    visibility: 'public' 
+  }).sort({ 'rating.average': -1 });
+};
+
+// Static method to find new arrivals
+ProductSchema.statics.findNewArrivals = function() {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  return this.find({ 
+    newArrival: true, 
+    status: 'active', 
+    visibility: 'public',
+    createdAt: { $gte: thirtyDaysAgo }
+  }).sort({ createdAt: -1 });
+};
+
+// Instance method to update rating
+ProductSchema.methods.updateRating = function(averageRating: number, count: number) {
+  this.rating.average = averageRating;
+  this.rating.count = count;
+  return this.save();
+};
+
+// Instance method to check if product is in stock
+ProductSchema.methods.isInStock = function() {
+  if (!this.inventory.trackInventory) return true;
+  return this.inventory.totalStock > 0;
+};
+
+// Instance method to check if product is low in stock
+ProductSchema.methods.isLowStock = function() {
+  if (!this.inventory.trackInventory) return false;
+  return this.inventory.totalStock <= this.inventory.lowStockThreshold;
+};
+
+export const Product = mongoose.model<IProduct>('Product', ProductSchema);

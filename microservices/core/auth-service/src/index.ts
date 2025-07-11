@@ -11,6 +11,7 @@ import { validateEnvironmentOnStartup } from '@ultramarket/shared/validation/env
 import { logger } from '@ultramarket/shared/logging/logger';
 import { errorHandler } from '@ultramarket/shared/middleware/error-handler';
 import { securityMiddleware } from '@ultramarket/shared/middleware/security';
+import authRoutes from './routes/authRoutes';
 
 // Validate environment on startup
 validateEnvironmentOnStartup('auth-service');
@@ -56,18 +57,7 @@ app.get('/health', (req, res) => {
 });
 
 // API routes
-app.use('/api/v1/auth', (req, res) => {
-  res.status(200).json({
-    message: 'Auth service is running',
-    endpoints: [
-      'POST /api/v1/auth/login',
-      'POST /api/v1/auth/register',
-      'POST /api/v1/auth/refresh',
-      'POST /api/v1/auth/logout',
-      'GET /api/v1/auth/profile',
-    ],
-  });
-});
+app.use('/api/v1/auth', authRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

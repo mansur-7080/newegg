@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,114 +11,144 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  username        String    @unique
-  passwordHash    String
-  firstName       String
-  lastName        String
-  phoneNumber     String?
-  role            UserRole  @default(CUSTOMER)
-  isActive        Boolean   @default(true)
-  isEmailVerified Boolean   @default(false)
-  profileImage    String?
-  bio             String?
-  
-  refreshTokens   RefreshToken[]
-  sessions        Session[]
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  lastLoginAt     DateTime?
-  
-  @@index([email])
-  @@index([username])
-  @@index([role])
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  firstName     String
+  lastName      String
+  phone         String?
+  role          UserRole  @default(CUSTOMER)
+  isActive      Boolean   @default(true)
+  emailVerified Boolean   @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  refreshTokens RefreshToken[]
+  orders        Order[]
+  reviews       Review[]
+  addresses     Address[]
+  wishlist      WishlistItem[]
+
   @@map("users")
 }
 
 model RefreshToken {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  token       String    @unique
-  expiresAt   DateTime
-  
-  createdAt   DateTime  @default(now())
-  
-  @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("refresh_tokens")
 }
 
-model Session {
-  id          String    @id @default(uuid())
+model Address {
+  id          String   @id @default(cuid())
   userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  token       String    @unique
-  userAgent   String?
-  ipAddress   String?
-  
-  expiresAt   DateTime
-  createdAt   DateTime  @default(now())
-  
-  @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
-  @@map("sessions")
+  type        AddressType @default(SHIPPING)
+  firstName   String
+  lastName    String
+  company     String?
+  address1    String
+  address2    String?
+  city        String
+  state       String
+  postalCode  String
+  country     String
+  phone       String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
 }
 
-model EmailVerification {
-  id          String    @id @default(uuid())
-  email       String
-  token       String    @unique
-  expiresAt   DateTime
-  
-  createdAt   DateTime  @default(now())
-  
-  @@index([email])
-  @@index([token])
-  @@index([expiresAt])
-  @@map("email_verifications")
+model Order {
+  id            String        @id @default(cuid())
+  userId        String
+  orderNumber   String        @unique
+  status        OrderStatus   @default(PENDING)
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  currency      String        @default("USD")
+  shippingAddress Json?
+  billingAddress  Json?
+  paymentMethod String?
+  paymentStatus PaymentStatus @default(PENDING)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("orders")
 }
 
-model PasswordReset {
-  id          String    @id @default(uuid())
-  email       String
-  token       String    @unique
-  expiresAt   DateTime
-  used        Boolean   @default(false)
-  
-  createdAt   DateTime  @default(now())
-  
-  @@index([email])
-  @@index([token])
-  @@index([expiresAt])
-  @@map("password_resets")
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  rating    Int      @db.SmallInt
+  title     String?
+  comment   String?
+  isVerified Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
 }
 
-model LoginAttempt {
-  id          String    @id @default(uuid())
-  email       String
-  ipAddress   String
-  userAgent   String?
-  success     Boolean
-  failureReason String?
-  
-  createdAt   DateTime  @default(now())
-  
-  @@index([email])
-  @@index([ipAddress])
-  @@index([createdAt])
-  @@map("login_attempts")
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlist_items")
 }
 
 enum UserRole {
   CUSTOMER
-  SELLER
   ADMIN
-  SUPER_ADMIN
+  VENDOR
+  MODERATOR
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
 } 

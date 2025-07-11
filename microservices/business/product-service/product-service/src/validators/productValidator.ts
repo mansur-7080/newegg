@@ -1,159 +1,183 @@
-import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 
-// Product validation schemas
-export const createProductSchema = Joi.object({
-  name: Joi.string().min(1).max(200).required().trim(),
-  description: Joi.string().min(10).max(2000).required(),
-  shortDescription: Joi.string().max(300).optional(),
-  price: Joi.number().min(0).required(),
-  originalPrice: Joi.number().min(0).optional(),
-  discount: Joi.number().min(0).max(100).optional(),
-  category: Joi.string().required().trim(),
-  subcategory: Joi.string().optional().trim(),
-  brand: Joi.string().required().trim(),
-  sku: Joi.string().required().trim(),
-  images: Joi.array().items(Joi.string().uri()).optional(),
-  specifications: Joi.object().optional(),
-  inStock: Joi.boolean().optional(),
-  quantity: Joi.number().min(0).required(),
-  minQuantity: Joi.number().min(0).optional(),
-  weight: Joi.number().min(0).optional(),
-  dimensions: Joi.object({
-    length: Joi.number().min(0).required(),
-    width: Joi.number().min(0).required(),
-    height: Joi.number().min(0).required(),
-  }).optional(),
-  tags: Joi.array().items(Joi.string().trim()).optional(),
-  isActive: Joi.boolean().optional(),
-  isFeatured: Joi.boolean().optional(),
-  seoTitle: Joi.string().max(60).optional(),
-  seoDescription: Joi.string().max(160).optional(),
-  seoKeywords: Joi.array().items(Joi.string().trim()).optional(),
-});
+export const validateProductCreate = (data: any) => {
+  const schema = Joi.object({
+    name: Joi.string().min(3).max(200).required(),
+    description: Joi.string().min(10).max(5000).required(),
+    shortDescription: Joi.string().min(10).max(500).required(),
+    sku: Joi.string().min(3).max(50).required(),
+    category: Joi.string().required(),
+    subcategory: Joi.string().optional(),
+    brand: Joi.string().required(),
+    price: Joi.object({
+      current: Joi.number().min(0).required(),
+      original: Joi.number().min(0).optional(),
+      currency: Joi.string().valid('USD', 'EUR', 'GBP', 'UZS').default('USD')
+    }).required(),
+    images: Joi.object({
+      primary: Joi.string().uri().required(),
+      gallery: Joi.array().items(Joi.string().uri()).optional()
+    }).required(),
+    specifications: Joi.object().optional(),
+    features: Joi.array().items(Joi.string()).optional(),
+    tags: Joi.array().items(Joi.string()).optional(),
+    variants: Joi.array().items(Joi.object({
+      id: Joi.string().required(),
+      name: Joi.string().required(),
+      sku: Joi.string().required(),
+      price: Joi.number().min(0).required(),
+      stock: Joi.number().min(0).default(0),
+      attributes: Joi.object().optional()
+    })).optional(),
+    inventory: Joi.object({
+      totalStock: Joi.number().min(0).default(0),
+      lowStockThreshold: Joi.number().min(0).default(5),
+      trackInventory: Joi.boolean().default(true)
+    }).optional(),
+    shipping: Joi.object({
+      weight: Joi.number().min(0).required(),
+      dimensions: Joi.object({
+        length: Joi.number().min(0).required(),
+        width: Joi.number().min(0).required(),
+        height: Joi.number().min(0).required()
+      }).required(),
+      freeShipping: Joi.boolean().default(false),
+      shippingClass: Joi.string().optional()
+    }).required(),
+    seo: Joi.object({
+      metaTitle: Joi.string().max(60).optional(),
+      metaDescription: Joi.string().max(160).optional(),
+      keywords: Joi.array().items(Joi.string()).optional()
+    }).optional(),
+    vendor: Joi.object({
+      id: Joi.string().required(),
+      name: Joi.string().required()
+    }).optional()
+  });
 
-export const updateProductSchema = Joi.object({
-  name: Joi.string().min(1).max(200).optional().trim(),
-  description: Joi.string().min(10).max(2000).optional(),
-  shortDescription: Joi.string().max(300).optional(),
-  price: Joi.number().min(0).optional(),
-  originalPrice: Joi.number().min(0).optional(),
-  discount: Joi.number().min(0).max(100).optional(),
-  category: Joi.string().optional().trim(),
-  subcategory: Joi.string().optional().trim(),
-  brand: Joi.string().optional().trim(),
-  sku: Joi.string().optional().trim(),
-  images: Joi.array().items(Joi.string().uri()).optional(),
-  specifications: Joi.object().optional(),
-  inStock: Joi.boolean().optional(),
-  quantity: Joi.number().min(0).optional(),
-  minQuantity: Joi.number().min(0).optional(),
-  weight: Joi.number().min(0).optional(),
-  dimensions: Joi.object({
-    length: Joi.number().min(0).required(),
-    width: Joi.number().min(0).required(),
-    height: Joi.number().min(0).required(),
-  }).optional(),
-  tags: Joi.array().items(Joi.string().trim()).optional(),
-  isActive: Joi.boolean().optional(),
-  isFeatured: Joi.boolean().optional(),
-  seoTitle: Joi.string().max(60).optional(),
-  seoDescription: Joi.string().max(160).optional(),
-  seoKeywords: Joi.array().items(Joi.string().trim()).optional(),
-});
-
-// Category validation schemas
-export const createCategorySchema = Joi.object({
-  name: Joi.string().min(1).max(100).required().trim(),
-  slug: Joi.string().min(1).max(100).required().trim().lowercase(),
-  description: Joi.string().max(500).optional(),
-  parentCategory: Joi.string().optional(),
-  image: Joi.string().uri().optional(),
-  isActive: Joi.boolean().optional(),
-  sortOrder: Joi.number().optional(),
-});
-
-export const updateCategorySchema = Joi.object({
-  name: Joi.string().min(1).max(100).optional().trim(),
-  slug: Joi.string().min(1).max(100).optional().trim().lowercase(),
-  description: Joi.string().max(500).optional(),
-  parentCategory: Joi.string().optional(),
-  image: Joi.string().uri().optional(),
-  isActive: Joi.boolean().optional(),
-  sortOrder: Joi.number().optional(),
-});
-
-// Review validation schemas
-export const createReviewSchema = Joi.object({
-  productId: Joi.string().required(),
-  userId: Joi.string().required(),
-  rating: Joi.number().min(1).max(5).required(),
-  title: Joi.string().min(1).max(100).required().trim(),
-  comment: Joi.string().min(10).max(1000).required(),
-  verified: Joi.boolean().optional(),
-});
-
-// Query validation schemas
-export const productQuerySchema = Joi.object({
-  page: Joi.number().min(1).optional(),
-  limit: Joi.number().min(1).max(100).optional(),
-  category: Joi.string().optional(),
-  subcategory: Joi.string().optional(),
-  brand: Joi.string().optional(),
-  minPrice: Joi.number().min(0).optional(),
-  maxPrice: Joi.number().min(0).optional(),
-  inStock: Joi.boolean().optional(),
-  isActive: Joi.boolean().optional(),
-  isFeatured: Joi.boolean().optional(),
-  search: Joi.string().min(1).optional(),
-  sortBy: Joi.string().valid('name', 'price', 'rating', 'createdAt').optional(),
-  sortOrder: Joi.string().valid('asc', 'desc').optional(),
-});
-
-export const reviewQuerySchema = Joi.object({
-  page: Joi.number().min(1).optional(),
-  limit: Joi.number().min(1).max(50).optional(),
-});
-
-// Validation middleware
-export const validateProduct = (schema: Joi.ObjectSchema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const { error } = schema.validate(req.body, { abortEarly: false });
-
-    if (error) {
-      const errors = error.details.map((detail) => ({
-        field: detail.path.join('.'),
-        message: detail.message,
-      }));
-
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors,
-      });
-    }
-
-    next();
-  };
+  return schema.validate(data);
 };
 
-export const validateQuery = (schema: Joi.ObjectSchema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const { error } = schema.validate(req.query, { abortEarly: false });
+export const validateProductUpdate = (data: any) => {
+  const schema = Joi.object({
+    name: Joi.string().min(3).max(200).optional(),
+    description: Joi.string().min(10).max(5000).optional(),
+    shortDescription: Joi.string().min(10).max(500).optional(),
+    sku: Joi.string().min(3).max(50).optional(),
+    category: Joi.string().optional(),
+    subcategory: Joi.string().optional(),
+    brand: Joi.string().optional(),
+    price: Joi.object({
+      current: Joi.number().min(0).optional(),
+      original: Joi.number().min(0).optional(),
+      currency: Joi.string().valid('USD', 'EUR', 'GBP', 'UZS').optional()
+    }).optional(),
+    images: Joi.object({
+      primary: Joi.string().uri().optional(),
+      gallery: Joi.array().items(Joi.string().uri()).optional()
+    }).optional(),
+    specifications: Joi.object().optional(),
+    features: Joi.array().items(Joi.string()).optional(),
+    tags: Joi.array().items(Joi.string()).optional(),
+    variants: Joi.array().items(Joi.object({
+      id: Joi.string().required(),
+      name: Joi.string().required(),
+      sku: Joi.string().required(),
+      price: Joi.number().min(0).required(),
+      stock: Joi.number().min(0).default(0),
+      attributes: Joi.object().optional()
+    })).optional(),
+    inventory: Joi.object({
+      totalStock: Joi.number().min(0).optional(),
+      lowStockThreshold: Joi.number().min(0).optional(),
+      trackInventory: Joi.boolean().optional()
+    }).optional(),
+    shipping: Joi.object({
+      weight: Joi.number().min(0).optional(),
+      dimensions: Joi.object({
+        length: Joi.number().min(0).optional(),
+        width: Joi.number().min(0).optional(),
+        height: Joi.number().min(0).optional()
+      }).optional(),
+      freeShipping: Joi.boolean().optional(),
+      shippingClass: Joi.string().optional()
+    }).optional(),
+    seo: Joi.object({
+      metaTitle: Joi.string().max(60).optional(),
+      metaDescription: Joi.string().max(160).optional(),
+      keywords: Joi.array().items(Joi.string()).optional()
+    }).optional(),
+    status: Joi.string().valid('active', 'inactive', 'draft').optional(),
+    visibility: Joi.string().valid('public', 'private', 'password').optional(),
+    featured: Joi.boolean().optional(),
+    bestSeller: Joi.boolean().optional(),
+    newArrival: Joi.boolean().optional()
+  });
 
-    if (error) {
-      const errors = error.details.map((detail) => ({
-        field: detail.path.join('.'),
-        message: detail.message,
-      }));
+  return schema.validate(data);
+};
 
-      return res.status(400).json({
-        success: false,
-        message: 'Query validation failed',
-        errors,
-      });
-    }
+export const validateProductSearch = (data: any) => {
+  const schema = Joi.object({
+    page: Joi.number().min(1).default(1),
+    limit: Joi.number().min(1).max(100).default(20),
+    category: Joi.string().optional(),
+    brand: Joi.string().optional(),
+    minPrice: Joi.number().min(0).optional(),
+    maxPrice: Joi.number().min(0).optional(),
+    status: Joi.string().valid('active', 'inactive', 'draft').default('active'),
+    sortBy: Joi.string().valid('name', 'price', 'rating', 'createdAt', 'updatedAt').default('createdAt'),
+    sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
+    search: Joi.string().optional(),
+    featured: Joi.boolean().optional(),
+    bestSeller: Joi.boolean().optional(),
+    newArrival: Joi.boolean().optional()
+  });
 
-    next();
-  };
+  return schema.validate(data);
+};
+
+export const validateProduct = validateProductCreate;
+
+/**
+ * Validation schema for product filters
+ */
+export const validateProductFilters = (data: any) => {
+  const schema = Joi.object({
+    category: Joi.string()
+      .optional(),
+    brand: Joi.string()
+      .optional(),
+    minPrice: Joi.number()
+      .min(0)
+      .optional(),
+    maxPrice: Joi.number()
+      .min(0)
+      .optional(),
+    inStock: Joi.boolean()
+      .optional(),
+    featured: Joi.boolean()
+      .optional(),
+    bestSeller: Joi.boolean()
+      .optional(),
+    newArrival: Joi.boolean()
+      .optional(),
+    search: Joi.string()
+      .optional(),
+    sortBy: Joi.string()
+      .valid('name', 'price', 'rating', 'createdAt', 'updatedAt')
+      .default('createdAt'),
+    sortOrder: Joi.string()
+      .valid('asc', 'desc')
+      .default('desc'),
+    page: Joi.number()
+      .min(1)
+      .default(1),
+    limit: Joi.number()
+      .min(1)
+      .max(100)
+      .default(20)
+  });
+
+  return schema.validate(data, { abortEarly: false });
 };
