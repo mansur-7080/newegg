@@ -55,19 +55,11 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Import routes
+import authRoutes from './routes/authRoutes';
+
 // API routes
-app.use('/api/v1/auth', (req, res) => {
-  res.status(200).json({
-    message: 'Auth service is running',
-    endpoints: [
-      'POST /api/v1/auth/login',
-      'POST /api/v1/auth/register',
-      'POST /api/v1/auth/refresh',
-      'POST /api/v1/auth/logout',
-      'GET /api/v1/auth/profile',
-    ],
-  });
-});
+app.use('/api/v1/auth', authRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
