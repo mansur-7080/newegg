@@ -7,10 +7,12 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 import { validateEnvironmentOnStartup } from '@ultramarket/shared/validation/environment';
 import { logger } from '@ultramarket/shared/logging/logger';
 import { errorHandler } from '@ultramarket/shared/middleware/error-handler';
 import { securityMiddleware } from '@ultramarket/shared/middleware/security';
+import authRoutes from './routes/authRoutes';
 
 // Validate environment on startup
 validateEnvironmentOnStartup('auth-service');
@@ -21,6 +23,7 @@ const HOST = process.env.HOST ?? 'localhost';
 
 // Security middleware
 app.use(helmet());
+app.use(compression());
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN ?? '*',
@@ -52,22 +55,12 @@ app.get('/health', (req, res) => {
     service: 'auth-service',
     timestamp: new Date().toISOString(),
     version: process.env.APP_VERSION ?? '1.0.0',
+    environment: process.env.NODE_ENV ?? 'development',
   });
 });
 
 // API routes
-app.use('/api/v1/auth', (req, res) => {
-  res.status(200).json({
-    message: 'Auth service is running',
-    endpoints: [
-      'POST /api/v1/auth/login',
-      'POST /api/v1/auth/register',
-      'POST /api/v1/auth/refresh',
-      'POST /api/v1/auth/logout',
-      'GET /api/v1/auth/profile',
-    ],
-  });
-});
+app.use('/api/v1/auth', authRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
