@@ -1,6 +1,6 @@
 /**
- * UltraMarket Product Service
- * Professional product management microservice
+ * UltraMarket Order Service
+ * Professional order management microservice
  */
 
 import express from 'express';
@@ -8,7 +8,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
-import mongoose from 'mongoose';
+import { PrismaClient } from '@prisma/client';
 import { validateEnvironmentOnStartup } from '@ultramarket/shared/validation/environment';
 import { logger } from '@ultramarket/shared/logging/logger';
 import { errorHandler } from '@ultramarket/shared/middleware/error-handler';
@@ -17,16 +17,19 @@ import { validateToken } from '@ultramarket/shared/auth/jwt';
 import { requireAdmin } from '@ultramarket/shared/auth/jwt';
 
 // Import routes
-import productRoutes from './routes/product.routes';
-import categoryRoutes from './routes/category.routes';
-import searchRoutes from './routes/search.routes';
+import orderRoutes from './routes/order.routes';
+import cartRoutes from './routes/cart.routes';
+import checkoutRoutes from './routes/checkout.routes';
 
 // Validate environment on startup
-validateEnvironmentOnStartup('product-service');
+validateEnvironmentOnStartup('order-service');
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3003;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3004;
 const HOST = process.env.HOST ?? 'localhost';
+
+// Initialize Prisma
+const prisma = new PrismaClient();
 
 // Security middleware
 app.use(helmet());
@@ -60,24 +63,36 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(securityMiddleware());
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    service: 'product-service',
-    timestamp: new Date().toISOString(),
-    version: process.env.APP_VERSION ?? '1.0.0',
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-  });
+app.get('/health', async (req, res) => {
+  try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+    
+    res.status(200).json({
+      status: 'healthy',
+      service: 'order-service',
+      timestamp: new Date().toISOString(),
+      version: process.env.APP_VERSION ?? '1.0.0',
+      database: 'connected',
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      service: 'order-service',
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
 });
 
 // API routes
-app.use('/api/v1/products', productRoutes);
-app.use('/api/v1/categories', categoryRoutes);
-app.use('/api/v1/search', searchRoutes);
+app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/cart', cartRoutes);
+app.use('/api/v1/checkout', checkoutRoutes);
 
 // Admin routes (protected)
-app.use('/api/v1/admin/products', validateToken, requireAdmin, productRoutes);
-app.use('/api/v1/admin/categories', validateToken, requireAdmin, categoryRoutes);
+app.use('/api/v1/admin/orders', validateToken, requireAdmin, orderRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
@@ -91,41 +106,22 @@ app.use('*', (req, res) => {
   });
 });
 
-// Connect to MongoDB
-const connectDB = async () => {
-  try {
-    const mongoUri = process.env.MONGODB_URI;
-    if (!mongoUri) {
-      throw new Error('MONGODB_URI environment variable is required');
-    }
-
-    await mongoose.connect(mongoUri, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    });
-
-    logger.info('Connected to MongoDB successfully');
-  } catch (error) {
-    logger.error('MongoDB connection failed', { error: error instanceof Error ? error.message : 'Unknown error' });
-    process.exit(1);
-  }
-};
-
 // Start server
 const startServer = async () => {
   try {
-    await connectDB();
+    // Test database connection
+    await prisma.$connect();
+    logger.info('Connected to PostgreSQL successfully');
     
     app.listen(PORT, HOST, () => {
-      logger.info('Product service started successfully', {
+      logger.info('Order service started successfully', {
         port: PORT,
         host: HOST,
         environment: process.env.NODE_ENV ?? 'development',
       });
     });
   } catch (error) {
-    logger.error('Failed to start product service', { error: error instanceof Error ? error.message : 'Unknown error' });
+    logger.error('Failed to start order service', { error: error instanceof Error ? error.message : 'Unknown error' });
     process.exit(1);
   }
 };
@@ -133,13 +129,13 @@ const startServer = async () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
-  await mongoose.connection.close();
+  await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
-  await mongoose.connection.close();
+  await prisma.$disconnect();
   process.exit(0);
 });
 
