@@ -486,23 +486,176 @@ export class ProductService {
    */
   private mapProductToResponse(product: any): ProductResponse {
     return {
-      ...product,
-      price:
-        product.price instanceof Prisma.Decimal
-          ? parseFloat(product.price.toString())
-          : product.price,
-      comparePrice:
-        product.comparePrice instanceof Prisma.Decimal
-          ? parseFloat(product.comparePrice.toString())
-          : product.comparePrice,
-      costPrice:
-        product.costPrice instanceof Prisma.Decimal
-          ? parseFloat(product.costPrice.toString())
-          : product.costPrice,
-      weight:
-        product.weight instanceof Prisma.Decimal
-          ? parseFloat(product.weight.toString())
-          : product.weight,
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      shortDescription: product.shortDescription,
+      sku: product.sku,
+      barcode: product.barcode,
+      brand: product.brand,
+      model: product.model,
+      price: product.price,
+      comparePrice: product.comparePrice,
+      costPrice: product.costPrice,
+      currency: product.currency,
+      status: product.status,
+      type: product.type,
+      isActive: product.isActive,
+      isFeatured: product.isFeatured,
+      images: product.images || [],
+      categories: product.categories || [],
+      variants: product.variants || [],
+      attributes: product.attributes || [],
+      inventory: product.inventory || {
+        quantity: 0,
+        reserved: 0,
+        available: 0,
+        lowStockThreshold: 5,
+        trackQuantity: true,
+        allowBackorder: false,
+      },
+      seo: product.seo || {},
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
     };
+  }
+
+  /**
+   * Get recommended products
+   */
+  async getRecommendedProducts(): Promise<ProductResponse[]> {
+    try {
+      const products = await this.productRepository.findMany({
+        where: {
+          isActive: true,
+          isFeatured: true,
+        },
+        take: 10,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      });
+
+      return products.map((product) => this.mapProductToResponse(product));
+    } catch (error) {
+      logger.error('Error getting recommended products', { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Get popular products by category
+   */
+  async getPopularProducts(category?: string): Promise<ProductResponse[]> {
+    try {
+      const where: Prisma.ProductWhereInput = {
+        isActive: true,
+      };
+
+      if (category) {
+        where.categoryId = category;
+      }
+
+      const products = await this.productRepository.findMany({
+        where,
+        take: 10,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      });
+
+      return products.map((product) => this.mapProductToResponse(product));
+    } catch (error) {
+      logger.error('Error getting popular products', { error, category });
+      throw error;
+    }
+  }
+
+  /**
+   * Get featured products
+   */
+  async getFeaturedProducts(): Promise<ProductResponse[]> {
+    try {
+      const products = await this.productRepository.findMany({
+        where: {
+          isActive: true,
+          isFeatured: true,
+        },
+        take: 20,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      });
+
+      return products.map((product) => this.mapProductToResponse(product));
+    } catch (error) {
+      logger.error('Error getting featured products', { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Search products
+   */
+  async searchProducts(query: string): Promise<ProductResponse[]> {
+    try {
+      const products = await this.productRepository.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { description: { contains: query, mode: 'insensitive' } },
+            { brand: { contains: query, mode: 'insensitive' } },
+            { sku: { contains: query, mode: 'insensitive' } },
+          ],
+        },
+        take: 50,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      });
+
+      return products.map((product) => this.mapProductToResponse(product));
+    } catch (error) {
+      logger.error('Error searching products', { error, query });
+      throw error;
+    }
   }
 }

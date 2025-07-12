@@ -171,4 +171,103 @@ export class ProductController {
     query('minPrice').optional().isFloat({ min: 0 }).withMessage('Min price must be a non-negative number'),
     query('maxPrice').optional().isFloat({ min: 0 }).withMessage('Max price must be a non-negative number'),
   ];
+
+  /**
+   * Get recommended products
+   */
+  getRecommendedProducts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const products = await this.productService.getRecommendedProducts();
+      
+      logger.info('Recommended products retrieved successfully', {
+        count: products.length
+      });
+
+      res.json({
+        success: true,
+        data: products,
+        message: 'Recommended products retrieved successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get popular products by category
+   */
+  getPopularProducts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { category } = req.query;
+      const products = await this.productService.getPopularProducts(category as string);
+      
+      logger.info('Popular products retrieved successfully', {
+        count: products.length,
+        category
+      });
+
+      res.json({
+        success: true,
+        data: products,
+        message: 'Popular products retrieved successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get featured products
+   */
+  getFeaturedProducts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const products = await this.productService.getFeaturedProducts();
+      
+      logger.info('Featured products retrieved successfully', {
+        count: products.length
+      });
+
+      res.json({
+        success: true,
+        data: products,
+        message: 'Featured products retrieved successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Search products
+   */
+  searchProducts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { q: query } = req.query;
+      
+      if (!query) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Search query is required'
+          }
+        });
+      }
+
+      const results = await this.productService.searchProducts(query as string);
+      
+      logger.info('Product search completed successfully', {
+        query,
+        count: results.length
+      });
+
+      res.json({
+        success: true,
+        data: results,
+        message: 'Search completed successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

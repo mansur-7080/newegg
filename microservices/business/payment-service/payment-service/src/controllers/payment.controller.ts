@@ -1,250 +1,333 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from '../services/payment.service';
-import { ClickService } from '../services/click.service';
-import { PaymeService } from '../services/payme.service';
 import { logger } from '../utils/logger';
-import { AppError } from '../utils/errors';
 
 export class PaymentController {
   private paymentService: PaymentService;
-  private clickService: ClickService;
-  private paymeService: PaymeService;
 
   constructor() {
     this.paymentService = new PaymentService();
-    this.clickService = new ClickService();
-    this.paymeService = new PaymeService();
   }
 
-  // Create payment intent
-  createPayment = async (req: Request, res: Response): Promise<void> => {
+  /**
+   * Create a new payment
+   */
+  createPayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { orderId, amount, currency, paymentMethod, returnUrl } = req.body;
       const userId = req.user?.id;
+      const { orderId, amount, currency, paymentMethod, description } = req.body;
 
       if (!userId) {
-        throw new AppError('User authentication required', 401);
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
+        });
       }
 
-      logger.info('Creating payment', {
+      const payment = await this.paymentService.createPayment({
+        userId,
         orderId,
         amount,
         currency,
         paymentMethod,
-        userId,
+        description,
       });
-
-      let paymentResult;
-
-      switch (paymentMethod) {
-        case 'CLICK':
-          paymentResult = await this.clickService.createPayment({
-            orderId,
-            amount,
-            currency,
-            userId,
-            returnUrl,
-          });
-          break;
-        case 'PAYME':
-          paymentResult = await this.paymeService.createPayment({
-            orderId,
-            amount,
-            currency,
-            userId,
-            returnUrl,
-          });
-          break;
-        case 'CASH':
-          paymentResult = await this.paymentService.createCashPayment({
-            orderId,
-            amount,
-            currency,
-            userId,
-          });
-          break;
-        default:
-          throw new AppError('Unsupported payment method', 400);
-      }
 
       res.status(201).json({
         success: true,
-        data: paymentResult,
+        data: { payment },
+        message: 'Payment created successfully',
       });
     } catch (error) {
-      logger.error('Error creating payment:', error);
-      throw error;
+      logger.error('Error creating payment', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
     }
   };
 
-  // Get payment by ID
-  getPayment = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.id;
-
-      const payment = await this.paymentService.getPaymentById(id, userId);
-
-      if (!payment) {
-        throw new AppError('Payment not found', 404);
-      }
-
-      res.json({
-        success: true,
-        data: payment,
-      });
-    } catch (error) {
-      logger.error('Error getting payment:', error);
-      throw error;
-    }
-  };
-
-  // Get payments by order ID
-  getPaymentsByOrder = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { orderId } = req.params;
-      const userId = req.user?.id;
-
-      const payments = await this.paymentService.getPaymentsByOrderId(orderId, userId);
-
-      res.json({
-        success: true,
-        data: payments,
-      });
-    } catch (error) {
-      logger.error('Error getting payments by order:', error);
-      throw error;
-    }
-  };
-
-  // Get user payments
-  getUserPayments = async (req: Request, res: Response): Promise<void> => {
+  /**
+   * Confirm a payment
+   */
+  confirmPayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
-      const { page = 1, limit = 10, status, method } = req.query;
+      const { paymentId, transactionId, signature } = req.body;
 
       if (!userId) {
-        throw new AppError('User authentication required', 401);
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
+        });
       }
 
-      const payments = await this.paymentService.getUserPayments(userId, {
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
-        status: status as string,
-        method: method as string,
+      const payment = await this.paymentService.confirmPayment(paymentId, {
+        transactionId,
+        signature,
+        userId,
       });
 
       res.json({
         success: true,
-        data: payments,
+        data: { payment },
+        message: 'Payment confirmed successfully',
       });
     } catch (error) {
-      logger.error('Error getting user payments:', error);
-      throw error;
+      logger.error('Error confirming payment', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
     }
   };
 
-  // Cancel payment
-  cancelPayment = async (req: Request, res: Response): Promise<void> => {
+  /**
+   * Refund a payment
+   */
+  refundPayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
       const userId = req.user?.id;
-      const { reason } = req.body;
+      const { paymentId, amount, reason } = req.body;
 
       if (!userId) {
-        throw new AppError('User authentication required', 401);
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
+        });
       }
 
-      const payment = await this.paymentService.cancelPayment(id, userId, reason);
-
-      res.json({
-        success: true,
-        data: payment,
-      });
-    } catch (error) {
-      logger.error('Error canceling payment:', error);
-      throw error;
-    }
-  };
-
-  // Refund payment
-  refundPayment = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const { amount, reason } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        throw new AppError('User authentication required', 401);
-      }
-
-      const refund = await this.paymentService.refundPayment(id, {
+      const refund = await this.paymentService.refundPayment(paymentId, {
         amount,
         reason,
-        refundedBy: userId,
+        userId,
       });
 
       res.json({
         success: true,
-        data: refund,
+        data: { refund },
+        message: 'Payment refunded successfully',
       });
     } catch (error) {
-      logger.error('Error refunding payment:', error);
-      throw error;
+      logger.error('Error refunding payment', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
     }
   };
 
-  // Get payment methods
-  getPaymentMethods = async (req: Request, res: Response): Promise<void> => {
+  /**
+   * Get payment details
+   */
+  getPayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const methods = await this.paymentService.getAvailablePaymentMethods();
-
-      res.json({
-        success: true,
-        data: methods,
-      });
-    } catch (error) {
-      logger.error('Error getting payment methods:', error);
-      throw error;
-    }
-  };
-
-  // Verify payment status
-  verifyPayment = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
       const userId = req.user?.id;
+      const { id } = req.params;
 
-      const payment = await this.paymentService.verifyPaymentStatus(id, userId);
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
+        });
+      }
+
+      const payment = await this.paymentService.getPayment(id, userId);
 
       res.json({
         success: true,
-        data: payment,
+        data: { payment },
+        message: 'Payment retrieved successfully',
       });
     } catch (error) {
-      logger.error('Error verifying payment:', error);
-      throw error;
+      logger.error('Error getting payment', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
     }
   };
 
-  // Get payment statistics (Admin only)
-  getPaymentStatistics = async (req: Request, res: Response): Promise<void> => {
+  /**
+   * Get payments by order
+   */
+  getPaymentsByOrder = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { startDate, endDate, groupBy } = req.query;
+      const userId = req.user?.id;
+      const { orderId } = req.params;
 
-      const stats = await this.paymentService.getPaymentStatistics({
-        startDate: startDate as string,
-        endDate: endDate as string,
-        groupBy: groupBy as string,
-      });
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
+        });
+      }
+
+      const payments = await this.paymentService.getPaymentsByOrder(orderId, userId);
 
       res.json({
         success: true,
-        data: stats,
+        data: { payments },
+        message: 'Payments retrieved successfully',
       });
     } catch (error) {
-      logger.error('Error getting payment statistics:', error);
-      throw error;
+      logger.error('Error getting payments by order', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
+    }
+  };
+
+  /**
+   * Get available payment methods
+   */
+  getPaymentMethods = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const methods = await this.paymentService.getPaymentMethods();
+
+      res.json({
+        success: true,
+        data: { methods },
+        message: 'Payment methods retrieved successfully',
+      });
+    } catch (error) {
+      logger.error('Error getting payment methods', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
+    }
+  };
+
+  /**
+   * Handle Click payment webhook
+   */
+  handleClickWebhook = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.paymentService.handleClickWebhook(req.body);
+
+      res.json({
+        success: true,
+        data: result,
+        message: 'Click webhook processed successfully',
+      });
+    } catch (error) {
+      logger.error('Error handling Click webhook', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
+    }
+  };
+
+  /**
+   * Handle Payme payment webhook
+   */
+  handlePaymeWebhook = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.paymentService.handlePaymeWebhook(req.body);
+
+      res.json({
+        success: true,
+        data: result,
+        message: 'Payme webhook processed successfully',
+      });
+    } catch (error) {
+      logger.error('Error handling Payme webhook', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
+    }
+  };
+
+  /**
+   * Handle Uzcard payment webhook
+   */
+  handleUzcardWebhook = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.paymentService.handleUzcardWebhook(req.body);
+
+      res.json({
+        success: true,
+        data: result,
+        message: 'Uzcard webhook processed successfully',
+      });
+    } catch (error) {
+      logger.error('Error handling Uzcard webhook', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
+    }
+  };
+
+  /**
+   * Handle Humo payment webhook
+   */
+  handleHumoWebhook = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.paymentService.handleHumoWebhook(req.body);
+
+      res.json({
+        success: true,
+        data: result,
+        message: 'Humo webhook processed successfully',
+      });
+    } catch (error) {
+      logger.error('Error handling Humo webhook', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
+    }
+  };
+
+  /**
+   * Validate payment data
+   */
+  validatePayment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?.id;
+      const paymentData = req.body;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
+        });
+      }
+
+      const validation = await this.paymentService.validatePayment(paymentData);
+
+      res.json({
+        success: true,
+        data: { validation },
+        message: 'Payment validation completed',
+      });
+    } catch (error) {
+      logger.error('Error validating payment', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
+    }
+  };
+
+  /**
+   * Get payment status
+   */
+  getPaymentStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
+        });
+      }
+
+      const status = await this.paymentService.getPaymentStatus(id, userId);
+
+      res.json({
+        success: true,
+        data: { status },
+        message: 'Payment status retrieved successfully',
+      });
+    } catch (error) {
+      logger.error('Error getting payment status', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
     }
   };
 }

@@ -6,7 +6,7 @@ const productController = new ProductController();
 
 /**
  * @swagger
- * /api/products:
+ * /api/v1/products:
  *   get:
  *     summary: Get products with filtering and pagination
  *     tags: [Products]
@@ -64,7 +64,7 @@ router.get('/', ProductController.validateGetProducts, productController.getProd
 
 /**
  * @swagger
- * /api/products/{id}:
+ * /api/v1/products/{id}:
  *   get:
  *     summary: Get a product by ID
  *     tags: [Products]
@@ -85,7 +85,7 @@ router.get('/:id', productController.getProductById);
 
 /**
  * @swagger
- * /api/products/slug/{slug}:
+ * /api/v1/products/slug/{slug}:
  *   get:
  *     summary: Get a product by slug
  *     tags: [Products]
@@ -106,7 +106,7 @@ router.get('/slug/:slug', productController.getProductBySlug);
 
 /**
  * @swagger
- * /api/products:
+ * /api/v1/products:
  *   post:
  *     summary: Create a new product
  *     tags: [Products]
@@ -126,7 +126,7 @@ router.post('/', ProductController.validateCreateProduct, productController.crea
 
 /**
  * @swagger
- * /api/products/{id}:
+ * /api/v1/products/{id}:
  *   put:
  *     summary: Update a product
  *     tags: [Products]
@@ -155,7 +155,7 @@ router.put('/:id', ProductController.validateUpdateProduct, productController.up
 
 /**
  * @swagger
- * /api/products/{id}:
+ * /api/v1/products/{id}:
  *   delete:
  *     summary: Delete a product
  *     tags: [Products]
@@ -173,5 +173,68 @@ router.put('/:id', ProductController.validateUpdateProduct, productController.up
  *         description: Product not found
  */
 router.delete('/:id', productController.deleteProduct);
+
+// Additional routes for frontend integration
+
+/**
+ * @swagger
+ * /api/v1/products/recommended:
+ *   get:
+ *     summary: Get recommended products
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: List of recommended products
+ */
+router.get('/recommended', productController.getRecommendedProducts);
+
+/**
+ * @swagger
+ * /api/v1/products/popular:
+ *   get:
+ *     summary: Get popular products by category
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Category to filter by
+ *     responses:
+ *       200:
+ *         description: List of popular products
+ */
+router.get('/popular', productController.getPopularProducts);
+
+/**
+ * @swagger
+ * /api/v1/products/featured:
+ *   get:
+ *     summary: Get featured products
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: List of featured products
+ */
+router.get('/featured', productController.getFeaturedProducts);
+
+/**
+ * @swagger
+ * /api/v1/products/search:
+ *   get:
+ *     summary: Search products
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search query
+ *     responses:
+ *       200:
+ *         description: Search results
+ */
+router.get('/search', productController.searchProducts);
 
 export default router;

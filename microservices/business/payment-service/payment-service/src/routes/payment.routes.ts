@@ -1,89 +1,99 @@
 import { Router } from 'express';
 import { PaymentController } from '../controllers/payment.controller';
-import { authenticateToken, requireAdmin } from '../middleware/auth.middleware';
-import { validateBody, validateQuery, validateParams } from '../middleware/validation.middleware';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { validateRequest } from '../middleware/validation.middleware';
 import {
   createPaymentSchema,
-  cancelPaymentSchema,
+  confirmPaymentSchema,
   refundPaymentSchema,
-  getPaymentsQuerySchema,
-  paymentStatisticsQuerySchema,
-  paymentIdParamSchema,
-  orderIdParamSchema,
+  webhookSchema,
 } from '../schemas/payment.schemas';
 
 const router = Router();
 const paymentController = new PaymentController();
 
-// Create payment
-router.post(
-  '/',
-  authenticateToken,
-  validateBody(createPaymentSchema),
-  paymentController.createPayment
-);
+/**
+ * @route POST /api/v1/payments/create
+ * @desc Create a new payment
+ * @access Private
+ */
+router.post('/create', authMiddleware, validateRequest(createPaymentSchema), paymentController.createPayment);
 
-// Get payment by ID
-router.get(
-  '/:paymentId',
-  authenticateToken,
-  validateParams(paymentIdParamSchema),
-  paymentController.getPayment
-);
+/**
+ * @route POST /api/v1/payments/confirm
+ * @desc Confirm a payment
+ * @access Private
+ */
+router.post('/confirm', authMiddleware, validateRequest(confirmPaymentSchema), paymentController.confirmPayment);
 
-// Get payments by order ID
-router.get(
-  '/order/:orderId',
-  authenticateToken,
-  validateParams(orderIdParamSchema),
-  paymentController.getPaymentsByOrder
-);
+/**
+ * @route POST /api/v1/payments/refund
+ * @desc Refund a payment
+ * @access Private
+ */
+router.post('/refund', authMiddleware, validateRequest(refundPaymentSchema), paymentController.refundPayment);
 
-// Get user payments
-router.get(
-  '/user/payments',
-  authenticateToken,
-  validateQuery(getPaymentsQuerySchema),
-  paymentController.getUserPayments
-);
+/**
+ * @route GET /api/v1/payments/:id
+ * @desc Get payment details
+ * @access Private
+ */
+router.get('/:id', authMiddleware, paymentController.getPayment);
 
-// Cancel payment
-router.post(
-  '/:paymentId/cancel',
-  authenticateToken,
-  validateParams(paymentIdParamSchema),
-  validateBody(cancelPaymentSchema),
-  paymentController.cancelPayment
-);
+/**
+ * @route GET /api/v1/payments/order/:orderId
+ * @desc Get payments for an order
+ * @access Private
+ */
+router.get('/order/:orderId', authMiddleware, paymentController.getPaymentsByOrder);
 
-// Refund payment
-router.post(
-  '/:paymentId/refund',
-  authenticateToken,
-  requireAdmin,
-  validateParams(paymentIdParamSchema),
-  validateBody(refundPaymentSchema),
-  paymentController.refundPayment
-);
+/**
+ * @route GET /api/v1/payments/methods
+ * @desc Get available payment methods
+ * @access Public
+ */
+router.get('/methods', paymentController.getPaymentMethods);
 
-// Get payment methods
-router.get('/methods/available', paymentController.getPaymentMethods);
+/**
+ * @route POST /api/v1/payments/webhook/click
+ * @desc Click payment webhook
+ * @access Public
+ */
+router.post('/webhook/click', validateRequest(webhookSchema), paymentController.handleClickWebhook);
 
-// Verify payment status
-router.post(
-  '/:paymentId/verify',
-  authenticateToken,
-  validateParams(paymentIdParamSchema),
-  paymentController.verifyPayment
-);
+/**
+ * @route POST /api/v1/payments/webhook/payme
+ * @desc Payme payment webhook
+ * @access Public
+ */
+router.post('/webhook/payme', validateRequest(webhookSchema), paymentController.handlePaymeWebhook);
 
-// Get payment statistics (Admin only)
-router.get(
-  '/admin/statistics',
-  authenticateToken,
-  requireAdmin,
-  validateQuery(paymentStatisticsQuerySchema),
-  paymentController.getPaymentStatistics
-);
+/**
+ * @route POST /api/v1/payments/webhook/uzcard
+ * @desc Uzcard payment webhook
+ * @access Public
+ */
+router.post('/webhook/uzcard', validateRequest(webhookSchema), paymentController.handleUzcardWebhook);
+
+/**
+ * @route POST /api/v1/payments/webhook/humo
+ * @desc Humo payment webhook
+ * @access Public
+ */
+router.post('/webhook/humo', validateRequest(webhookSchema), paymentController.handleHumoWebhook);
+
+/**
+ * @route POST /api/v1/payments/validate
+ * @desc Validate payment data
+ * @access Private
+ */
+router.post('/validate', authMiddleware, validateRequest(createPaymentSchema), paymentController.validatePayment);
+
+/**
+ * @route GET /api/v1/payments/status/:id
+ * @desc Get payment status
+ * @access Private
+ */
+router.get('/status/:id', authMiddleware, paymentController.getPaymentStatus);
 
 export default router;

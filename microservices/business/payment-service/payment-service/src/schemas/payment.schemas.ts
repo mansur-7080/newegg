@@ -1,231 +1,152 @@
 import Joi from 'joi';
 
-// Create payment schema
 export const createPaymentSchema = Joi.object({
-  orderId: Joi.string().uuid().required().messages({
-    'string.guid': 'Order ID must be a valid UUID',
+  orderId: Joi.string().required().messages({
+    'string.empty': 'Order ID is required',
     'any.required': 'Order ID is required',
   }),
-  amount: Joi.number().positive().precision(2).required().messages({
+  amount: Joi.number().positive().required().messages({
+    'number.base': 'Amount must be a number',
     'number.positive': 'Amount must be positive',
     'any.required': 'Amount is required',
   }),
-  currency: Joi.string().valid('UZS', 'USD', 'EUR').default('UZS').messages({
-    'any.only': 'Currency must be one of: UZS, USD, EUR',
+  currency: Joi.string().valid('UZS', 'USD').default('UZS').messages({
+    'string.empty': 'Currency is required',
+    'any.only': 'Currency must be UZS or USD',
   }),
-  paymentMethod: Joi.string().valid('CLICK', 'PAYME', 'CASH').required().messages({
-    'any.only': 'Payment method must be one of: CLICK, PAYME, CASH',
+  paymentMethod: Joi.string().valid('CLICK', 'PAYME', 'UZCARD', 'HUMO', 'CASH_ON_DELIVERY').required().messages({
+    'string.empty': 'Payment method is required',
+    'any.only': 'Payment method must be CLICK, PAYME, UZCARD, HUMO, or CASH_ON_DELIVERY',
     'any.required': 'Payment method is required',
   }),
+  description: Joi.string().max(500).optional().messages({
+    'string.max': 'Description must be less than 500 characters',
+  }),
   returnUrl: Joi.string().uri().optional().messages({
-    'string.uri': 'Return URL must be a valid URL',
+    'string.uri': 'Return URL must be a valid URI',
+  }),
+  cancelUrl: Joi.string().uri().optional().messages({
+    'string.uri': 'Cancel URL must be a valid URI',
   }),
 });
 
-// Cancel payment schema
-export const cancelPaymentSchema = Joi.object({
-  reason: Joi.string().max(500).optional().messages({
-    'string.max': 'Reason must not exceed 500 characters',
+export const confirmPaymentSchema = Joi.object({
+  paymentId: Joi.string().required().messages({
+    'string.empty': 'Payment ID is required',
+    'any.required': 'Payment ID is required',
+  }),
+  transactionId: Joi.string().required().messages({
+    'string.empty': 'Transaction ID is required',
+    'any.required': 'Transaction ID is required',
+  }),
+  signature: Joi.string().required().messages({
+    'string.empty': 'Signature is required',
+    'any.required': 'Signature is required',
   }),
 });
 
-// Refund payment schema
 export const refundPaymentSchema = Joi.object({
-  amount: Joi.number().positive().precision(2).optional().messages({
-    'number.positive': 'Refund amount must be positive',
-  }),
-  reason: Joi.string().min(3).max(500).required().messages({
-    'string.min': 'Refund reason must be at least 3 characters',
-    'string.max': 'Refund reason must not exceed 500 characters',
-    'any.required': 'Refund reason is required',
-  }),
-});
-
-// Get payments query schema
-export const getPaymentsQuerySchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1).messages({
-    'number.integer': 'Page must be an integer',
-    'number.min': 'Page must be at least 1',
-  }),
-  limit: Joi.number().integer().min(1).max(100).default(10).messages({
-    'number.integer': 'Limit must be an integer',
-    'number.min': 'Limit must be at least 1',
-    'number.max': 'Limit must not exceed 100',
-  }),
-  status: Joi.string()
-    .valid('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED')
-    .optional()
-    .messages({
-      'any.only': 'Status must be one of: PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED',
-    }),
-  method: Joi.string().valid('CLICK', 'PAYME', 'CASH').optional().messages({
-    'any.only': 'Method must be one of: CLICK, PAYME, CASH',
-  }),
-  startDate: Joi.date().iso().optional().messages({
-    'date.format': 'Start date must be in ISO format',
-  }),
-  endDate: Joi.date().iso().min(Joi.ref('startDate')).optional().messages({
-    'date.format': 'End date must be in ISO format',
-    'date.min': 'End date must be after start date',
-  }),
-});
-
-// Payment statistics query schema
-export const paymentStatisticsQuerySchema = Joi.object({
-  startDate: Joi.date().iso().optional().messages({
-    'date.format': 'Start date must be in ISO format',
-  }),
-  endDate: Joi.date().iso().min(Joi.ref('startDate')).optional().messages({
-    'date.format': 'End date must be in ISO format',
-    'date.min': 'End date must be after start date',
-  }),
-  groupBy: Joi.string().valid('day', 'week', 'month', 'year').optional().messages({
-    'any.only': 'Group by must be one of: day, week, month, year',
-  }),
-});
-
-// Click prepare schema
-export const clickPrepareSchema = Joi.object({
-  click_trans_id: Joi.string().required().messages({
-    'any.required': 'Click transaction ID is required',
-  }),
-  service_id: Joi.string().required().messages({
-    'any.required': 'Service ID is required',
-  }),
-  click_paydoc_id: Joi.string().required().messages({
-    'any.required': 'Click paydoc ID is required',
-  }),
-  merchant_trans_id: Joi.string().uuid().required().messages({
-    'string.guid': 'Merchant transaction ID must be a valid UUID',
-    'any.required': 'Merchant transaction ID is required',
+  paymentId: Joi.string().required().messages({
+    'string.empty': 'Payment ID is required',
+    'any.required': 'Payment ID is required',
   }),
   amount: Joi.number().positive().required().messages({
+    'number.base': 'Amount must be a number',
     'number.positive': 'Amount must be positive',
     'any.required': 'Amount is required',
   }),
-  action: Joi.number().valid(0, 1).required().messages({
-    'any.only': 'Action must be 0 or 1',
-    'any.required': 'Action is required',
-  }),
-  error: Joi.number().required().messages({
-    'any.required': 'Error code is required',
-  }),
-  error_note: Joi.string().allow('').required().messages({
-    'any.required': 'Error note is required',
-  }),
-  sign_time: Joi.string().required().messages({
-    'any.required': 'Sign time is required',
-  }),
-  sign_string: Joi.string().required().messages({
-    'any.required': 'Sign string is required',
+  reason: Joi.string().max(200).required().messages({
+    'string.empty': 'Reason is required',
+    'string.max': 'Reason must be less than 200 characters',
+    'any.required': 'Reason is required',
   }),
 });
 
-// Click complete schema
-export const clickCompleteSchema = Joi.object({
-  click_trans_id: Joi.string().required().messages({
-    'any.required': 'Click transaction ID is required',
-  }),
-  service_id: Joi.string().required().messages({
-    'any.required': 'Service ID is required',
-  }),
-  click_paydoc_id: Joi.string().required().messages({
-    'any.required': 'Click paydoc ID is required',
-  }),
-  merchant_trans_id: Joi.string().uuid().required().messages({
-    'string.guid': 'Merchant transaction ID must be a valid UUID',
-    'any.required': 'Merchant transaction ID is required',
-  }),
-  amount: Joi.number().positive().required().messages({
-    'number.positive': 'Amount must be positive',
-    'any.required': 'Amount is required',
-  }),
-  action: Joi.number().valid(0, 1).required().messages({
-    'any.only': 'Action must be 0 or 1',
-    'any.required': 'Action is required',
-  }),
-  error: Joi.number().required().messages({
-    'any.required': 'Error code is required',
-  }),
-  error_note: Joi.string().allow('').required().messages({
-    'any.required': 'Error note is required',
-  }),
-  sign_time: Joi.string().required().messages({
-    'any.required': 'Sign time is required',
-  }),
-  sign_string: Joi.string().required().messages({
-    'any.required': 'Sign string is required',
-  }),
+export const webhookSchema = Joi.object({
+  // Click webhook fields
+  click_trans_id: Joi.string().optional(),
+  service_id: Joi.string().optional(),
+  merchant_trans_id: Joi.string().optional(),
+  click_amount: Joi.number().optional(),
+  action: Joi.number().optional(),
+  sign_time: Joi.string().optional(),
+  sign_string: Joi.string().optional(),
+  error: Joi.number().optional(),
+  error_note: Joi.string().optional(),
+
+  // Payme webhook fields
+  payme_id: Joi.string().optional(),
+  account: Joi.object().optional(),
+  payme_amount: Joi.number().optional(),
+  time: Joi.number().optional(),
+  reason: Joi.number().optional(),
+  code: Joi.string().optional(),
+  state: Joi.number().optional(),
+  test: Joi.boolean().optional(),
+
+  // Uzcard webhook fields
+  transaction_id: Joi.string().optional(),
+  order_id: Joi.string().optional(),
+  uzcard_amount: Joi.number().optional(),
+  currency: Joi.string().optional(),
+  status: Joi.string().optional(),
+  signature: Joi.string().optional(),
+
+  // Humo webhook fields
+  humo_transaction_id: Joi.string().optional(),
+  humo_order_id: Joi.string().optional(),
+  humo_amount: Joi.number().optional(),
+  humo_status: Joi.string().optional(),
+  humo_signature: Joi.string().optional(),
 });
 
-// Payme webhook schema
-export const paymeWebhookSchema = Joi.object({
-  method: Joi.string()
-    .valid(
-      'CheckPerformTransaction',
-      'CreateTransaction',
-      'PerformTransaction',
-      'CancelTransaction',
-      'CheckTransaction',
-      'GetStatement'
-    )
-    .required()
-    .messages({
-      'any.only': 'Method must be a valid Payme method',
-      'any.required': 'Method is required',
-    }),
-  params: Joi.object().required().messages({
-    'any.required': 'Params are required',
-  }),
-  id: Joi.number().required().messages({
-    'any.required': 'ID is required',
-  }),
-});
-
-// Webhook query schema
-export const webhookQuerySchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1).messages({
-    'number.integer': 'Page must be an integer',
-    'number.min': 'Page must be at least 1',
-  }),
-  limit: Joi.number().integer().min(1).max(100).default(10).messages({
-    'number.integer': 'Limit must be an integer',
-    'number.min': 'Limit must be at least 1',
-    'number.max': 'Limit must not exceed 100',
-  }),
-  provider: Joi.string().valid('CLICK', 'PAYME').optional().messages({
-    'any.only': 'Provider must be one of: CLICK, PAYME',
-  }),
-  event: Joi.string().optional(),
-  startDate: Joi.date().iso().optional().messages({
-    'date.format': 'Start date must be in ISO format',
-  }),
-  endDate: Joi.date().iso().min(Joi.ref('startDate')).optional().messages({
-    'date.format': 'End date must be in ISO format',
-    'date.min': 'End date must be after start date',
-  }),
-});
-
-// UUID parameter schema
-export const uuidParamSchema = Joi.object({
-  id: Joi.string().uuid().required().messages({
-    'string.guid': 'ID must be a valid UUID',
-    'any.required': 'ID is required',
-  }),
-});
-
-// Payment ID parameter schema
 export const paymentIdParamSchema = Joi.object({
-  paymentId: Joi.string().uuid().required().messages({
-    'string.guid': 'Payment ID must be a valid UUID',
+  id: Joi.string().required().messages({
+    'string.empty': 'Payment ID is required',
     'any.required': 'Payment ID is required',
   }),
 });
 
-// Order ID parameter schema
 export const orderIdParamSchema = Joi.object({
-  orderId: Joi.string().uuid().required().messages({
-    'string.guid': 'Order ID must be a valid UUID',
+  orderId: Joi.string().required().messages({
+    'string.empty': 'Order ID is required',
     'any.required': 'Order ID is required',
+  }),
+});
+
+export const getPaymentsQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).messages({
+    'number.base': 'Page must be a number',
+    'number.integer': 'Page must be an integer',
+    'number.min': 'Page must be at least 1',
+  }),
+  limit: Joi.number().integer().min(1).max(100).default(10).messages({
+    'number.base': 'Limit must be a number',
+    'number.integer': 'Limit must be an integer',
+    'number.min': 'Limit must be at least 1',
+    'number.max': 'Limit must be at most 100',
+  }),
+  status: Joi.string().valid('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED', 'REFUNDED').optional().messages({
+    'any.only': 'Status must be PENDING, COMPLETED, FAILED, CANCELLED, or REFUNDED',
+  }),
+  method: Joi.string().valid('CLICK', 'PAYME', 'UZCARD', 'HUMO', 'CASH_ON_DELIVERY').optional().messages({
+    'any.only': 'Method must be CLICK, PAYME, UZCARD, HUMO, or CASH_ON_DELIVERY',
+  }),
+});
+
+export const paymentStatisticsQuerySchema = Joi.object({
+  startDate: Joi.date().iso().required().messages({
+    'date.base': 'Start date must be a valid date',
+    'date.format': 'Start date must be in ISO format',
+    'any.required': 'Start date is required',
+  }),
+  endDate: Joi.date().iso().min(Joi.ref('startDate')).required().messages({
+    'date.base': 'End date must be a valid date',
+    'date.format': 'End date must be in ISO format',
+    'date.min': 'End date must be after start date',
+    'any.required': 'End date is required',
+  }),
+  groupBy: Joi.string().valid('day', 'week', 'month').default('day').messages({
+    'any.only': 'Group by must be day, week, or month',
   }),
 });
