@@ -6,6 +6,9 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Toaster } from 'react-hot-toast';
 
+// Context Providers
+import { AuthProvider } from './contexts/AuthContext';
+
 // Layout Components
 import Layout from './components/Layout/Layout';
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -59,68 +62,70 @@ function App() {
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
           <HelmetProvider>
-            <Router>
-              <div className="min-h-screen bg-gray-50">
-                <Layout>
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <Routes>
-                      {/* Public Routes */}
-                      <Route path="/" element={<HomePage />} />
-                      <Route path="/products" element={<ProductListPage />} />
-                      <Route path="/products/:id" element={<ProductDetailPage />} />
-                      <Route path="/cart" element={<CartPage />} />
-                      <Route path="/login" element={<LoginPage />} />
-                      <Route path="/register" element={<RegisterPage />} />
-                      <Route path="/pc-builder" element={<PCBuilderPage />} />
-                      <Route path="/nas-builder" element={<NASBuilderPage />} />
-                      <Route path="/memory-finder" element={<MemoryFinderPage />} />
-                      <Route path="/tech" element={<TechHomePage />} />
-                      <Route path="/pc-compatibility" element={<PCCompatibilityBuilder />} />
-                      <Route path="/auto-parts" element={<AutoPartsCompatibility />} />
-                      <Route path="/compare" element={<CompareProductsPage />} />
-                      <Route path="/wishlist" element={<WishlistPage />} />
-                      <Route path="/shopping-tools" element={<ShoppingToolsPage />} />
-                      <Route path="/gaming-zone" element={<GamingZonePage />} />
-                      <Route path="/ai-recommendations" element={<AIProductDetailExample />} />
+            <AuthProvider>
+              <Router>
+                <div className="min-h-screen bg-gray-50">
+                  <Layout>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <Routes>
+                        {/* Public Routes */}
+                        <Route path="/" element={<HomePage />} />
+                        <Route path="/products" element={<ProductListPage />} />
+                        <Route path="/products/:id" element={<ProductDetailPage />} />
+                        <Route path="/cart" element={<CartPage />} />
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/register" element={<RegisterPage />} />
+                        <Route path="/pc-builder" element={<PCBuilderPage />} />
+                        <Route path="/nas-builder" element={<NASBuilderPage />} />
+                        <Route path="/memory-finder" element={<MemoryFinderPage />} />
+                        <Route path="/tech" element={<TechHomePage />} />
+                        <Route path="/pc-compatibility" element={<PCCompatibilityBuilder />} />
+                        <Route path="/auto-parts" element={<AutoPartsCompatibility />} />
+                        <Route path="/compare" element={<CompareProductsPage />} />
+                        <Route path="/wishlist" element={<WishlistPage />} />
+                        <Route path="/shopping-tools" element={<ShoppingToolsPage />} />
+                        <Route path="/gaming-zone" element={<GamingZonePage />} />
+                        <Route path="/ai-recommendations" element={<AIProductDetailExample />} />
 
-                      {/* Protected Routes */}
-                      <Route path="/checkout" element={<CheckoutPage />} />
-                      <Route path="/profile" element={<ProfilePage />} />
-                      <Route path="/orders" element={<OrderHistoryPage />} />
+                        {/* Protected Routes */}
+                        <Route path="/checkout" element={<CheckoutPage />} />
+                        <Route path="/profile" element={<ProfilePage />} />
+                        <Route path="/orders" element={<OrderHistoryPage />} />
 
-                      {/* 404 Route */}
-                      <Route path="*" element={<NotFoundPage />} />
-                    </Routes>
-                  </Suspense>
-                </Layout>
+                        {/* 404 Route */}
+                        <Route path="*" element={<NotFoundPage />} />
+                      </Routes>
+                    </Suspense>
+                  </Layout>
 
-                {/* Global Components */}
-                <Toaster
-                  position="top-right"
-                  toastOptions={{
-                    duration: 4000,
-                    style: {
-                      background: '#363636',
-                      color: '#fff',
-                    },
-                    success: {
-                      duration: 3000,
-                      iconTheme: {
-                        primary: '#10b981',
-                        secondary: '#fff',
+                  {/* Global Components */}
+                  <Toaster
+                    position="top-right"
+                    toastOptions={{
+                      duration: 4000,
+                      style: {
+                        background: '#363636',
+                        color: '#fff',
                       },
-                    },
-                    error: {
-                      duration: 5000,
-                      iconTheme: {
-                        primary: '#ef4444',
-                        secondary: '#fff',
+                      success: {
+                        duration: 3000,
+                        iconTheme: {
+                          primary: '#10b981',
+                          secondary: '#fff',
+                        },
                       },
-                    },
-                  }}
-                />
-              </div>
-            </Router>
+                      error: {
+                        duration: 5000,
+                        iconTheme: {
+                          primary: '#ef4444',
+                          secondary: '#fff',
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              </Router>
+            </AuthProvider>
           </HelmetProvider>
 
           {/* React Query DevTools (only in development) */}

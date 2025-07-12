@@ -1,20 +1,9 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { api } from '../../services/api';
+import { apiService, User, AuthTokens, LoginRequest, RegisterRequest } from '../../services/api';
 
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  avatar?: string;
-  role: 'user' | 'admin';
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AuthState {
+interface AuthState {
   user: User | null;
-  token: string | null;
+  tokens: AuthTokens | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -22,50 +11,93 @@ export interface AuthState {
 
 const initialState: AuthState = {
   user: null,
-  token: localStorage.getItem('token'),
+  tokens: null,
   isAuthenticated: false,
   isLoading: false,
   error: null,
 };
 
 // Async thunks
-export const login = createAsyncThunk(
+export const loginUser = createAsyncThunk(
   'auth/login',
-  async (credentials: { email: string; password: string }, { rejectWithValue }) => {
+  async (credentials: LoginRequest, { rejectWithValue }) => {
     try {
-      const response = await api.post('/auth/login', credentials);
-      return response.data;
+      const response = await apiService.login(credentials);
+      if (response.success && response.data) {
+        localStorage.setItem('accessToken', response.data.tokens.accessToken);
+        localStorage.setItem('refreshToken', response.data.tokens.refreshToken);
+        return response.data;
+      } else {
+        return rejectWithValue(response.error?.message || 'Kirish xatosi');
+      }
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Login failed');
+      return rejectWithValue(error.response?.data?.error?.message || 'Kirish xatosi');
     }
   }
 );
 
-export const register = createAsyncThunk(
+export const registerUser = createAsyncThunk(
   'auth/register',
-  async (userData: { email: string; password: string; firstName: string; lastName: string }, { rejectWithValue }) => {
+  async (userData: RegisterRequest, { rejectWithValue }) => {
     try {
-      const response = await api.post('/auth/register', userData);
-      return response.data;
+      const response = await apiService.register(userData);
+      if (response.success && response.data) {
+        localStorage.setItem('accessToken', response.data.tokens.accessToken);
+        localStorage.setItem('refreshToken', response.data.tokens.refreshToken);
+        return response.data;
+      } else {
+        return rejectWithValue(response.error?.message || 'Ro\'yxatdan o\'tish xatosi');
+      }
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Registration failed');
+      return rejectWithValue(error.response?.data?.error?.message || 'Ro\'yxatdan o\'tish xatosi');
     }
   }
 );
 
-export const logout = createAsyncThunk('auth/logout', async () => {
-  localStorage.removeItem('token');
-  return null;
-});
-
-export const getCurrentUser = createAsyncThunk(
-  'auth/getCurrentUser',
+export const logoutUser = createAsyncThunk(
+  'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/auth/me');
-      return response.data;
+      await apiService.logout();
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      return null;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to get user');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      return rejectWithValue(error.response?.data?.error?.message || 'Chiqish xatosi');
+    }
+  }
+);
+
+export const verifyToken = createAsyncThunk(
+  'auth/verify',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiService.verifyToken();
+      if (response.success && response.data) {
+        return response.data;
+      } else {
+        return rejectWithValue('Token not valid');
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error?.message || 'Token verification failed');
+    }
+  }
+);
+
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (userData: Partial<User>, { rejectWithValue }) => {
+    try {
+      const response = await apiService.updateProfile(userData);
+      if (response.success && response.data) {
+        return response.data;
+      } else {
+        return rejectWithValue(response.error?.message || 'Profil yangilash xatosi');
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error?.message || 'Profil yangilash xatosi');
     }
   }
 );
@@ -77,70 +109,103 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
-    setToken: (state, action: PayloadAction<string>) => {
-      state.token = action.payload;
-      localStorage.setItem('token', action.payload);
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
     },
   },
   extraReducers: (builder) => {
+    // Login
     builder
-      // Login
-      .addCase(login.pending, (state) => {
+      .addCase(loginUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(login.fulfilled, (state, action) => {
+      .addCase(loginUser.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
         state.isAuthenticated = true;
-        localStorage.setItem('token', action.payload.token);
+        state.user = action.payload.user;
+        state.tokens = action.payload.tokens;
+        state.error = null;
       })
-      .addCase(login.rejected, (state, action) => {
+      .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
-      })
-      // Register
-      .addCase(register.pending, (state) => {
+      });
+
+    // Register
+    builder
+      .addCase(registerUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(register.fulfilled, (state, action) => {
+      .addCase(registerUser.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
         state.isAuthenticated = true;
-        localStorage.setItem('token', action.payload.token);
+        state.user = action.payload.user;
+        state.tokens = action.payload.tokens;
+        state.error = null;
       })
-      .addCase(register.rejected, (state, action) => {
+      .addCase(registerUser.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
-      })
-      // Logout
-      .addCase(logout.fulfilled, (state) => {
-        state.user = null;
-        state.token = null;
-        state.isAuthenticated = false;
-        localStorage.removeItem('token');
-      })
-      // Get current user
-      .addCase(getCurrentUser.pending, (state) => {
+      });
+
+    // Logout
+    builder
+      .addCase(logoutUser.pending, (state) => {
         state.isLoading = true;
       })
-      .addCase(getCurrentUser.fulfilled, (state, action) => {
+      .addCase(logoutUser.fulfilled, (state) => {
         state.isLoading = false;
-        state.user = action.payload;
-        state.isAuthenticated = true;
-      })
-      .addCase(getCurrentUser.rejected, (state) => {
-        state.isLoading = false;
-        state.user = null;
-        state.token = null;
         state.isAuthenticated = false;
-        localStorage.removeItem('token');
+        state.user = null;
+        state.tokens = null;
+        state.error = null;
+      })
+      .addCase(logoutUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isAuthenticated = false;
+        state.user = null;
+        state.tokens = null;
+        state.error = action.payload as string;
+      });
+
+    // Verify Token
+    builder
+      .addCase(verifyToken.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(verifyToken.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        state.error = null;
+      })
+      .addCase(verifyToken.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isAuthenticated = false;
+        state.user = null;
+        state.tokens = null;
+        state.error = action.payload as string;
+      });
+
+    // Update Profile
+    builder
+      .addCase(updateProfile.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload.user;
+        state.error = null;
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-export const { clearError, setToken } = authSlice.actions;
+export const { clearError, setLoading } = authSlice.actions;
 export default authSlice.reducer;
