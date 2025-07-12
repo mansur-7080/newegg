@@ -7,12 +7,14 @@ import {
   verifyRefreshToken,
   createSession,
   cache,
+  logger,
 } from '@ultramarket/common';
 import { ConflictError, NotFoundError, UnauthorizedError } from '@ultramarket/common';
 import { userRepository } from '../repositories/userRepository';
 import { v4 as uuidv4 } from 'uuid';
 import { Request } from 'express';
 import { randomBytes } from 'crypto';
+import { EmailService } from './emailService';
 
 export interface CreateUserData {
   email: string;
@@ -29,6 +31,12 @@ export interface UpdateUserData {
 }
 
 export class UserService {
+  private emailService: EmailService;
+
+  constructor() {
+    this.emailService = new EmailService();
+  }
+
   async registerUser(userData: CreateUserData) {
     const existingUser = await userRepository.findByEmail(userData.email);
     if (existingUser) {
@@ -60,19 +68,34 @@ export class UserService {
     const verificationToken = randomBytes(32).toString('hex');
     await cache.setex(`email_verify:${verificationToken}`, 24 * 60 * 60, createdUser.id); // 24h expiry
 
-    // Mock email sending (replace with nodemailer in prod)
-    // TODO: Replace with proper email service
-    // logger.info('Email verification token generated', {
-    //   userId: createdUser.id,
-    //   email: createdUser.email,
-    //   operation: 'email_verification'
-    // });
+    // Send verification email
+    try {
+      await this.emailService.sendVerificationEmail(
+        createdUser.email,
+        verificationToken,
+        `${createdUser.firstName} ${createdUser.lastName}`
+      );
+    } catch (error) {
+      logger.error('Failed to send verification email:', error);
+      // Don't fail registration if email fails
+    }
 
     const tokens = await generateTokens({
       userId: createdUser.id,
       email: createdUser.email,
       role: createdUser.role,
     });
+
+    // Send welcome email
+    try {
+      await this.emailService.sendWelcomeEmail(
+        createdUser.email,
+        `${createdUser.firstName} ${createdUser.lastName}`
+      );
+    } catch (error) {
+      logger.error('Failed to send welcome email:', error);
+      // Don't fail registration if email fails
+    }
 
     const { passwordHash, ...userWithoutPassword } = createdUser;
 
@@ -235,13 +258,18 @@ export class UserService {
     // Generate password reset token
     const resetToken = randomBytes(32).toString('hex');
     await cache.setex(`reset_password:${resetToken}`, 60 * 60, user.id); // 1h expiry
-    // Mock email sending (replace with nodemailer in prod)
-    // TODO: Replace with proper email service
-    // logger.info('Password reset token generated', {
-    //   userId: user.id,
-    //   email: user.email,
-    //   operation: 'password_reset'
-    // });
+    
+    // Send password reset email
+    try {
+      await this.emailService.sendPasswordResetEmail(
+        user.email,
+        resetToken,
+        `${user.firstName} ${user.lastName}`
+      );
+    } catch (error) {
+      logger.error('Failed to send password reset email:', error);
+      // Don't fail the request if email fails
+    }
   }
 
   async resetPassword(token: string, newPassword: string) {

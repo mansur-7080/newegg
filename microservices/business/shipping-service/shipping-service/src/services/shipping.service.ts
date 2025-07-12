@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import axios from 'axios';
 import { createError, logger } from '@ultramarket/common';
+import { UPSService } from './upsService';
 
 export interface ShippingProvider {
   id: string;
@@ -190,9 +191,11 @@ export interface DeliveryZone {
 export class ShippingService extends EventEmitter {
   private providers: Map<string, ShippingProvider> = new Map();
   private zones: Map<string, DeliveryZone> = new Map();
+  private upsService: UPSService;
 
   constructor() {
     super();
+    this.upsService = new UPSService();
     this.initializeProviders();
   }
 

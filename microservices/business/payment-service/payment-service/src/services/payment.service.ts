@@ -4,6 +4,7 @@ import { logger } from '@ultramarket/common';
 import { createError } from '@ultramarket/common';
 import { PaymentModel } from '../models/Payment';
 import { EventEmitter } from 'events';
+import { PayPalService } from './paypalService';
 
 export interface PaymentRequest {
   amount: number;
@@ -49,6 +50,7 @@ export interface RefundRequest {
 export class PaymentService extends EventEmitter {
   private stripe: Stripe;
   private webhookSecret: string;
+  private paypalService: PayPalService;
 
   constructor() {
     super();
@@ -56,6 +58,7 @@ export class PaymentService extends EventEmitter {
       apiVersion: '2023-10-16',
     });
     this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+    this.paypalService = new PayPalService();
   }
 
   /**
@@ -203,17 +206,32 @@ export class PaymentService extends EventEmitter {
     paymentId: string,
     request: PaymentRequest
   ): Promise<PaymentResponse> {
-    // PayPal integration would go here
-    // This is a placeholder implementation
-    return {
-      id: paymentId,
-      status: PaymentStatus.PENDING,
-      amount: request.amount,
-      currency: request.currency,
-      method: request.method,
-      redirectUrl: `https://paypal.com/checkout/${paymentId}`,
-      metadata: request.metadata,
-    };
+    try {
+      const paypalOrder = await this.paypalService.createOrder({
+        amount: request.amount,
+        currency: request.currency,
+        description: request.description,
+        orderId: request.orderId,
+        returnUrl: `${process.env.FRONTEND_URL}/payment/success?paymentId=${paymentId}`,
+        cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel?paymentId=${paymentId}`,
+      });
+
+      return {
+        id: paymentId,
+        status: PaymentStatus.PENDING,
+        amount: request.amount,
+        currency: request.currency,
+        method: request.method,
+        redirectUrl: paypalOrder.approvalUrl,
+        metadata: {
+          ...request.metadata,
+          paypalOrderId: paypalOrder.orderId,
+        },
+      };
+    } catch (error) {
+      logger.error('PayPal payment processing failed:', error);
+      throw createError(400, 'PayPal payment processing failed');
+    }
   }
 
   /**
@@ -304,6 +322,16 @@ export class PaymentService extends EventEmitter {
         const paymentIntent = await this.stripe.paymentIntents.confirm(payment.transactionId!);
         status = this.mapStripeStatus(paymentIntent.status);
         transactionId = paymentIntent.id;
+      } else if (payment.method === PaymentMethod.PAYPAL) {
+        // Capture PayPal payment
+        const paypalOrderId = data.paypalOrderId;
+        if (!paypalOrderId) {
+          throw createError(400, 'PayPal order ID is required');
+        }
+
+        const capture = await this.paypalService.captureOrder(paypalOrderId);
+        status = capture.status === 'COMPLETED' ? PaymentStatus.COMPLETED : PaymentStatus.FAILED;
+        transactionId = capture.id;
       }
 
       // Update payment status
