@@ -205,6 +205,7 @@ export class CartService {
       }
 
       cart.items.splice(itemIndex, 1);
+
       // Update summary
       this.updateCartSummary(cart);
 
@@ -219,22 +220,41 @@ export class CartService {
     }
   }
 
-  async clearCart(userId: string): Promise<ICart> {
+  // New methods to match controller requirements
+  async addToCart(userId: string, productId: string, quantity: number = 1): Promise<ICart> {
+    // Fetch product details from product service (simplified for now)
+    const product = {
+      id: productId,
+      name: `Product ${productId}`,
+      price: 100, // Default price, should be fetched from product service
+      image: '',
+      sku: `SKU-${productId}`,
+    };
+
+    const item: ICartItem = {
+      productId,
+      productName: product.name,
+      price: product.price,
+      quantity,
+      image: product.image,
+      sku: product.sku,
+    };
+
+    return this.addItem(userId, item);
+  }
+
+  async updateCartItem(userId: string, productId: string, quantity: number): Promise<ICart> {
+    return this.updateItemQuantity(userId, productId, quantity);
+  }
+
+  async removeFromCart(userId: string, productId: string): Promise<ICart> {
+    return this.removeItem(userId, productId);
+  }
+
+  async clearCart(userId: string): Promise<void> {
     try {
-      const cart = await this.getCart(userId);
-      if (!cart) {
-        throw new Error('Cart not found');
-      }
-
-      cart.items = [];
-      // Update summary
-      this.updateCartSummary(cart);
-
-      // Update cache
-      await this.redisClient.setex(this.getCacheKey(userId), this.CACHE_TTL, JSON.stringify(cart));
-
+      await this.redisClient.del(this.getCacheKey(userId));
       logger.info(`Cart cleared for user ${userId}`);
-      return cart;
     } catch (error) {
       logger.error('Error clearing cart:', error);
       throw error;

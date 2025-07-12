@@ -1,12 +1,12 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const API_TIMEOUT = 30000; // 30 seconds
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: `${API_BASE_URL}/api/v1`,
   timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
@@ -42,7 +42,7 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
+          const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
             refreshToken,
           });
 
@@ -76,6 +76,11 @@ export interface ApiResponse<T = any> {
     details?: any;
   };
   message?: string;
+  meta?: {
+    timestamp: string;
+    request_id: string;
+    version: string;
+  };
 }
 
 export interface PaginatedResponse<T> {
@@ -173,31 +178,31 @@ export interface Cart {
 class ApiService {
   // Auth endpoints
   async login(credentials: LoginRequest): Promise<ApiResponse<{ user: User; tokens: AuthTokens }>> {
-    const response = await apiClient.post('/api/auth/login', credentials);
+    const response = await apiClient.post('/auth/login', credentials);
     return response.data;
   }
 
   async register(
     userData: RegisterRequest
   ): Promise<ApiResponse<{ user: User; tokens: AuthTokens }>> {
-    const response = await apiClient.post('/api/auth/register', userData);
+    const response = await apiClient.post('/auth/register', userData);
     return response.data;
   }
 
   async logout(): Promise<ApiResponse> {
     const refreshToken = localStorage.getItem('refreshToken');
-    const response = await apiClient.post('/api/auth/logout', { refreshToken });
+    const response = await apiClient.post('/auth/logout', { refreshToken });
     return response.data;
   }
 
   async refreshToken(): Promise<ApiResponse<{ tokens: AuthTokens }>> {
     const refreshToken = localStorage.getItem('refreshToken');
-    const response = await apiClient.post('/api/auth/refresh', { refreshToken });
+    const response = await apiClient.post('/auth/refresh', { refreshToken });
     return response.data;
   }
 
   async verifyToken(): Promise<ApiResponse<{ user: User }>> {
-    const response = await apiClient.post('/api/auth/verify');
+    const response = await apiClient.post('/auth/verify');
     return response.data;
   }
 
@@ -212,22 +217,17 @@ class ApiService {
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
+      ...(filters && Object.fromEntries(
+        Object.entries(filters).filter(([_, value]) => value !== undefined)
+      )),
     });
 
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          params.append(key, value.toString());
-        }
-      });
-    }
-
-    const response = await apiClient.get(`/api/products?${params}`);
+    const response = await apiClient.get(`/products?${params}`);
     return response.data;
   }
 
   async getProduct(id: string): Promise<ApiResponse<{ product: Product }>> {
-    const response = await apiClient.get(`/api/products/${id}`);
+    const response = await apiClient.get(`/products/${id}`);
     return response.data;
   }
 
@@ -240,74 +240,63 @@ class ApiService {
     ApiResponse<{ products: Product[]; total: number; page: number; totalPages: number }>
   > {
     const params = new URLSearchParams({
-      q: query,
+      query,
       page: page.toString(),
       limit: limit.toString(),
+      ...(filters && Object.fromEntries(
+        Object.entries(filters).filter(([_, value]) => value !== undefined)
+      )),
     });
 
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          params.append(key, value.toString());
-        }
-      });
-    }
-
-    const response = await apiClient.get(`/api/products/search?${params}`);
+    const response = await apiClient.get(`/search/products?${params}`);
     return response.data;
   }
 
   // Cart endpoints
   async getCart(): Promise<ApiResponse<{ cart: Cart }>> {
-    const response = await apiClient.get('/api/cart');
+    const response = await apiClient.get('/cart');
     return response.data;
   }
 
   async addToCart(productId: string, quantity: number = 1): Promise<ApiResponse<{ cart: Cart }>> {
-    const response = await apiClient.post('/api/cart/items', {
-      productId,
-      quantity,
-    });
+    const response = await apiClient.post('/cart/items', { productId, quantity });
     return response.data;
   }
 
   async updateCartItem(productId: string, quantity: number): Promise<ApiResponse<{ cart: Cart }>> {
-    const response = await apiClient.put(`/api/cart/items/${productId}`, {
-      quantity,
-    });
+    const response = await apiClient.put(`/cart/items/${productId}`, { quantity });
     return response.data;
   }
 
   async removeFromCart(productId: string): Promise<ApiResponse<{ cart: Cart }>> {
-    const response = await apiClient.delete(`/api/cart/items/${productId}`);
+    const response = await apiClient.delete(`/cart/items/${productId}`);
     return response.data;
   }
 
   async clearCart(): Promise<ApiResponse> {
-    const response = await apiClient.delete('/api/cart');
+    const response = await apiClient.delete('/cart');
     return response.data;
   }
 
   // User endpoints
   async getProfile(): Promise<ApiResponse<{ user: User }>> {
-    const response = await apiClient.get('/api/users/profile');
+    const response = await apiClient.get('/auth/me');
     return response.data;
   }
 
   async updateProfile(userData: Partial<User>): Promise<ApiResponse<{ user: User }>> {
-    const response = await apiClient.put('/api/users/profile', userData);
+    const response = await apiClient.put('/auth/me', userData);
     return response.data;
   }
 
-  // Categories endpoint
+  // Category endpoints
   async getCategories(): Promise<ApiResponse<{ categories: string[] }>> {
-    const response = await apiClient.get('/api/products/categories');
+    const response = await apiClient.get('/categories');
     return response.data;
   }
 
-  // Brands endpoint
   async getBrands(): Promise<ApiResponse<{ brands: string[] }>> {
-    const response = await apiClient.get('/api/products/brands');
+    const response = await apiClient.get('/brands');
     return response.data;
   }
 
@@ -316,11 +305,17 @@ class ApiService {
     const response = await apiClient.get('/health');
     return response.data;
   }
+
+  // Additional endpoints for recommended and popular products
+  async getRecommendedProducts(): Promise<ApiResponse<Product[]>> {
+    const response = await apiClient.get('/products/recommended');
+    return response.data;
+  }
+
+  async getPopularInCategory(category: string): Promise<ApiResponse<Product[]>> {
+    const response = await apiClient.get(`/products/popular?category=${category}`);
+    return response.data;
+  }
 }
 
-// Export singleton instance
 export const apiService = new ApiService();
-export default apiService;
-
-// Export axios instance for custom requests
-export { apiClient };

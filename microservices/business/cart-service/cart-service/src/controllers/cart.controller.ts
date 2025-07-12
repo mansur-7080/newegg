@@ -1,172 +1,163 @@
-import { Request, Response } from 'express';
-import { CartService, ICartItem } from '../services/cart.service';
+import { Request, Response, NextFunction } from 'express';
+import { CartService } from '../services/cart.service';
 import { logger } from '../utils/logger';
 
 export class CartController {
-  private cartService = new CartService();
+  private cartService: CartService;
 
-  async getCart(req: Request, res: Response): Promise<void> {
+  constructor() {
+    this.cartService = new CartService();
+  }
+
+  /**
+   * Get user's cart
+   */
+  getCart = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
       if (!userId) {
-        res.status(401).json({
+        return res.status(401).json({
           success: false,
-          message: 'User ID is required',
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
         });
-        return;
       }
 
       const cart = await this.cartService.getCart(userId);
 
       res.json({
         success: true,
-        data: cart,
+        data: { cart },
+        message: 'Cart retrieved successfully',
       });
     } catch (error) {
-      logger.error('Error in getCart controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to get cart',
-      });
+      logger.error('Error getting cart', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
     }
-  }
+  };
 
-  async addItem(req: Request, res: Response): Promise<void> {
+  /**
+   * Add item to cart
+   */
+  addToCart = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
+      const { productId, quantity = 1 } = req.body;
+
       if (!userId) {
-        res.status(401).json({
+        return res.status(401).json({
           success: false,
-          message: 'User ID is required',
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
         });
-        return;
       }
 
-      const item: ICartItem = req.body;
+      const cart = await this.cartService.addToCart(userId, productId, quantity);
 
-      // Validate required fields
-      if (!item.productId || !item.productName || !item.price || !item.quantity) {
-        res.status(400).json({
-          success: false,
-          message: 'productId, name, price, and quantity are required',
-        });
-        return;
-      }
-
-      const cart = await this.cartService.addItem(userId, item);
-
-      res.status(201).json({
+      res.json({
         success: true,
-        data: cart,
+        data: { cart },
         message: 'Item added to cart successfully',
       });
     } catch (error) {
-      logger.error('Error in addItem controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to add item to cart',
-      });
+      logger.error('Error adding item to cart', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
     }
-  }
+  };
 
-  async updateItemQuantity(req: Request, res: Response): Promise<void> {
+  /**
+   * Update cart item quantity
+   */
+  updateCartItem = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.headers['user-id'] as string;
-      if (!userId) {
-        res.status(401).json({
-          success: false,
-          message: 'User ID is required',
-        });
-        return;
-      }
-
+      const userId = req.user?.id;
       const { productId } = req.params;
       const { quantity } = req.body;
 
-      if (!productId || typeof quantity !== 'number' || quantity < 0) {
-        res.status(400).json({
+      if (!userId) {
+        return res.status(401).json({
           success: false,
-          message: 'Valid productId and quantity are required',
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
         });
-        return;
       }
 
-      const cart = await this.cartService.updateItemQuantity(userId, productId, quantity);
+      const cart = await this.cartService.updateCartItem(userId, productId, quantity);
 
       res.json({
         success: true,
-        data: cart,
-        message: 'Item quantity updated successfully',
+        data: { cart },
+        message: 'Cart item updated successfully',
       });
     } catch (error) {
-      logger.error('Error in updateItemQuantity controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update item quantity',
-      });
+      logger.error('Error updating cart item', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
     }
-  }
+  };
 
-  async removeItem(req: Request, res: Response): Promise<void> {
+  /**
+   * Remove item from cart
+   */
+  removeFromCart = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.headers['user-id'] as string;
-      if (!userId) {
-        res.status(401).json({
-          success: false,
-          message: 'User ID is required',
-        });
-        return;
-      }
-
+      const userId = req.user?.id;
       const { productId } = req.params;
-      if (!productId) {
-        res.status(400).json({
+
+      if (!userId) {
+        return res.status(401).json({
           success: false,
-          message: 'Product ID is required',
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
         });
-        return;
       }
 
-      const cart = await this.cartService.removeItem(userId, productId);
+      const cart = await this.cartService.removeFromCart(userId, productId);
 
       res.json({
         success: true,
-        data: cart,
+        data: { cart },
         message: 'Item removed from cart successfully',
       });
     } catch (error) {
-      logger.error('Error in removeItem controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to remove item from cart',
-      });
+      logger.error('Error removing item from cart', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
     }
-  }
+  };
 
-  async clearCart(req: Request, res: Response): Promise<void> {
+  /**
+   * Clear entire cart
+   */
+  clearCart = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
+
       if (!userId) {
-        res.status(401).json({
+        return res.status(401).json({
           success: false,
-          message: 'User ID is required',
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          },
         });
-        return;
       }
 
-      const cart = await this.cartService.clearCart(userId);
+      await this.cartService.clearCart(userId);
 
       res.json({
         success: true,
-        data: cart,
         message: 'Cart cleared successfully',
       });
     } catch (error) {
-      logger.error('Error in clearCart controller:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to clear cart',
-      });
+      logger.error('Error clearing cart', { error: error instanceof Error ? error.message : 'Unknown error' });
+      next(error);
     }
-  }
+  };
 }
