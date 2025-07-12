@@ -13,6 +13,32 @@ import { userRepository } from '../repositories/userRepository';
 import { v4 as uuidv4 } from 'uuid';
 import { Request } from 'express';
 import { randomBytes } from 'crypto';
+import { Request } from 'express';
+import { comparePassword, hashPassword } from '../utils/password';
+import { generateTokens, verifyRefreshToken } from '../utils/jwt';
+import { userRepository } from '../repositories/userRepository';
+import { createSession } from '../utils/session';
+import { cache } from '../config/redis';
+import { logger } from '@ultramarket/shared';
+import { UnauthorizedError, NotFoundError, ConflictError } from '../utils/errors';
+import nodemailer from 'nodemailer';
+
+// Email service configuration
+interface EmailConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth: {
+    user: string;
+    pass: string;
+  };
+}
+
+interface EmailTemplate {
+  subject: string;
+  html: string;
+  text: string;
+}
 
 export interface CreateUserData {
   email: string;
@@ -28,45 +54,202 @@ export interface UpdateUserData {
   phoneNumber?: string;
 }
 
+export interface UserResponse {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+  isEmailVerified: boolean;
+  isActive: boolean;
+  role: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export class UserService {
+  private emailTransporter: nodemailer.Transporter;
+
+  constructor() {
+    this.initializeEmailService();
+  }
+
+  /**
+   * Initialize email service with nodemailer
+   */
+  private initializeEmailService(): void {
+    const emailConfig: EmailConfig = {
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT || '587'),
+      secure: process.env.EMAIL_SECURE === 'true',
+      auth: {
+        user: process.env.EMAIL_USER || '',
+        pass: process.env.EMAIL_PASS || '',
+      },
+    };
+
+    this.emailTransporter = nodemailer.createTransporter(emailConfig);
+  }
+
+  /**
+   * Send email using nodemailer
+   */
+  private async sendEmail(to: string, subject: string, html: string, text?: string): Promise<void> {
+    try {
+      const mailOptions = {
+        from: process.env.EMAIL_FROM || 'noreply@ultramarket.com',
+        to,
+        subject,
+        html,
+        text: text || html.replace(/<[^>]*>/g, ''), // Strip HTML tags for text version
+      };
+
+      const info = await this.emailTransporter.sendMail(mailOptions);
+      
+      logger.info('Email sent successfully', {
+        messageId: info.messageId,
+        to,
+        subject,
+        operation: 'email_sent',
+      });
+    } catch (error) {
+      logger.error('Failed to send email', {
+        to,
+        subject,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        operation: 'email_send_failed',
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Generate email verification email
+   */
+  private generateEmailVerificationTemplate(userName: string, verificationUrl: string): EmailTemplate {
+    return {
+      subject: 'UltraMarket - Email tasdiqlash',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1890ff;">UltraMarket</h2>
+          <h3>Salom ${userName}!</h3>
+          <p>UltraMarket platformasiga xush kelibsiz!</p>
+          <p>Email manzilingizni tasdiqlash uchun quyidagi tugmani bosing:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verificationUrl}" 
+               style="background-color: #1890ff; color: white; padding: 12px 24px; 
+                      text-decoration: none; border-radius: 6px; display: inline-block;">
+              Email tasdiqlash
+            </a>
+          </div>
+          <p>Bu havola 24 soat amal qiladi.</p>
+          <p>Agar siz bu xabar yuborishni so'ramagansiz, uni e'tiborsiz qoldiring.</p>
+          <hr style="margin: 30px 0;">
+          <p style="color: #666; font-size: 12px;">
+            Bu xabar UltraMarket platformasi tomonidan avtomatik yuborilgan.
+          </p>
+        </div>
+      `,
+      text: `
+        UltraMarket - Email tasdiqlash
+        
+        Salom ${userName}!
+        
+        UltraMarket platformasiga xush kelibsiz!
+        Email manzilingizni tasdiqlash uchun quyidagi havolani oching:
+        
+        ${verificationUrl}
+        
+        Bu havola 24 soat amal qiladi.
+        
+        Agar siz bu xabar yuborishni so'ramagansiz, uni e'tiborsiz qoldiring.
+      `,
+    };
+  }
+
+  /**
+   * Generate password reset email
+   */
+  private generatePasswordResetTemplate(userName: string, resetUrl: string): EmailTemplate {
+    return {
+      subject: 'UltraMarket - Parolni tiklash',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1890ff;">UltraMarket</h2>
+          <h3>Salom ${userName}!</h3>
+          <p>Parolingizni tiklash so'rovi qabul qilindi.</p>
+          <p>Yangi parol o'rnatish uchun quyidagi tugmani bosing:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" 
+               style="background-color: #1890ff; color: white; padding: 12px 24px; 
+                      text-decoration: none; border-radius: 6px; display: inline-block;">
+              Parolni tiklash
+            </a>
+          </div>
+          <p>Bu havola 1 soat amal qiladi.</p>
+          <p>Agar siz parolni tiklashni so'ramagansiz, uni e'tiborsiz qoldiring.</p>
+          <hr style="margin: 30px 0;">
+          <p style="color: #666; font-size: 12px;">
+            Bu xabar UltraMarket platformasi tomonidan avtomatik yuborilgan.
+          </p>
+        </div>
+      `,
+      text: `
+        UltraMarket - Parolni tiklash
+        
+        Salom ${userName}!
+        
+        Parolingizni tiklash so'rovi qabul qilindi.
+        Yangi parol o'rnatish uchun quyidagi havolani oching:
+        
+        ${resetUrl}
+        
+        Bu havola 1 soat amal qiladi.
+        
+        Agar siz parolni tiklashni so'ramagansiz, uni e'tiborsiz qoldiring.
+      `,
+    };
+  }
+
   async registerUser(userData: CreateUserData) {
+    // Check if user already exists
     const existingUser = await userRepository.findByEmail(userData.email);
     if (existingUser) {
       throw new ConflictError('User with this email already exists');
     }
 
+    // Hash password
     const hashedPassword = await hashPassword(userData.password);
 
-    const user: Omit<User, 'createdAt' | 'updatedAt'> = {
-      id: uuidv4(),
-      email: userData.email,
-      username: userData.email.split('@')[0],
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      phoneNumber: userData.phoneNumber,
+    // Create user
+    const createdUser = await userRepository.create({
+      ...userData,
       passwordHash: hashedPassword,
-      role: UserRole.CUSTOMER,
-      isActive: true,
-      isEmailVerified: false,
-      isPhoneVerified: false,
-      loginAttempts: 0,
-      mfaEnabled: false,
-      authProvider: AuthProvider.LOCAL,
-    };
-
-    const createdUser = await userRepository.create(user);
+    });
 
     // Generate email verification token
     const verificationToken = randomBytes(32).toString('hex');
     await cache.setex(`email_verify:${verificationToken}`, 24 * 60 * 60, createdUser.id); // 24h expiry
 
-    // Mock email sending (replace with nodemailer in prod)
-    // TODO: Replace with proper email service
-    // logger.info('Email verification token generated', {
-    //   userId: createdUser.id,
-    //   email: createdUser.email,
-    //   operation: 'email_verification'
-    // });
+    // Send email verification
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+    const emailTemplate = this.generateEmailVerificationTemplate(
+      createdUser.firstName,
+      verificationUrl
+    );
+
+    await this.sendEmail(
+      createdUser.email,
+      emailTemplate.subject,
+      emailTemplate.html,
+      emailTemplate.text
+    );
+
+    logger.info('Email verification sent', {
+      userId: createdUser.id,
+      email: createdUser.email,
+      operation: 'email_verification_sent',
+    });
 
     const tokens = await generateTokens({
       userId: createdUser.id,
@@ -232,16 +415,30 @@ export class UserService {
       // Don't reveal if email exists or not
       return;
     }
+    
     // Generate password reset token
     const resetToken = randomBytes(32).toString('hex');
     await cache.setex(`reset_password:${resetToken}`, 60 * 60, user.id); // 1h expiry
-    // Mock email sending (replace with nodemailer in prod)
-    // TODO: Replace with proper email service
-    // logger.info('Password reset token generated', {
-    //   userId: user.id,
-    //   email: user.email,
-    //   operation: 'password_reset'
-    // });
+    
+    // Send password reset email
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    const emailTemplate = this.generatePasswordResetTemplate(
+      user.firstName,
+      resetUrl
+    );
+
+    await this.sendEmail(
+      user.email,
+      emailTemplate.subject,
+      emailTemplate.html,
+      emailTemplate.text
+    );
+
+    logger.info('Password reset email sent', {
+      userId: user.id,
+      email: user.email,
+      operation: 'password_reset_sent',
+    });
   }
 
   async resetPassword(token: string, newPassword: string) {

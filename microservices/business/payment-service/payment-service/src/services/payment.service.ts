@@ -4,6 +4,42 @@ import { logger } from '@ultramarket/common';
 import { createError } from '@ultramarket/common';
 import { PaymentModel } from '../models/Payment';
 import { EventEmitter } from 'events';
+import axios from 'axios';
+
+// PayPal SDK integration
+interface PayPalConfig {
+  clientId: string;
+  clientSecret: string;
+  environment: 'sandbox' | 'live';
+}
+
+interface PayPalOrder {
+  id: string;
+  status: string;
+  intent: string;
+  payment_source: {
+    paypal: {
+      account_id: string;
+      email_address: string;
+      account_status: string;
+    };
+  };
+  purchase_units: Array<{
+    reference_id: string;
+    amount: {
+      currency_code: string;
+      value: string;
+    };
+    payee: {
+      email_address: string;
+    };
+  }>;
+  links: Array<{
+    href: string;
+    rel: string;
+    method: string;
+  }>;
+}
 
 export interface PaymentRequest {
   amount: number;
@@ -49,6 +85,7 @@ export interface RefundRequest {
 export class PaymentService extends EventEmitter {
   private stripe: Stripe;
   private webhookSecret: string;
+  private paypalConfig: PayPalConfig;
 
   constructor() {
     super();
@@ -56,6 +93,13 @@ export class PaymentService extends EventEmitter {
       apiVersion: '2023-10-16',
     });
     this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+    
+    // PayPal configuration
+    this.paypalConfig = {
+      clientId: process.env.PAYPAL_CLIENT_ID || '',
+      clientSecret: process.env.PAYPAL_CLIENT_SECRET || '',
+      environment: (process.env.PAYPAL_ENVIRONMENT as 'sandbox' | 'live') || 'sandbox',
+    };
   }
 
   /**
@@ -197,23 +241,176 @@ export class PaymentService extends EventEmitter {
   }
 
   /**
-   * Process PayPal payment
+   * Process PayPal payment using PayPal Orders API
    */
   private async processPayPalPayment(
     paymentId: string,
     request: PaymentRequest
   ): Promise<PaymentResponse> {
-    // PayPal integration would go here
-    // This is a placeholder implementation
-    return {
-      id: paymentId,
-      status: PaymentStatus.PENDING,
-      amount: request.amount,
-      currency: request.currency,
-      method: request.method,
-      redirectUrl: `https://paypal.com/checkout/${paymentId}`,
-      metadata: request.metadata,
-    };
+    try {
+      logger.info('Processing PayPal payment', { 
+        paymentId, 
+        orderId: request.orderId, 
+        amount: request.amount 
+      });
+
+      // Get PayPal access token
+      const accessToken = await this.getPayPalAccessToken();
+
+      // Create PayPal order
+      const paypalOrder = await this.createPayPalOrder(accessToken, request);
+
+      // Find approval link
+      const approvalLink = paypalOrder.links.find(link => link.rel === 'approve');
+      if (!approvalLink) {
+        throw createError(500, 'PayPal approval link not found');
+      }
+
+      logger.info('PayPal order created successfully', {
+        paypalOrderId: paypalOrder.id,
+        paymentId,
+        status: paypalOrder.status
+      });
+
+      return {
+        id: paymentId,
+        status: PaymentStatus.PENDING,
+        amount: request.amount,
+        currency: request.currency,
+        method: request.method,
+        transactionId: paypalOrder.id,
+        redirectUrl: approvalLink.href,
+        metadata: {
+          ...request.metadata,
+          paypalOrderId: paypalOrder.id,
+          paypalIntent: paypalOrder.intent,
+        },
+      };
+    } catch (error) {
+      logger.error('PayPal payment processing failed', error);
+      throw createError(400, `PayPal payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get PayPal access token
+   */
+  private async getPayPalAccessToken(): Promise<string> {
+    try {
+      const authUrl = this.paypalConfig.environment === 'live' 
+        ? 'https://api-m.paypal.com/v1/oauth2/token'
+        : 'https://api-m.sandbox.paypal.com/v1/oauth2/token';
+
+      const response = await axios.post(
+        authUrl,
+        'grant_type=client_credentials',
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': `Basic ${btoa(`${this.paypalConfig.clientId}:${this.paypalConfig.clientSecret}`)}`,
+          },
+        }
+      );
+
+      return response.data.access_token;
+    } catch (error) {
+      logger.error('Failed to get PayPal access token', error);
+      throw createError(500, 'PayPal authentication failed');
+    }
+  }
+
+  /**
+   * Create PayPal order
+   */
+  private async createPayPalOrder(accessToken: string, request: PaymentRequest): Promise<PayPalOrder> {
+    try {
+      const apiUrl = this.paypalConfig.environment === 'live'
+        ? 'https://api-m.paypal.com/v2/checkout/orders'
+        : 'https://api-m.sandbox.paypal.com/v2/checkout/orders';
+
+      const orderData = {
+        intent: 'CAPTURE',
+        purchase_units: [
+          {
+            reference_id: request.orderId,
+            description: request.description || 'UltraMarket Purchase',
+            amount: {
+              currency_code: request.currency,
+              value: request.amount.toString(),
+            },
+            payee: {
+              email_address: process.env.PAYPAL_MERCHANT_EMAIL || 'merchant@ultramarket.com',
+            },
+            custom_id: paymentId,
+          },
+        ],
+        application_context: {
+          return_url: `${process.env.FRONTEND_URL}/payment/success`,
+          cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
+          brand_name: 'UltraMarket',
+          landing_page: 'LOGIN',
+          user_action: 'PAY_NOW',
+          shipping_preference: 'NO_SHIPPING',
+        },
+      };
+
+      const response = await axios.post(apiUrl, orderData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      logger.error('Failed to create PayPal order', error);
+      throw createError(500, 'PayPal order creation failed');
+    }
+  }
+
+  /**
+   * Capture PayPal payment
+   */
+  async capturePayPalPayment(paypalOrderId: string): Promise<PaymentResponse> {
+    try {
+      const accessToken = await this.getPayPalAccessToken();
+      
+      const apiUrl = this.paypalConfig.environment === 'live'
+        ? `https://api-m.paypal.com/v2/checkout/orders/${paypalOrderId}/capture`
+        : `https://api-m.sandbox.paypal.com/v2/checkout/orders/${paypalOrderId}/capture`;
+
+      const response = await axios.post(apiUrl, {}, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      const captureData = response.data;
+      
+      logger.info('PayPal payment captured successfully', {
+        paypalOrderId,
+        captureId: captureData.purchase_units[0].payments.captures[0].id,
+        status: captureData.status
+      });
+
+      return {
+        id: captureData.purchase_units[0].payments.captures[0].id,
+        status: PaymentStatus.COMPLETED,
+        amount: parseFloat(captureData.purchase_units[0].payments.captures[0].amount.value),
+        currency: captureData.purchase_units[0].payments.captures[0].amount.currency_code as Currency,
+        method: PaymentMethod.PAYPAL,
+        transactionId: captureData.purchase_units[0].payments.captures[0].id,
+        metadata: {
+          paypalOrderId: captureData.id,
+          paypalCaptureId: captureData.purchase_units[0].payments.captures[0].id,
+          paypalStatus: captureData.status,
+        },
+      };
+    } catch (error) {
+      logger.error('PayPal payment capture failed', error);
+      throw createError(500, 'PayPal payment capture failed');
+    }
   }
 
   /**
