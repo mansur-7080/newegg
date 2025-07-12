@@ -1,6 +1,5 @@
 import { Client } from '@elastic/elasticsearch';
-import { logger } from '@ultramarket/common';
-import { createError } from '@ultramarket/common';
+import { logger, createError } from '@ultramarket/shared';
 
 export interface SearchQuery {
   q?: string;

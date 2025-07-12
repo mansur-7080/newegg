@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { logger } from '@ultramarket/common';
+import { logger } from '@ultramarket/shared';
 
 export interface NotificationPayload {
   userId: string;

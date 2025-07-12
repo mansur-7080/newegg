@@ -1,6 +1,5 @@
 import Redis from 'ioredis';
-import { logger } from '@ultramarket/common';
-import { createError } from '@ultramarket/common';
+import { logger, createError } from '@ultramarket/shared';
 
 export interface CartItem {
   productId: string;

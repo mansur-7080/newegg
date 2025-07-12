@@ -19,6 +19,7 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@ultramarket/shared": "file:../../../../libs/shared",
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "helmet": "^7.1.0",

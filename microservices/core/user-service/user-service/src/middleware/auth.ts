@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest, UserRole } from '@ultramarket/common';
-import { verifyAccessToken, hasRole } from '@ultramarket/common';
-import { UnauthorizedError } from '@ultramarket/common';
+import { AuthenticatedRequest, UserRole } from '@ultramarket/shared';
+import { verifyAccessToken, hasRole } from '@ultramarket/shared';
+import { UnauthorizedError } from '@ultramarket/shared';
 
 // Professional authentication middleware
 export const authenticate = async (

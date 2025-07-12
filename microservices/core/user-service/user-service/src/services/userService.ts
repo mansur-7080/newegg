@@ -1,5 +1,5 @@
-import { User, UserRole, AuthProvider } from '@ultramarket/common';
-import type { UserResponse } from '@ultramarket/common';
+import { User, UserRole, AuthProvider } from '@ultramarket/shared';
+import type { UserResponse } from '@ultramarket/shared';
 import {
   hashPassword,
   comparePassword,
@@ -7,8 +7,8 @@ import {
   verifyRefreshToken,
   createSession,
   cache,
-} from '@ultramarket/common';
-import { ConflictError, NotFoundError, UnauthorizedError } from '@ultramarket/common';
+} from '@ultramarket/shared';
+import { ConflictError, NotFoundError, UnauthorizedError } from '@ultramarket/shared';
 import { userRepository } from '../repositories/userRepository';
 import { v4 as uuidv4 } from 'uuid';
 import { Request } from 'express';
