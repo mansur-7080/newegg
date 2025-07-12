@@ -1,0 +1,1761 @@
+{
+  "nodes": {
+    "performance-optimization-service": {
+      "name": "performance-optimization-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/analytics/performance-optimization-service",
+        "name": "performance-optimization-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/analytics/performance-optimization-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "advanced-analytics-service": {
+      "name": "advanced-analytics-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/analytics/advanced-analytics-service",
+        "name": "advanced-analytics-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/analytics/advanced-analytics-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "dynamic-pricing-service": {
+      "name": "dynamic-pricing-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/dynamic-pricing-service",
+        "name": "dynamic-pricing-service",
+        "tags": [
+          "npm:public"
+        ],
+        "metadata": {
+          "targetGroups": {
+            "NPM Scripts": [
+              "build",
+              "start",
+              "dev",
+              "test"
+            ]
+          },
+          "description": "Dynamic pricing service for UltraMarket",
+          "js": {
+            "packageName": "@ultramarket/dynamic-pricing-service",
+            "packageMain": "dist/index.js",
+            "isInPackageManagerWorkspaces": true
+          }
+        },
+        "targets": {
+          "build": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "build"
+            },
+            "metadata": {
+              "scriptContent": "tsc",
+              "runCommand": "npm run build"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ]
+          },
+          "start": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "start"
+            },
+            "metadata": {
+              "scriptContent": "node dist/index.js",
+              "runCommand": "npm run start"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "metadata": {
+              "scriptContent": "ts-node-dev --respawn --transpile-only src/index.ts",
+              "runCommand": "npm run dev"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "test": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test"
+            },
+            "metadata": {
+              "scriptContent": "jest",
+              "runCommand": "npm run test"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ]
+          },
+          "nx-release-publish": {
+            "executor": "@nx/js:release-publish",
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "options": {},
+            "configurations": {},
+            "parallelism": true
+          }
+        },
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/dynamic-pricing-service/src",
+        "projectType": "application",
+        "implicitDependencies": []
+      }
+    },
+    "product-management-service": {
+      "name": "product-management-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/admin/product-management-service",
+        "name": "product-management-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/admin/product-management-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "business-intelligence": {
+      "name": "business-intelligence",
+      "type": "app",
+      "data": {
+        "root": "microservices/analytics/business-intelligence",
+        "name": "business-intelligence",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/analytics/business-intelligence/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "fraud-detection-service": {
+      "name": "fraud-detection-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/ml-ai/fraud-detection-service",
+        "name": "fraud-detection-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/ml-ai/fraud-detection-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "notification-service": {
+      "name": "notification-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/notification-service",
+        "name": "notification-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/notification-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "personalization-service": {
+      "name": "personalization-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/ml-ai/personalization-service",
+        "name": "personalization-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/ml-ai/personalization-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "real-time-analytics": {
+      "name": "real-time-analytics",
+      "type": "app",
+      "data": {
+        "root": "microservices/analytics/real-time-analytics",
+        "name": "real-time-analytics",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/analytics/real-time-analytics/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "recommendation-service": {
+      "name": "recommendation-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/ml-ai/recommendation-service",
+        "name": "recommendation-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/ml-ai/recommendation-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "analytics-service": {
+      "name": "analytics-service",
+      "type": "lib",
+      "data": {
+        "root": "microservices/analytics/analytics-service",
+        "name": "analytics-service",
+        "tags": [
+          "npm:public",
+          "npm:analytics-service",
+          "npm:microservice",
+          "npm:analytics",
+          "npm:business-intelligence",
+          "npm:reporting",
+          "npm:ultramarket"
+        ],
+        "metadata": {
+          "targetGroups": {
+            "NPM Scripts": [
+              "dev",
+              "build",
+              "start",
+              "test",
+              "test:watch",
+              "test:coverage",
+              "lint",
+              "lint:fix",
+              "format",
+              "migrate",
+              "generate",
+              "studio",
+              "seed"
+            ]
+          },
+          "description": "UltraMarket Analytics & Business Intelligence Service",
+          "js": {
+            "packageName": "analytics-service",
+            "packageMain": "dist/index.js",
+            "isInPackageManagerWorkspaces": true
+          }
+        },
+        "targets": {
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "metadata": {
+              "scriptContent": "nodemon src/index.ts",
+              "runCommand": "npm run dev"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "build": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "build"
+            },
+            "metadata": {
+              "scriptContent": "tsc",
+              "runCommand": "npm run build"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ]
+          },
+          "start": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "start"
+            },
+            "metadata": {
+              "scriptContent": "node dist/index.js",
+              "runCommand": "npm run start"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "test": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test"
+            },
+            "metadata": {
+              "scriptContent": "jest",
+              "runCommand": "npm run test"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ]
+          },
+          "test:watch": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:watch"
+            },
+            "metadata": {
+              "scriptContent": "jest --watch",
+              "runCommand": "npm run test:watch"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "test:coverage": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:coverage"
+            },
+            "metadata": {
+              "scriptContent": "jest --coverage",
+              "runCommand": "npm run test:coverage"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "lint": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint"
+            },
+            "metadata": {
+              "scriptContent": "eslint src/**/*.ts",
+              "runCommand": "npm run lint"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "{workspaceRoot}/eslint.config.js"
+            ]
+          },
+          "lint:fix": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint:fix"
+            },
+            "metadata": {
+              "scriptContent": "eslint src/**/*.ts --fix",
+              "runCommand": "npm run lint:fix"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "format": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "format"
+            },
+            "metadata": {
+              "scriptContent": "prettier --write src/**/*.ts",
+              "runCommand": "npm run format"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "migrate": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "migrate"
+            },
+            "metadata": {
+              "scriptContent": "prisma migrate dev",
+              "runCommand": "npm run migrate"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "generate": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "generate"
+            },
+            "metadata": {
+              "scriptContent": "prisma generate",
+              "runCommand": "npm run generate"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "studio": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "studio"
+            },
+            "metadata": {
+              "scriptContent": "prisma studio",
+              "runCommand": "npm run studio"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "seed": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "seed"
+            },
+            "metadata": {
+              "scriptContent": "ts-node prisma/seed.ts",
+              "runCommand": "npm run seed"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "nx-release-publish": {
+            "executor": "@nx/js:release-publish",
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "options": {},
+            "configurations": {},
+            "parallelism": true
+          }
+        },
+        "implicitDependencies": []
+      }
+    },
+    "navigation-service": {
+      "name": "navigation-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/navigation-service",
+        "name": "navigation-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/navigation-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "pc-builder-service": {
+      "name": "pc-builder-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/pc-builder-service",
+        "name": "pc-builder-service",
+        "tags": [
+          "npm:public",
+          "npm:pc-builder-service",
+          "npm:microservice",
+          "npm:pc-configuration",
+          "npm:compatibility",
+          "npm:ultramarket"
+        ],
+        "metadata": {
+          "targetGroups": {
+            "NPM Scripts": [
+              "build",
+              "start",
+              "dev",
+              "test",
+              "test:watch",
+              "test:coverage",
+              "lint",
+              "lint:fix",
+              "format",
+              "migrate",
+              "generate",
+              "studio"
+            ]
+          },
+          "description": "PC Builder service for UltraMarket",
+          "js": {
+            "packageName": "@ultramarket/pc-builder-service",
+            "packageMain": "dist/index.js",
+            "isInPackageManagerWorkspaces": true
+          }
+        },
+        "targets": {
+          "build": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "build"
+            },
+            "metadata": {
+              "scriptContent": "tsc",
+              "runCommand": "npm run build"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ]
+          },
+          "start": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "start"
+            },
+            "metadata": {
+              "scriptContent": "node dist/index.js",
+              "runCommand": "npm run start"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "metadata": {
+              "scriptContent": "ts-node-dev --respawn --transpile-only src/index.ts",
+              "runCommand": "npm run dev"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "test": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test"
+            },
+            "metadata": {
+              "scriptContent": "jest",
+              "runCommand": "npm run test"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ]
+          },
+          "test:watch": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:watch"
+            },
+            "metadata": {
+              "scriptContent": "jest --watch",
+              "runCommand": "npm run test:watch"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "test:coverage": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:coverage"
+            },
+            "metadata": {
+              "scriptContent": "jest --coverage",
+              "runCommand": "npm run test:coverage"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "lint": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint"
+            },
+            "metadata": {
+              "scriptContent": "eslint src/**/*.ts",
+              "runCommand": "npm run lint"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "{workspaceRoot}/eslint.config.js"
+            ]
+          },
+          "lint:fix": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint:fix"
+            },
+            "metadata": {
+              "scriptContent": "eslint src/**/*.ts --fix",
+              "runCommand": "npm run lint:fix"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "format": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "format"
+            },
+            "metadata": {
+              "scriptContent": "prettier --write src/**/*.ts",
+              "runCommand": "npm run format"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "migrate": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "migrate"
+            },
+            "metadata": {
+              "scriptContent": "prisma migrate dev",
+              "runCommand": "npm run migrate"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "generate": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "generate"
+            },
+            "metadata": {
+              "scriptContent": "prisma generate",
+              "runCommand": "npm run generate"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "studio": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "studio"
+            },
+            "metadata": {
+              "scriptContent": "prisma studio",
+              "runCommand": "npm run studio"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "nx-release-publish": {
+            "executor": "@nx/js:release-publish",
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "options": {},
+            "configurations": {},
+            "parallelism": true
+          }
+        },
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/pc-builder-service/src",
+        "projectType": "application",
+        "implicitDependencies": []
+      }
+    },
+    "inventory-service": {
+      "name": "inventory-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/inventory-service",
+        "name": "inventory-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/inventory-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "shipping-service": {
+      "name": "shipping-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/shipping-service",
+        "name": "shipping-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/shipping-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "content-service": {
+      "name": "content-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/content-service",
+        "name": "content-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/content-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "payment-service": {
+      "name": "payment-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/payment-service",
+        "name": "payment-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/payment-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "product-service": {
+      "name": "product-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/product-service",
+        "name": "product-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/product-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "review-service": {
+      "name": "review-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/review-service",
+        "name": "review-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/review-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "search-service": {
+      "name": "search-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/search-service",
+        "name": "search-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/search-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "audit-service": {
+      "name": "audit-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/audit-service",
+        "name": "audit-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/audit-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "order-service": {
+      "name": "order-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/order-service",
+        "name": "order-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/order-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "cart-service": {
+      "name": "cart-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/business/cart-service",
+        "name": "cart-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/business/cart-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "file-service": {
+      "name": "file-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/platform/file-service",
+        "name": "file-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/platform/file-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "admin-service": {
+      "name": "admin-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/admin/admin-service",
+        "name": "admin-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/admin/admin-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "config-service": {
+      "name": "config-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/core/config-service",
+        "name": "config-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/core/config-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "store-service": {
+      "name": "store-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/core/store-service",
+        "name": "store-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/core/store-service/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "auth-service": {
+      "name": "auth-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/core/auth-service",
+        "name": "auth-service",
+        "tags": [
+          "npm:public"
+        ],
+        "metadata": {
+          "targetGroups": {
+            "NPM Scripts": [
+              "build",
+              "start",
+              "dev",
+              "test",
+              "test:watch",
+              "test:coverage",
+              "lint",
+              "format",
+              "migrate",
+              "migrate:dev",
+              "generate"
+            ]
+          },
+          "description": "Authentication and authorization microservice for UltraMarket",
+          "js": {
+            "packageName": "@ultramarket/auth-service",
+            "packageMain": "dist/index.js",
+            "isInPackageManagerWorkspaces": true
+          }
+        },
+        "targets": {
+          "build": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "build"
+            },
+            "metadata": {
+              "scriptContent": "tsc",
+              "runCommand": "npm run build"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ]
+          },
+          "start": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "start"
+            },
+            "metadata": {
+              "scriptContent": "node dist/index.js",
+              "runCommand": "npm run start"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "metadata": {
+              "scriptContent": "ts-node-dev --respawn --transpile-only src/index.ts",
+              "runCommand": "npm run dev"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "test": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test"
+            },
+            "metadata": {
+              "scriptContent": "jest",
+              "runCommand": "npm run test"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ]
+          },
+          "test:watch": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:watch"
+            },
+            "metadata": {
+              "scriptContent": "jest --watch",
+              "runCommand": "npm run test:watch"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "test:coverage": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:coverage"
+            },
+            "metadata": {
+              "scriptContent": "jest --coverage",
+              "runCommand": "npm run test:coverage"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "lint": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint"
+            },
+            "metadata": {
+              "scriptContent": "eslint src/**/*.ts",
+              "runCommand": "npm run lint"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "{workspaceRoot}/eslint.config.js"
+            ]
+          },
+          "format": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "format"
+            },
+            "metadata": {
+              "scriptContent": "prettier --write src/**/*.ts",
+              "runCommand": "npm run format"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "migrate": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "migrate"
+            },
+            "metadata": {
+              "scriptContent": "prisma migrate deploy",
+              "runCommand": "npm run migrate"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "migrate:dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "migrate:dev"
+            },
+            "metadata": {
+              "scriptContent": "prisma migrate dev",
+              "runCommand": "npm run migrate:dev"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "generate": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "generate"
+            },
+            "metadata": {
+              "scriptContent": "prisma generate",
+              "runCommand": "npm run generate"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "nx-release-publish": {
+            "executor": "@nx/js:release-publish",
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "options": {},
+            "configurations": {},
+            "parallelism": true
+          }
+        },
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/core/auth-service/src",
+        "projectType": "application",
+        "implicitDependencies": []
+      }
+    },
+    "user-service": {
+      "name": "user-service",
+      "type": "app",
+      "data": {
+        "root": "microservices/core/user-service",
+        "name": "user-service",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/core/user-service/user-service/src",
+        "projectType": "application",
+        "tags": [
+          "scope:backend",
+          "type:service",
+          "domain:user"
+        ],
+        "targets": {
+          "build": {
+            "executor": "@nx/node:build",
+            "outputs": [
+              "{options.outputPath}"
+            ],
+            "options": {
+              "outputPath": "dist/microservices/core/user-service",
+              "main": "microservices/core/user-service/user-service/src/index.ts",
+              "tsConfig": "microservices/core/user-service/user-service/tsconfig.json",
+              "assets": [
+                "microservices/core/user-service/user-service/src/assets"
+              ]
+            },
+            "configurations": {
+              "production": {
+                "optimization": true,
+                "extractLicenses": true,
+                "inspect": false,
+                "fileReplacements": [
+                  {
+                    "replace": "microservices/core/user-service/user-service/src/environments/environment.ts",
+                    "with": "microservices/core/user-service/user-service/src/environments/environment.prod.ts"
+                  }
+                ]
+              }
+            },
+            "parallelism": true,
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ]
+          },
+          "serve": {
+            "executor": "@nx/node:execute",
+            "options": {
+              "buildTarget": "user-service:build"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "lint": {
+            "executor": "@nx/linter:eslint",
+            "outputs": [
+              "{options.outputFile}"
+            ],
+            "options": {
+              "lintFilePatterns": [
+                "microservices/core/user-service/user-service/**/*.ts"
+              ]
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "{workspaceRoot}/eslint.config.js"
+            ]
+          },
+          "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": [
+              "{workspaceRoot}/coverage/microservices/core/user-service"
+            ],
+            "options": {
+              "jestConfig": "microservices/core/user-service/user-service/jest.config.ts",
+              "passWithNoTests": true
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ]
+          }
+        },
+        "implicitDependencies": []
+      }
+    },
+    "api-gateway": {
+      "name": "api-gateway",
+      "type": "app",
+      "data": {
+        "root": "microservices/core/api-gateway",
+        "name": "api-gateway",
+        "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "microservices/core/api-gateway/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "admin-panel": {
+      "name": "admin-panel",
+      "type": "app",
+      "data": {
+        "root": "frontend/admin-panel",
+        "name": "admin-panel",
+        "projectType": "application",
+        "tags": [
+          "npm:public"
+        ],
+        "metadata": {
+          "targetGroups": {
+            "NPM Scripts": [
+              "dev",
+              "build",
+              "preview",
+              "test",
+              "test:ui",
+              "test:coverage",
+              "lint",
+              "lint:fix",
+              "format",
+              "typecheck"
+            ]
+          },
+          "description": "UltraMarket Admin Panel - Professional Enterprise Dashboard",
+          "js": {
+            "packageName": "@ultramarket/admin-panel",
+            "isInPackageManagerWorkspaces": true
+          }
+        },
+        "targets": {
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "metadata": {
+              "scriptContent": "vite",
+              "runCommand": "npm run dev"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "build": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "build"
+            },
+            "metadata": {
+              "scriptContent": "tsc && vite build",
+              "runCommand": "npm run build"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ]
+          },
+          "preview": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "preview"
+            },
+            "metadata": {
+              "scriptContent": "vite preview",
+              "runCommand": "npm run preview"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "test": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test"
+            },
+            "metadata": {
+              "scriptContent": "vitest",
+              "runCommand": "npm run test"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ]
+          },
+          "test:ui": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:ui"
+            },
+            "metadata": {
+              "scriptContent": "vitest --ui",
+              "runCommand": "npm run test:ui"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "test:coverage": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test:coverage"
+            },
+            "metadata": {
+              "scriptContent": "vitest --coverage",
+              "runCommand": "npm run test:coverage"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "lint": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint"
+            },
+            "metadata": {
+              "scriptContent": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+              "runCommand": "npm run lint"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "{workspaceRoot}/eslint.config.js"
+            ]
+          },
+          "lint:fix": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint:fix"
+            },
+            "metadata": {
+              "scriptContent": "eslint src --ext ts,tsx --fix",
+              "runCommand": "npm run lint:fix"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "format": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "format"
+            },
+            "metadata": {
+              "scriptContent": "prettier --write src/**/*.{ts,tsx}",
+              "runCommand": "npm run format"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "typecheck": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "typecheck"
+            },
+            "metadata": {
+              "scriptContent": "tsc --noEmit",
+              "runCommand": "npm run typecheck"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "nx-release-publish": {
+            "executor": "@nx/js:release-publish",
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "options": {},
+            "configurations": {},
+            "parallelism": true
+          }
+        },
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "frontend/admin-panel/src",
+        "implicitDependencies": []
+      }
+    },
+    "mobile-app": {
+      "name": "mobile-app",
+      "type": "app",
+      "data": {
+        "root": "frontend/mobile-app",
+        "name": "mobile-app",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "frontend/mobile-app/src",
+        "projectType": "application",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "ui-components": {
+      "name": "ui-components",
+      "type": "lib",
+      "data": {
+        "root": "libs/ui-components",
+        "name": "ui-components",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "libs/ui-components/src",
+        "projectType": "library",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "web-app": {
+      "name": "web-app",
+      "type": "app",
+      "data": {
+        "root": "frontend/web-app",
+        "name": "web-app",
+        "projectType": "application",
+        "tags": [
+          "npm:public",
+          "npm:react",
+          "npm:typescript",
+          "npm:e-commerce",
+          "npm:vite",
+          "npm:tailwindcss",
+          "npm:redux",
+          "npm:react-query"
+        ],
+        "metadata": {
+          "targetGroups": {
+            "NPM Scripts": [
+              "dev",
+              "preview",
+              "lint",
+              "lint:fix"
+            ]
+          },
+          "description": "UltraMarket E-Commerce Web Application",
+          "js": {
+            "packageName": "ultramarket-web-app",
+            "isInPackageManagerWorkspaces": true
+          }
+        },
+        "targets": {
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "metadata": {
+              "scriptContent": "vite",
+              "runCommand": "npm run dev"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "preview": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "preview"
+            },
+            "metadata": {
+              "scriptContent": "vite preview",
+              "runCommand": "npm run preview"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "lint": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint"
+            },
+            "metadata": {
+              "scriptContent": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+              "runCommand": "npm run lint"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "{workspaceRoot}/eslint.config.js"
+            ]
+          },
+          "lint:fix": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint:fix"
+            },
+            "metadata": {
+              "scriptContent": "eslint . --ext ts,tsx --fix",
+              "runCommand": "npm run lint:fix"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "nx-release-publish": {
+            "executor": "@nx/js:release-publish",
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "options": {},
+            "configurations": {},
+            "parallelism": true
+          },
+          "build": {
+            "executor": "@nx/webpack:webpack",
+            "options": {
+              "outputPath": "dist/frontend/web-app"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ]
+          },
+          "serve": {
+            "executor": "@nx/webpack:dev-server",
+            "options": {
+              "buildTarget": "web-app:build"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "continuous": true
+          },
+          "test": {
+            "executor": "@nx/jest:jest",
+            "options": {
+              "jestConfig": "frontend/web-app/jest.config.ts"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ]
+          }
+        },
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "frontend/web-app/src",
+        "implicitDependencies": []
+      }
+    },
+    "constants": {
+      "name": "constants",
+      "type": "lib",
+      "data": {
+        "root": "libs/constants",
+        "name": "constants",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "libs/constants/src",
+        "projectType": "library",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "shared": {
+      "name": "shared",
+      "type": "lib",
+      "data": {
+        "root": "libs/shared",
+        "name": "shared",
+        "projectType": "library",
+        "tags": [
+          "npm:public"
+        ],
+        "metadata": {
+          "targetGroups": {
+            "NPM Scripts": [
+              "build",
+              "dev",
+              "test",
+              "lint",
+              "format"
+            ]
+          },
+          "description": "Common utilities for UltraMarket microservices",
+          "js": {
+            "packageName": "@ultramarket/shared",
+            "packageMain": "dist/index.js",
+            "isInPackageManagerWorkspaces": true
+          }
+        },
+        "targets": {
+          "build": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "build"
+            },
+            "metadata": {
+              "scriptContent": "tsc",
+              "runCommand": "npm run build"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "dependsOn": [
+              "^build"
+            ],
+            "inputs": [
+              "production",
+              "^production"
+            ]
+          },
+          "dev": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "dev"
+            },
+            "metadata": {
+              "scriptContent": "tsc --watch",
+              "runCommand": "npm run dev"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "test": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "test"
+            },
+            "metadata": {
+              "scriptContent": "jest",
+              "runCommand": "npm run test"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "^production",
+              "{workspaceRoot}/jest.preset.js"
+            ]
+          },
+          "lint": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "lint"
+            },
+            "metadata": {
+              "scriptContent": "eslint src/**/*.ts",
+              "runCommand": "npm run lint"
+            },
+            "configurations": {},
+            "parallelism": true,
+            "inputs": [
+              "default",
+              "{workspaceRoot}/eslint.config.js"
+            ]
+          },
+          "format": {
+            "executor": "nx:run-script",
+            "options": {
+              "script": "format"
+            },
+            "metadata": {
+              "scriptContent": "prettier --write src/**/*.ts",
+              "runCommand": "npm run format"
+            },
+            "configurations": {},
+            "parallelism": true
+          },
+          "nx-release-publish": {
+            "executor": "@nx/js:release-publish",
+            "dependsOn": [
+              "^nx-release-publish"
+            ],
+            "options": {},
+            "configurations": {},
+            "parallelism": true
+          }
+        },
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "libs/shared/src",
+        "implicitDependencies": []
+      }
+    },
+    "types": {
+      "name": "types",
+      "type": "lib",
+      "data": {
+        "root": "libs/types",
+        "name": "types",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "libs/types/src",
+        "projectType": "library",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    },
+    "utils": {
+      "name": "utils",
+      "type": "lib",
+      "data": {
+        "root": "libs/utils",
+        "name": "utils",
+        "$schema": "../../node_modules/nx/schemas/project-schema.json",
+        "sourceRoot": "libs/utils/src",
+        "projectType": "library",
+        "implicitDependencies": [],
+        "targets": {},
+        "tags": []
+      }
+    }
+  },
+  "externalNodes": {},
+  "dependencies": {
+    "performance-optimization-service": [],
+    "advanced-analytics-service": [],
+    "dynamic-pricing-service": [
+      {
+        "source": "dynamic-pricing-service",
+        "target": "shared",
+        "type": "static"
+      }
+    ],
+    "product-management-service": [],
+    "business-intelligence": [],
+    "fraud-detection-service": [],
+    "notification-service": [],
+    "personalization-service": [],
+    "real-time-analytics": [],
+    "recommendation-service": [],
+    "analytics-service": [],
+    "navigation-service": [],
+    "pc-builder-service": [
+      {
+        "source": "pc-builder-service",
+        "target": "shared",
+        "type": "static"
+      }
+    ],
+    "inventory-service": [],
+    "shipping-service": [],
+    "content-service": [],
+    "payment-service": [],
+    "product-service": [],
+    "review-service": [],
+    "search-service": [],
+    "audit-service": [],
+    "order-service": [],
+    "cart-service": [],
+    "file-service": [],
+    "admin-service": [],
+    "config-service": [],
+    "store-service": [],
+    "auth-service": [
+      {
+        "source": "auth-service",
+        "target": "shared",
+        "type": "static"
+      }
+    ],
+    "user-service": [],
+    "api-gateway": [],
+    "admin-panel": [],
+    "mobile-app": [],
+    "ui-components": [],
+    "web-app": [],
+    "constants": [],
+    "shared": [],
+    "types": [],
+    "utils": []
+  },
+  "version": "6.0",
+  "errors": [],
+  "computedAt": 1752294417896
+}

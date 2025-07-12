@@ -20,7 +20,8 @@ export * from './logger';
 export * from './messaging';
 
 // Middleware exports
-export * from './middleware';
+export * from './middleware/error-handler';
+export * from './middleware/security';
 
 // Types exports
 export * from './types';

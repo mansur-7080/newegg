@@ -1,0 +1,3570 @@
+{
+  "frontend/admin-panel": {
+    "root": [
+      "frontend/admin-panel/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "frontend/admin-panel/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "frontend/admin-panel/project.json",
+      "nx/core/project-json"
+    ],
+    "tags": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:public": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.0": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.1": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.2": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.3": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.4": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.5": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.6": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.7": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.8": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.9": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.description": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageName": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.isInPackageManagerWorkspaces": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.executor": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options.script": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.scriptContent": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.runCommand": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.executor": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options.script": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.scriptContent": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.runCommand": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.executor": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.options": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.metadata": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.options.script": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.metadata.scriptContent": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.metadata.runCommand": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.executor": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options.script": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.scriptContent": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.runCommand": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:ui": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:ui.executor": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:ui.options": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:ui.metadata": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:ui.options.script": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:ui.metadata.scriptContent": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:ui.metadata.runCommand": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.executor": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.options": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.options.script": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata.scriptContent": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata.runCommand": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.executor": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options.script": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.scriptContent": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.runCommand": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.executor": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.options": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.options.script": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata.scriptContent": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata.runCommand": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.executor": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.options": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.options.script": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata.scriptContent": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata.runCommand": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.typecheck": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.typecheck.executor": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.typecheck.options": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.typecheck.metadata": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.typecheck.options.script": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.typecheck.metadata.scriptContent": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.typecheck.metadata.runCommand": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.executor": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.dependsOn": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.options": [
+      "frontend/admin-panel/package.json",
+      "nx/core/package-json"
+    ],
+    "$schema": [
+      "frontend/admin-panel/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "frontend/admin-panel/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.dependsOn": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ]
+  },
+  "frontend/web-app": {
+    "root": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "tags": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:public": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:react": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:typescript": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:e-commerce": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:vite": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:tailwindcss": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:redux": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:react-query": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.0": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.1": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.2": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.3": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.description": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageName": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.isInPackageManagerWorkspaces": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.executor": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options.script": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.scriptContent": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.runCommand": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.executor": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.options": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.metadata": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.options.script": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.metadata.scriptContent": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.preview.metadata.runCommand": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.executor": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options.script": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.scriptContent": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.runCommand": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.executor": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.options": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.options.script": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata.scriptContent": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata.runCommand": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.executor": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.dependsOn": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.options": [
+      "frontend/web-app/package.json",
+      "nx/core/package-json"
+    ],
+    "$schema": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.executor": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.options": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.options.outputPath": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.serve": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.serve.executor": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.serve.options": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.serve.options.buildTarget": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.test": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.test.executor": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.test.options": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.test.options.jestConfig": [
+      "frontend/web-app/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.lint.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.dependsOn": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ]
+  },
+  "libs/shared": {
+    "root": [
+      "libs/shared/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "libs/shared/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "libs/shared/project.json",
+      "nx/core/project-json"
+    ],
+    "tags": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:public": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.0": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.1": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.2": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.3": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.4": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.description": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageName": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageMain": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.isInPackageManagerWorkspaces": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.executor": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options.script": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.scriptContent": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.runCommand": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.executor": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options.script": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.scriptContent": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.runCommand": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.executor": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options.script": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.scriptContent": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.runCommand": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.executor": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options.script": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.scriptContent": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.runCommand": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.executor": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.options": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.options.script": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata.scriptContent": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata.runCommand": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.executor": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.dependsOn": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.options": [
+      "libs/shared/package.json",
+      "nx/core/package-json"
+    ],
+    "$schema": [
+      "libs/shared/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "libs/shared/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.dependsOn": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ]
+  },
+  "microservices/analytics/analytics-service": {
+    "root": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "name": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:public": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:analytics-service": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:microservice": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:analytics": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:business-intelligence": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:reporting": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:ultramarket": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.0": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.1": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.2": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.3": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.4": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.5": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.6": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.7": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.8": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.9": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.10": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.11": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.12": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.description": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageName": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageMain": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.isInPackageManagerWorkspaces": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.seed": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.seed.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.seed.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.seed.metadata": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.seed.options.script": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.seed.metadata.scriptContent": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.seed.metadata.runCommand": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.executor": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.dependsOn": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.options": [
+      "microservices/analytics/analytics-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.dependsOn": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ]
+  },
+  "microservices/business/dynamic-pricing-service": {
+    "root": [
+      "microservices/business/dynamic-pricing-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/business/dynamic-pricing-service/project.json",
+      "nx/core/project-json"
+    ],
+    "tags": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:public": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.0": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.1": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.2": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.3": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.description": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageName": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageMain": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.isInPackageManagerWorkspaces": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.executor": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options.script": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.scriptContent": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.runCommand": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.executor": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.options": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.options.script": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata.scriptContent": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata.runCommand": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.executor": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options.script": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.scriptContent": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.runCommand": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.executor": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options.script": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.scriptContent": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.runCommand": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.executor": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.dependsOn": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.options": [
+      "microservices/business/dynamic-pricing-service/package.json",
+      "nx/core/package-json"
+    ],
+    "$schema": [
+      "microservices/business/dynamic-pricing-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/business/dynamic-pricing-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/business/dynamic-pricing-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.dependsOn": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ]
+  },
+  "microservices/business/pc-builder-service": {
+    "root": [
+      "microservices/business/pc-builder-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/business/pc-builder-service/project.json",
+      "nx/core/project-json"
+    ],
+    "tags": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:public": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:pc-builder-service": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:microservice": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:pc-configuration": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:compatibility": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:ultramarket": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.0": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.1": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.2": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.3": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.4": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.5": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.6": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.7": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.8": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.9": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.10": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.11": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.description": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageName": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageMain": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.isInPackageManagerWorkspaces": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint:fix.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.metadata": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.options.script": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.metadata.scriptContent": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.studio.metadata.runCommand": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.executor": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.dependsOn": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.options": [
+      "microservices/business/pc-builder-service/package.json",
+      "nx/core/package-json"
+    ],
+    "$schema": [
+      "microservices/business/pc-builder-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/business/pc-builder-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/business/pc-builder-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.dependsOn": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ]
+  },
+  "microservices/core/auth-service": {
+    "root": [
+      "microservices/core/auth-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/core/auth-service/project.json",
+      "nx/core/project-json"
+    ],
+    "tags": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "tags.npm:public": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.0": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.1": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.2": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.3": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.4": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.5": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.6": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.7": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.8": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.9": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.targetGroups.NPM Scripts.10": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.description": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageName": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.packageMain": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "metadata.js.isInPackageManagerWorkspaces": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.options.script": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.scriptContent": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.build.metadata.runCommand": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.options.script": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata.scriptContent": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.start.metadata.runCommand": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.options.script": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.scriptContent": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.dev.metadata.runCommand": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.options.script": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.scriptContent": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test.metadata.runCommand": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.metadata": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.options.script": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.metadata.scriptContent": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:watch.metadata.runCommand": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.options.script": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata.scriptContent": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.test:coverage.metadata.runCommand": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.options.script": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.scriptContent": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.lint.metadata.runCommand": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.options.script": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata.scriptContent": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.format.metadata.runCommand": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.metadata": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.options.script": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.metadata.scriptContent": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate.metadata.runCommand": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate:dev": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate:dev.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate:dev.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate:dev.metadata": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate:dev.options.script": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate:dev.metadata.scriptContent": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.migrate:dev.metadata.runCommand": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.metadata": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.options.script": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.metadata.scriptContent": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.generate.metadata.runCommand": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.executor": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.dependsOn": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "targets.nx-release-publish.options": [
+      "microservices/core/auth-service/package.json",
+      "nx/core/package-json"
+    ],
+    "$schema": [
+      "microservices/core/auth-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/core/auth-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/core/auth-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.dependsOn": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ]
+  },
+  "frontend/mobile-app": {
+    "root": [
+      "frontend/mobile-app/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "frontend/mobile-app/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "frontend/mobile-app/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "frontend/mobile-app/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "frontend/mobile-app/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "libs/constants": {
+    "root": [
+      "libs/constants/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "libs/constants/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "libs/constants/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "libs/constants/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "libs/constants/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "libs/types": {
+    "root": [
+      "libs/types/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "libs/types/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "libs/types/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "libs/types/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "libs/types/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "libs/ui-components": {
+    "root": [
+      "libs/ui-components/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "libs/ui-components/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "libs/ui-components/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "libs/ui-components/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "libs/ui-components/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "libs/utils": {
+    "root": [
+      "libs/utils/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "libs/utils/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "libs/utils/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "libs/utils/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "libs/utils/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/admin/admin-service": {
+    "root": [
+      "microservices/admin/admin-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/admin/admin-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/admin/admin-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/admin/admin-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/admin/admin-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/admin/product-management-service": {
+    "root": [
+      "microservices/admin/product-management-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/admin/product-management-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/admin/product-management-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/admin/product-management-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/admin/product-management-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/analytics/advanced-analytics-service": {
+    "root": [
+      "microservices/analytics/advanced-analytics-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/analytics/advanced-analytics-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/analytics/advanced-analytics-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/analytics/advanced-analytics-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/analytics/advanced-analytics-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/analytics/business-intelligence": {
+    "root": [
+      "microservices/analytics/business-intelligence/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/analytics/business-intelligence/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/analytics/business-intelligence/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/analytics/business-intelligence/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/analytics/business-intelligence/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/analytics/performance-optimization-service": {
+    "root": [
+      "microservices/analytics/performance-optimization-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/analytics/performance-optimization-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/analytics/performance-optimization-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/analytics/performance-optimization-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/analytics/performance-optimization-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/analytics/real-time-analytics": {
+    "root": [
+      "microservices/analytics/real-time-analytics/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/analytics/real-time-analytics/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/analytics/real-time-analytics/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/analytics/real-time-analytics/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/analytics/real-time-analytics/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/business/cart-service": {
+    "root": [
+      "microservices/business/cart-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/business/cart-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/business/cart-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/business/cart-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/business/cart-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/business/inventory-service": {
+    "root": [
+      "microservices/business/inventory-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/business/inventory-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/business/inventory-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/business/inventory-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/business/inventory-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/business/order-service": {
+    "root": [
+      "microservices/business/order-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/business/order-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/business/order-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/business/order-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/business/order-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/business/payment-service": {
+    "root": [
+      "microservices/business/payment-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/business/payment-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/business/payment-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/business/payment-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/business/payment-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/business/product-service": {
+    "root": [
+      "microservices/business/product-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/business/product-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/business/product-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/business/product-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/business/product-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/business/review-service": {
+    "root": [
+      "microservices/business/review-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/business/review-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/business/review-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/business/review-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/business/review-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/business/shipping-service": {
+    "root": [
+      "microservices/business/shipping-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/business/shipping-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/business/shipping-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/business/shipping-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/business/shipping-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/core/api-gateway": {
+    "root": [
+      "microservices/core/api-gateway/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/core/api-gateway/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/core/api-gateway/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/core/api-gateway/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/core/api-gateway/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/core/config-service": {
+    "root": [
+      "microservices/core/config-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/core/config-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/core/config-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/core/config-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/core/config-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/core/store-service": {
+    "root": [
+      "microservices/core/store-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/core/store-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/core/store-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/core/store-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/core/store-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/core/user-service": {
+    "root": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "tags": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "tags.scope:backend": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "tags.type:service": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "tags.domain:user": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.executor": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.outputs": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.options": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.configurations": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.options.outputPath": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.options.main": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.options.tsConfig": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.options.assets": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.configurations.production": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.configurations.production.optimization": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.configurations.production.extractLicenses": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.configurations.production.inspect": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.configurations.production.fileReplacements": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.serve": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.serve.executor": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.serve.options": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.serve.options.buildTarget": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.lint": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.lint.executor": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.lint.outputs": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.lint.options": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.lint.options.lintFilePatterns": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.test": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.test.executor": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.test.outputs": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.test.options": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.test.options.jestConfig": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.test.options.passWithNoTests": [
+      "microservices/core/user-service/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.build.dependsOn": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.build.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.lint.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.inputs": [
+      "nx.json",
+      "nx/target-defaults"
+    ],
+    "targets.test.parallelism": [
+      "nx.json",
+      "nx/target-defaults"
+    ]
+  },
+  "microservices/ml-ai/fraud-detection-service": {
+    "root": [
+      "microservices/ml-ai/fraud-detection-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/ml-ai/fraud-detection-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/ml-ai/fraud-detection-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/ml-ai/fraud-detection-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/ml-ai/fraud-detection-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/ml-ai/personalization-service": {
+    "root": [
+      "microservices/ml-ai/personalization-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/ml-ai/personalization-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/ml-ai/personalization-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/ml-ai/personalization-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/ml-ai/personalization-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/ml-ai/recommendation-service": {
+    "root": [
+      "microservices/ml-ai/recommendation-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/ml-ai/recommendation-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/ml-ai/recommendation-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/ml-ai/recommendation-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/ml-ai/recommendation-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/platform/audit-service": {
+    "root": [
+      "microservices/platform/audit-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/platform/audit-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/platform/audit-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/platform/audit-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/platform/audit-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/platform/content-service": {
+    "root": [
+      "microservices/platform/content-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/platform/content-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/platform/content-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/platform/content-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/platform/content-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/platform/file-service": {
+    "root": [
+      "microservices/platform/file-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/platform/file-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/platform/file-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/platform/file-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/platform/file-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/platform/navigation-service": {
+    "root": [
+      "microservices/platform/navigation-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/platform/navigation-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/platform/navigation-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/platform/navigation-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/platform/navigation-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/platform/notification-service": {
+    "root": [
+      "microservices/platform/notification-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/platform/notification-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/platform/notification-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/platform/notification-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/platform/notification-service/project.json",
+      "nx/core/project-json"
+    ]
+  },
+  "microservices/platform/search-service": {
+    "root": [
+      "microservices/platform/search-service/project.json",
+      "nx/core/project-json"
+    ],
+    "name": [
+      "microservices/platform/search-service/project.json",
+      "nx/core/project-json"
+    ],
+    "$schema": [
+      "microservices/platform/search-service/project.json",
+      "nx/core/project-json"
+    ],
+    "sourceRoot": [
+      "microservices/platform/search-service/project.json",
+      "nx/core/project-json"
+    ],
+    "projectType": [
+      "microservices/platform/search-service/project.json",
+      "nx/core/project-json"
+    ]
+  }
+}

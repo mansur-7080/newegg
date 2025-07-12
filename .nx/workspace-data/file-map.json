@@ -1,0 +1,1595 @@
+{
+  "version": "6.0",
+  "nxVersion": "21.2.2",
+  "pathMappings": {
+    "@ultramarket/shared": [
+      "./libs/shared/src"
+    ],
+    "@ultramarket/shared/*": [
+      "./libs/shared/src/*"
+    ],
+    "@ultramarket/types": [
+      "./libs/types/src"
+    ],
+    "@ultramarket/types/*": [
+      "./libs/types/src/*"
+    ],
+    "@ultramarket/utils": [
+      "./libs/utils/src"
+    ],
+    "@ultramarket/utils/*": [
+      "./libs/utils/src/*"
+    ],
+    "@ultramarket/constants": [
+      "./libs/constants/src"
+    ],
+    "@ultramarket/constants/*": [
+      "./libs/constants/src/*"
+    ],
+    "@ultramarket/ui-components": [
+      "./libs/ui-components/src"
+    ],
+    "@ultramarket/ui-components/*": [
+      "./libs/ui-components/src/*"
+    ],
+    "@/*": [
+      "./src/*"
+    ]
+  },
+  "nxJsonPlugins": [],
+  "fileMap": {
+    "projectFileMap": {
+      "web-app": [
+        {
+          "file": "frontend/web-app/Dockerfile.dev",
+          "hash": "4267297454361167051"
+        },
+        {
+          "file": "frontend/web-app/package.json",
+          "hash": "5294016345993146057"
+        },
+        {
+          "file": "frontend/web-app/project.json",
+          "hash": "12290479245104063768"
+        },
+        {
+          "file": "frontend/web-app/src/App.tsx",
+          "hash": "11196791576237486391"
+        },
+        {
+          "file": "frontend/web-app/src/components/Layout/Footer.tsx",
+          "hash": "16075077177860393851"
+        },
+        {
+          "file": "frontend/web-app/src/components/Layout/Header.tsx",
+          "hash": "2772180179675775271"
+        },
+        {
+          "file": "frontend/web-app/src/components/Layout/Layout.tsx",
+          "hash": "2083260059735715795"
+        },
+        {
+          "file": "frontend/web-app/src/components/common/ErrorFallback.tsx",
+          "hash": "8638413706760104867"
+        },
+        {
+          "file": "frontend/web-app/src/components/common/LoadingSpinner.tsx",
+          "hash": "9321297553009300109"
+        },
+        {
+          "file": "frontend/web-app/src/pages/CartPage.tsx",
+          "hash": "11391176470399459077"
+        },
+        {
+          "file": "frontend/web-app/src/pages/CheckoutPage.tsx",
+          "hash": "1952183526487251655"
+        },
+        {
+          "file": "frontend/web-app/src/pages/HomePage.tsx",
+          "hash": "7341174997039197524"
+        },
+        {
+          "file": "frontend/web-app/src/pages/LoginPage.tsx",
+          "hash": "11060285601252729983"
+        },
+        {
+          "file": "frontend/web-app/src/pages/NotFoundPage.tsx",
+          "hash": "15592098813275913027"
+        },
+        {
+          "file": "frontend/web-app/src/pages/OrderHistoryPage.tsx",
+          "hash": "5849228518786408446"
+        },
+        {
+          "file": "frontend/web-app/src/pages/ProductDetailPage.tsx",
+          "hash": "6814846715948713364"
+        },
+        {
+          "file": "frontend/web-app/src/pages/ProductListPage.tsx",
+          "hash": "6157576070775101015"
+        },
+        {
+          "file": "frontend/web-app/src/pages/ProfilePage.tsx",
+          "hash": "13288440448873925033"
+        },
+        {
+          "file": "frontend/web-app/src/pages/RegisterPage.tsx",
+          "hash": "5118448256022937607"
+        },
+        {
+          "file": "frontend/web-app/src/services/api.ts",
+          "hash": "18189972101159872795"
+        },
+        {
+          "file": "frontend/web-app/src/store/index.ts",
+          "hash": "15577627630299541166"
+        },
+        {
+          "file": "frontend/web-app/src/store/slices/authSlice.ts",
+          "hash": "13986090178273328267"
+        },
+        {
+          "file": "frontend/web-app/src/store/slices/cartSlice.ts",
+          "hash": "11375435950832602019"
+        },
+        {
+          "file": "frontend/web-app/src/store/slices/orderSlice.ts",
+          "hash": "8903861086560910331"
+        },
+        {
+          "file": "frontend/web-app/src/store/slices/productSlice.ts",
+          "hash": "3001934171045067673"
+        },
+        {
+          "file": "frontend/web-app/src/styles/globals.css",
+          "hash": "14294279206134717383"
+        },
+        {
+          "file": "frontend/web-app/tsconfig.json",
+          "hash": "9118454729578641576"
+        },
+        {
+          "file": "frontend/web-app/tsconfig.node.json",
+          "hash": "3504888892574358884"
+        },
+        {
+          "file": "frontend/web-app/vite.config.ts",
+          "hash": "11175029289100428962"
+        }
+      ],
+      "fraud-detection-service": [
+        {
+          "file": "microservices/ml-ai/fraud-detection-service/project.json",
+          "hash": "10538882671566942292"
+        }
+      ],
+      "constants": [
+        {
+          "file": "libs/constants/project.json",
+          "hash": "2610079223960327187"
+        }
+      ],
+      "order-service": [
+        {
+          "file": "microservices/business/order-service/order-service/Dockerfile.dev",
+          "hash": "1768754610320189820"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/jest.config.js",
+          "hash": "5075300810035600065"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/package.json",
+          "hash": "10415453128033733627"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/prisma/schema.prisma",
+          "hash": "15432397329453977897"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/src/__tests__/order.service.test.ts",
+          "hash": "15348013408390167508"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/src/config/database.ts",
+          "hash": "13752594134535528745"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/src/models/Order.ts",
+          "hash": "8492492592633891127"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/src/services/order.service.ts",
+          "hash": "9945536601972848881"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/src/utils/logger.ts",
+          "hash": "16081759257248432994"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/tsconfig.json",
+          "hash": "16631160153537059026"
+        },
+        {
+          "file": "microservices/business/order-service/order-service/tsconfig.test.json",
+          "hash": "13720783167581779471"
+        },
+        {
+          "file": "microservices/business/order-service/project.json",
+          "hash": "10878002123671049797"
+        }
+      ],
+      "search-service": [
+        {
+          "file": "microservices/platform/search-service/project.json",
+          "hash": "4827118947257862804"
+        },
+        {
+          "file": "microservices/platform/search-service/search-service/Dockerfile.dev",
+          "hash": "10147345405854716874"
+        },
+        {
+          "file": "microservices/platform/search-service/search-service/healthcheck.js",
+          "hash": "9305288061233032550"
+        },
+        {
+          "file": "microservices/platform/search-service/search-service/package.json",
+          "hash": "12640778296238644198"
+        },
+        {
+          "file": "microservices/platform/search-service/search-service/prisma/schema.prisma",
+          "hash": "12693041870556313330"
+        },
+        {
+          "file": "microservices/platform/search-service/search-service/src/index.ts",
+          "hash": "6533097498432440482"
+        },
+        {
+          "file": "microservices/platform/search-service/search-service/src/services/search.service.ts",
+          "hash": "6430883228075752705"
+        }
+      ],
+      "inventory-service": [
+        {
+          "file": "microservices/business/inventory-service/inventory-service/src/services/inventory.service.ts",
+          "hash": "10353510900973686272"
+        },
+        {
+          "file": "microservices/business/inventory-service/project.json",
+          "hash": "18201472193967206799"
+        }
+      ],
+      "dynamic-pricing-service": [
+        {
+          "file": "microservices/business/dynamic-pricing-service/package.json",
+          "hash": "17790906028342194305",
+          "deps": [
+            "shared"
+          ]
+        },
+        {
+          "file": "microservices/business/dynamic-pricing-service/project.json",
+          "hash": "6225056161235969330"
+        },
+        {
+          "file": "microservices/business/dynamic-pricing-service/src/index.ts",
+          "hash": "14948300695764019638"
+        }
+      ],
+      "user-service": [
+        {
+          "file": "microservices/core/user-service/project.json",
+          "hash": "11983215311398960980"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/Dockerfile.dev",
+          "hash": "3387383341064476333"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/healthcheck.js",
+          "hash": "3316544468443413294"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/package.json",
+          "hash": "8383775213063673029"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/prisma/migrations/20250706014950_init/migration.sql",
+          "hash": "3977430565408365849"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/prisma/migrations/migration_lock.toml",
+          "hash": "10997593172930738585"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/prisma/schema.prisma",
+          "hash": "4888341123784965121"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/__tests__/user.controller.test.ts",
+          "hash": "8049651533439426019"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/__tests__/user.service.test.ts",
+          "hash": "4992648133836698122"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/config/database.ts",
+          "hash": "11759356370967965437"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/controllers/auth.controller.ts",
+          "hash": "4745733977894520422"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/controllers/user.controller.ts",
+          "hash": "13609260091623255440"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/controllers/userController.ts",
+          "hash": "849638404933173661"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/docs/swagger.ts",
+          "hash": "9019218220140452298"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/index.ts",
+          "hash": "3196623095295685205"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/lib/prisma.ts",
+          "hash": "15012952683820456807"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/middleware/auth.ts",
+          "hash": "16398976753399836780"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/middleware/errorHandler.ts",
+          "hash": "17883711121077089416"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/middleware/requestLogger.ts",
+          "hash": "12498033860528522623"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/middleware/validation.ts",
+          "hash": "13704618998028452720"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/monitoring/metrics.ts",
+          "hash": "5349672285989324464"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/repositories/userRepository.ts",
+          "hash": "3995958991800160085"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/routes/auth.ts",
+          "hash": "13364797582505530625"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/routes/health.ts",
+          "hash": "10168499864717528434"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/routes/user.ts",
+          "hash": "5610746272726172473"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/routes/userRoutes.ts",
+          "hash": "4519507529064360379"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/services/email.service.ts",
+          "hash": "9593140569134670715"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/services/redis.service.ts",
+          "hash": "2886598823564735263"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/services/user.service.ts",
+          "hash": "5347133051313295227"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/services/userService.ts",
+          "hash": "6982446242849096295"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/types/auth.ts",
+          "hash": "18082029203302742666"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/utils/logger.ts",
+          "hash": "17546186585480733147"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/src/validators/userValidators.ts",
+          "hash": "7457618922563830891"
+        },
+        {
+          "file": "microservices/core/user-service/user-service/tsconfig.json",
+          "hash": "8962427529900477926"
+        }
+      ],
+      "review-service": [
+        {
+          "file": "microservices/business/review-service/project.json",
+          "hash": "2151332668070801258"
+        },
+        {
+          "file": "microservices/business/review-service/review-service/src/models/Review.ts",
+          "hash": "3809438391224194466"
+        }
+      ],
+      "utils": [
+        {
+          "file": "libs/utils/project.json",
+          "hash": "2702977692462861893"
+        }
+      ],
+      "analytics-service": [
+        {
+          "file": "microservices/analytics/analytics-service/package.json",
+          "hash": "9926346886016080177"
+        },
+        {
+          "file": "microservices/analytics/analytics-service/prisma/schema.prisma",
+          "hash": "5523100978549032502"
+        }
+      ],
+      "cart-service": [
+        {
+          "file": "microservices/business/cart-service/cart-service/Dockerfile.dev",
+          "hash": "12235811213550160352"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/babel.config.json",
+          "hash": "6064379477436236672"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/jest.config.js",
+          "hash": "12540635671007901891"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/package.json",
+          "hash": "17539113202612022165"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/prisma/schema.prisma",
+          "hash": "16735861386065200618"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/__mocks__/redis.js",
+          "hash": "3244421341483603138"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/__mocks__/redis.ts",
+          "hash": "18091279982001933606"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/__tests__/basic-cart.test.ts",
+          "hash": "8481663136276068337"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/__tests__/cart.service.fixed.test.ts",
+          "hash": "6932384829268511974"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/__tests__/cart.service.simple.test.ts",
+          "hash": "1523499551240479472"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/__tests__/cart.service.test.fixed.ts",
+          "hash": "14064381399271117406"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/__tests__/cart.service.test.ts",
+          "hash": "4470779876713078286"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/__tests__/cart.simple.test.ts",
+          "hash": "9194062363900927786"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/__tests__/mocks/redis.mock.ts",
+          "hash": "16599330167357091233"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/__tests__/simple.test.ts",
+          "hash": "6665155131398402955"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/config/database.ts",
+          "hash": "13206722373119122627"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/config/redis.ts",
+          "hash": "16522525754136090983"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/controllers/cart.controller.ts",
+          "hash": "1833429827841649954"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/index.ts",
+          "hash": "16474463749895295723"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/middleware/errorHandler.ts",
+          "hash": "15443180445437777786"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/middleware/notFound.ts",
+          "hash": "9421858844784329183"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/models/Cart.ts",
+          "hash": "12643745503911128464"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/routes/cart.routes.ts",
+          "hash": "4708594587919098035"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/routes/health.routes.ts",
+          "hash": "25641908240161652"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/services/cart.service.ts",
+          "hash": "2890110423878511985"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/src/utils/logger.ts",
+          "hash": "18373591486199733296"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/tsconfig.json",
+          "hash": "13920135934988457997"
+        },
+        {
+          "file": "microservices/business/cart-service/cart-service/tsconfig.test.json",
+          "hash": "1846640089138801582"
+        },
+        {
+          "file": "microservices/business/cart-service/project.json",
+          "hash": "1772160788593338821"
+        }
+      ],
+      "pc-builder-service": [
+        {
+          "file": "microservices/business/pc-builder-service/package.json",
+          "hash": "15347376925787226849",
+          "deps": [
+            "shared"
+          ]
+        },
+        {
+          "file": "microservices/business/pc-builder-service/project.json",
+          "hash": "4777140862348440855"
+        },
+        {
+          "file": "microservices/business/pc-builder-service/src/index.ts",
+          "hash": "8353561312564942948"
+        }
+      ],
+      "product-service": [
+        {
+          "file": "microservices/business/product-service/product-service/.env.example",
+          "hash": "14496215444996164547"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/Dockerfile",
+          "hash": "17042530642230301072"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/Dockerfile.dev",
+          "hash": "2805998750535977899"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/healthcheck.js",
+          "hash": "8650101917380168901"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/jest.config.js",
+          "hash": "14422275188781753016"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/package.json",
+          "hash": "11182833075086777220"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/package.json.txt",
+          "hash": "11182833075086777220"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/prisma/schema.prisma",
+          "hash": "4191369023196603960"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/__tests__/product.service.test.ts",
+          "hash": "16873640362096531349"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/config/database.ts",
+          "hash": "14207686169975189415"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/controllers/category.controller.ts",
+          "hash": "3022077836136863539"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/controllers/product.controller.ts",
+          "hash": "15046871661715616650"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/controllers/productController.ts",
+          "hash": "8683741551000554761"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/database/ProductDatabase.ts",
+          "hash": "3025205095663925955"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/docs/swagger.ts",
+          "hash": "11912947735102443244"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/index.ts",
+          "hash": "8905933649948559714"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/middleware/errorHandler.ts",
+          "hash": "15690465480058146573"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/middleware/notFound.ts",
+          "hash": "12896171057379330917"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/middleware/validation.ts",
+          "hash": "8393960700480876408"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/models/Category.ts",
+          "hash": "5796052685838049860"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/models/Product.ts",
+          "hash": "1896283319116251168"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/models/Review.ts",
+          "hash": "15970998946927775615"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/models/index.ts",
+          "hash": "10311341087868350225"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/repositories/productRepository.ts",
+          "hash": "12029394794842679095"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/routes/category.routes.ts",
+          "hash": "14156989005170385012"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/routes/health.routes.ts",
+          "hash": "17248485326400921701"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/routes/product.routes.ts",
+          "hash": "252024174222529091"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/routes/productRoutes.ts",
+          "hash": "6984880578095990594"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/routes/search.routes.ts",
+          "hash": "9803695123452176016"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/services/productService.new.ts",
+          "hash": "14938853104055754915"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/services/productService.ts",
+          "hash": "7916154872144213141"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/services/productService.ts.bak",
+          "hash": "15033565999158129989"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/utils/logger.ts",
+          "hash": "8533139009067886894"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/src/validators/productValidator.ts",
+          "hash": "15074041017704518411"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/tsconfig.json",
+          "hash": "1530733545990448809"
+        },
+        {
+          "file": "microservices/business/product-service/product-service/tsconfig.test.json",
+          "hash": "13720783167581779471"
+        },
+        {
+          "file": "microservices/business/product-service/project.json",
+          "hash": "9899551479143433518"
+        }
+      ],
+      "navigation-service": [
+        {
+          "file": "microservices/platform/navigation-service/project.json",
+          "hash": "4308638441649736106"
+        }
+      ],
+      "notification-service": [
+        {
+          "file": "microservices/platform/notification-service/notification-service/Dockerfile.dev",
+          "hash": "11430866904398116553"
+        },
+        {
+          "file": "microservices/platform/notification-service/notification-service/healthcheck.js",
+          "hash": "9130637767208380958"
+        },
+        {
+          "file": "microservices/platform/notification-service/notification-service/package.json",
+          "hash": "13926865493473054750"
+        },
+        {
+          "file": "microservices/platform/notification-service/notification-service/prisma/schema.prisma",
+          "hash": "11103012475749123603"
+        },
+        {
+          "file": "microservices/platform/notification-service/notification-service/src/index.ts",
+          "hash": "9518695356236700699"
+        },
+        {
+          "file": "microservices/platform/notification-service/notification-service/src/services/notification.service.ts",
+          "hash": "5306848091010064068"
+        },
+        {
+          "file": "microservices/platform/notification-service/project.json",
+          "hash": "10564399622367634892"
+        }
+      ],
+      "shipping-service": [
+        {
+          "file": "microservices/business/shipping-service/project.json",
+          "hash": "4619653283762715096"
+        },
+        {
+          "file": "microservices/business/shipping-service/shipping-service/src/services/shipping.service.ts",
+          "hash": "5990425244825375888"
+        }
+      ],
+      "payment-service": [
+        {
+          "file": "microservices/business/payment-service/payment-service/Dockerfile.dev",
+          "hash": "11721285827919370656"
+        },
+        {
+          "file": "microservices/business/payment-service/payment-service/package.json",
+          "hash": "9998850315666136051"
+        },
+        {
+          "file": "microservices/business/payment-service/payment-service/prisma/schema.prisma",
+          "hash": "6951149390670275836"
+        },
+        {
+          "file": "microservices/business/payment-service/payment-service/src/services/payment.service.ts",
+          "hash": "2528897282267736198"
+        },
+        {
+          "file": "microservices/business/payment-service/project.json",
+          "hash": "11335703202197568752"
+        }
+      ],
+      "audit-service": [
+        {
+          "file": "microservices/platform/audit-service/project.json",
+          "hash": "5312305875211681614"
+        }
+      ],
+      "performance-optimization-service": [
+        {
+          "file": "microservices/analytics/performance-optimization-service/project.json",
+          "hash": "14460740521953599281"
+        }
+      ],
+      "recommendation-service": [
+        {
+          "file": "microservices/ml-ai/recommendation-service/project.json",
+          "hash": "461651725778439598"
+        }
+      ],
+      "auth-service": [
+        {
+          "file": "microservices/core/auth-service/healthcheck.js",
+          "hash": "4582481205311528731"
+        },
+        {
+          "file": "microservices/core/auth-service/package.json",
+          "hash": "5990138172629029104",
+          "deps": [
+            "shared"
+          ]
+        },
+        {
+          "file": "microservices/core/auth-service/prisma/schema.prisma",
+          "hash": "140063817211195094"
+        },
+        {
+          "file": "microservices/core/auth-service/project.json",
+          "hash": "6447081860022605172"
+        },
+        {
+          "file": "microservices/core/auth-service/src/__tests__/auth.service.test.ts",
+          "hash": "17089604420930996028"
+        },
+        {
+          "file": "microservices/core/auth-service/src/index.ts",
+          "hash": "10728496021523617362"
+        }
+      ],
+      "real-time-analytics": [
+        {
+          "file": "microservices/analytics/real-time-analytics/project.json",
+          "hash": "6331066964688659442"
+        }
+      ],
+      "business-intelligence": [
+        {
+          "file": "microservices/analytics/business-intelligence/project.json",
+          "hash": "10047537562081838088"
+        }
+      ],
+      "content-service": [
+        {
+          "file": "microservices/platform/content-service/project.json",
+          "hash": "11223139608044032552"
+        }
+      ],
+      "config-service": [
+        {
+          "file": "microservices/core/config-service/configuration-service/healthcheck.js",
+          "hash": "18337927018011406770"
+        },
+        {
+          "file": "microservices/core/config-service/configuration-service/src/index.ts",
+          "hash": "5577983965526335888"
+        },
+        {
+          "file": "microservices/core/config-service/project.json",
+          "hash": "9925551149691818269"
+        }
+      ],
+      "ui-components": [
+        {
+          "file": "libs/ui-components/project.json",
+          "hash": "5992400011081605419"
+        }
+      ],
+      "product-management-service": [
+        {
+          "file": "microservices/admin/product-management-service/project.json",
+          "hash": "15985388210280917023"
+        }
+      ],
+      "admin-service": [
+        {
+          "file": "microservices/admin/admin-service/project.json",
+          "hash": "15453247395878931074"
+        }
+      ],
+      "api-gateway": [
+        {
+          "file": "microservices/core/api-gateway/api-gateway/Dockerfile",
+          "hash": "6682890869936977752"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/Dockerfile.dev",
+          "hash": "115702859986424111"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/kong.yml",
+          "hash": "8528653800159314255"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/package.json",
+          "hash": "6360541338485745108"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/src/index.ts",
+          "hash": "10035393503236367093"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/src/middleware/auth.ts",
+          "hash": "7298570286130917999"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/src/middleware/errorHandler.ts",
+          "hash": "10084241046753861372"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/src/middleware/metrics.ts",
+          "hash": "8537225863937848437"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/src/routes/auth.ts",
+          "hash": "8317822958559492936"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/src/routes/health.ts",
+          "hash": "4883916048671198915"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/src/utils/logger.ts",
+          "hash": "1271312957537283019"
+        },
+        {
+          "file": "microservices/core/api-gateway/api-gateway/tsconfig.json",
+          "hash": "13380195305135586802"
+        },
+        {
+          "file": "microservices/core/api-gateway/project.json",
+          "hash": "10928428769695521380"
+        }
+      ],
+      "personalization-service": [
+        {
+          "file": "microservices/ml-ai/personalization-service/project.json",
+          "hash": "6359291848844647563"
+        }
+      ],
+      "admin-panel": [
+        {
+          "file": "frontend/admin-panel/Dockerfile.dev",
+          "hash": "14467125708761408652"
+        },
+        {
+          "file": "frontend/admin-panel/package.json",
+          "hash": "15970400233904625380"
+        },
+        {
+          "file": "frontend/admin-panel/project.json",
+          "hash": "12865855196638519607"
+        },
+        {
+          "file": "frontend/admin-panel/src/App.tsx",
+          "hash": "5331116144845721063"
+        },
+        {
+          "file": "frontend/admin-panel/src/pages/SystemMonitoring.tsx",
+          "hash": "10114834185468893632"
+        }
+      ],
+      "advanced-analytics-service": [
+        {
+          "file": "microservices/analytics/advanced-analytics-service/advanced-analytics-service/src/services/analytics.service.ts",
+          "hash": "3011811685920383962"
+        },
+        {
+          "file": "microservices/analytics/advanced-analytics-service/project.json",
+          "hash": "18241815283427739371"
+        }
+      ],
+      "file-service": [
+        {
+          "file": "microservices/platform/file-service/project.json",
+          "hash": "8409543041018979635"
+        }
+      ],
+      "store-service": [
+        {
+          "file": "microservices/core/store-service/project.json",
+          "hash": "6715314005982775062"
+        }
+      ],
+      "shared": [
+        {
+          "file": "libs/shared/package.json",
+          "hash": "2645122582103509130"
+        },
+        {
+          "file": "libs/shared/project.json",
+          "hash": "15411475930187459143"
+        },
+        {
+          "file": "libs/shared/src/__tests__/errors.test.ts",
+          "hash": "16058613937085269797"
+        },
+        {
+          "file": "libs/shared/src/__tests__/middleware.test.ts",
+          "hash": "12233638566444463271"
+        },
+        {
+          "file": "libs/shared/src/__tests__/validation.test.ts",
+          "hash": "12003351783064194646"
+        },
+        {
+          "file": "libs/shared/src/api/versioning.ts",
+          "hash": "941123100153415210"
+        },
+        {
+          "file": "libs/shared/src/auth.ts",
+          "hash": "12431140346654248222"
+        },
+        {
+          "file": "libs/shared/src/auth/jwt-manager.ts",
+          "hash": "11315818945989075600"
+        },
+        {
+          "file": "libs/shared/src/cache.ts",
+          "hash": "9144492055632423032"
+        },
+        {
+          "file": "libs/shared/src/constants.ts",
+          "hash": "1777405230685668095"
+        },
+        {
+          "file": "libs/shared/src/database.ts",
+          "hash": "11245653071534056721"
+        },
+        {
+          "file": "libs/shared/src/database.ts.fixed",
+          "hash": "1098936466360451908"
+        },
+        {
+          "file": "libs/shared/src/database.ts.new",
+          "hash": "8768670357223016516"
+        },
+        {
+          "file": "libs/shared/src/database/optimized-schema.sql",
+          "hash": "3848794503817760223"
+        },
+        {
+          "file": "libs/shared/src/database/types.ts",
+          "hash": "5287769533523484476"
+        },
+        {
+          "file": "libs/shared/src/docs/swagger-config.ts",
+          "hash": "14206141423109099817"
+        },
+        {
+          "file": "libs/shared/src/errors.ts",
+          "hash": "17448674128330909736"
+        },
+        {
+          "file": "libs/shared/src/index.ts",
+          "hash": "6606278024785333883"
+        },
+        {
+          "file": "libs/shared/src/logger.ts",
+          "hash": "18150706468387279582"
+        },
+        {
+          "file": "libs/shared/src/logging/logger.ts",
+          "hash": "6176997129788319415"
+        },
+        {
+          "file": "libs/shared/src/messaging.ts",
+          "hash": "4685118041216750440"
+        },
+        {
+          "file": "libs/shared/src/middleware.ts",
+          "hash": "8241673355165099773"
+        },
+        {
+          "file": "libs/shared/src/middleware/error-handler.ts",
+          "hash": "17571019130945363604"
+        },
+        {
+          "file": "libs/shared/src/middleware/security.ts",
+          "hash": "8062971482208304185"
+        },
+        {
+          "file": "libs/shared/src/monitoring/health-monitor.ts",
+          "hash": "12559761753410283613"
+        },
+        {
+          "file": "libs/shared/src/performance/cache-manager.ts",
+          "hash": "6141674129620820239"
+        },
+        {
+          "file": "libs/shared/src/performance/caching.ts",
+          "hash": "3181349730760870359"
+        },
+        {
+          "file": "libs/shared/src/performance/optimization.ts",
+          "hash": "18065327769871940404"
+        },
+        {
+          "file": "libs/shared/src/security/security-middleware.ts",
+          "hash": "10560370363888834768"
+        },
+        {
+          "file": "libs/shared/src/testing/test-utils.ts",
+          "hash": "326180003098657767"
+        },
+        {
+          "file": "libs/shared/src/types.ts",
+          "hash": "5965213730695109265"
+        },
+        {
+          "file": "libs/shared/src/types/api-responses.ts",
+          "hash": "6344201330049886919"
+        },
+        {
+          "file": "libs/shared/src/types/common.ts",
+          "hash": "2444922099048932778"
+        },
+        {
+          "file": "libs/shared/src/utils.ts",
+          "hash": "9431591668655315023"
+        },
+        {
+          "file": "libs/shared/src/utils/file-organizer.ts",
+          "hash": "17658177436028780256"
+        },
+        {
+          "file": "libs/shared/src/validation.ts",
+          "hash": "13691797997930000140"
+        },
+        {
+          "file": "libs/shared/src/validation/environment.ts",
+          "hash": "2357856107981475304"
+        },
+        {
+          "file": "libs/shared/tsconfig.json",
+          "hash": "3390647818064151493"
+        }
+      ],
+      "types": [
+        {
+          "file": "libs/types/project.json",
+          "hash": "12004325596329502342"
+        }
+      ],
+      "mobile-app": [
+        {
+          "file": "frontend/mobile-app/project.json",
+          "hash": "12666294398381455705"
+        }
+      ]
+    },
+    "nonProjectFiles": [
+      {
+        "file": ".editorconfig",
+        "hash": "11916907935067444429"
+      },
+      {
+        "file": ".env.backup.1752205460123",
+        "hash": "13294121584808161710"
+      },
+      {
+        "file": ".eslintrc.json",
+        "hash": "4155408276705220075"
+      },
+      {
+        "file": ".github/workflows/ci-cd.yml",
+        "hash": "6887882250853094183"
+      },
+      {
+        "file": ".github/workflows/main.yml",
+        "hash": "3237622794768381628"
+      },
+      {
+        "file": ".github/workflows/production-deploy.yml",
+        "hash": "14683172975956422864"
+      },
+      {
+        "file": ".gitignore",
+        "hash": "5474480237311600252"
+      },
+      {
+        "file": ".prettierrc",
+        "hash": "9169259104864906496"
+      },
+      {
+        "file": "COMPREHENSIVE_PROJECT_ANALYSIS.md",
+        "hash": "6544879887327804485"
+      },
+      {
+        "file": "ENTERPRISE_SYSTEM_STATUS.md",
+        "hash": "6725424434846871163"
+      },
+      {
+        "file": "FINAL_IMPROVEMENT_REPORT.md",
+        "hash": "13684067668717132373"
+      },
+      {
+        "file": "FIXES_COMPLETED_REPORT.md",
+        "hash": "10006473920550948171"
+      },
+      {
+        "file": "LICENSE",
+        "hash": "10208840685013505597"
+      },
+      {
+        "file": "Makefile",
+        "hash": "15999478405433699712"
+      },
+      {
+        "file": "PRODUCTION_DEPLOYMENT_GUIDE.md",
+        "hash": "17330401405215950241"
+      },
+      {
+        "file": "PROFESSIONAL_FIXES_REPORT.md",
+        "hash": "11701085992462787775"
+      },
+      {
+        "file": "PROFESSIONAL_FIXES_SUMMARY.md",
+        "hash": "14680999341277600238"
+      },
+      {
+        "file": "PROJECT_STRUCTURE.md",
+        "hash": "213468849009213515"
+      },
+      {
+        "file": "PROJECT_SUMMARY.md",
+        "hash": "12084887471678777488"
+      },
+      {
+        "file": "README.md",
+        "hash": "8500349051324807019"
+      },
+      {
+        "file": "babel.config.js",
+        "hash": "9896717165589917005"
+      },
+      {
+        "file": "docker-compose.dev.yml",
+        "hash": "1265594816132237920"
+      },
+      {
+        "file": "docker-compose.prod.yml",
+        "hash": "3921328533299326753"
+      },
+      {
+        "file": "docker-compose.yml",
+        "hash": "5607516988551668998"
+      },
+      {
+        "file": "docs/API_Complete_Documentation.md",
+        "hash": "2584597160736984346"
+      },
+      {
+        "file": "docs/API_Specification.md",
+        "hash": "17289463233685678543"
+      },
+      {
+        "file": "docs/Database_Schema.md",
+        "hash": "13666851685591668485"
+      },
+      {
+        "file": "docs/Development_Setup_Guide.md",
+        "hash": "3604803027200287338"
+      },
+      {
+        "file": "docs/E-Commerce_Complete_Implementation_Plan.md",
+        "hash": "7629043720721838526"
+      },
+      {
+        "file": "docs/GITHUB_SETUP.md",
+        "hash": "11046012139341552437"
+      },
+      {
+        "file": "docs/Production_Deployment_Guide.md",
+        "hash": "5747035007741296331"
+      },
+      {
+        "file": "docs/Security_Checklist.md",
+        "hash": "3589971891294979453"
+      },
+      {
+        "file": "docs/Testing_Guide.md",
+        "hash": "11851326129138282713"
+      },
+      {
+        "file": "docs/Testing_Strategy.md",
+        "hash": "17886585453137418885"
+      },
+      {
+        "file": "docs/architecture.md",
+        "hash": "10450389576114848296"
+      },
+      {
+        "file": "docs/launch/go-live-checklist.md",
+        "hash": "7804888138099057787"
+      },
+      {
+        "file": "docs/operational/quick-reference-guide.md",
+        "hash": "13986928653184680879"
+      },
+      {
+        "file": "docs/operational/user-training-guide.md",
+        "hash": "8270160886525124372"
+      },
+      {
+        "file": "docs/uzbekistan-architecture.md",
+        "hash": "2790815045579823023"
+      },
+      {
+        "file": "env.example",
+        "hash": "9821789651346485624"
+      },
+      {
+        "file": "infrastructure/disaster-recovery/automated-backup.sh",
+        "hash": "7980427784213856563"
+      },
+      {
+        "file": "infrastructure/disaster-recovery/backup-strategy.md",
+        "hash": "14407014999782218738"
+      },
+      {
+        "file": "infrastructure/disaster-recovery/backup.conf",
+        "hash": "5375309077347212877"
+      },
+      {
+        "file": "infrastructure/disaster-recovery/production-backup-strategy.sh",
+        "hash": "16628510059639093895"
+      },
+      {
+        "file": "infrastructure/disaster-recovery/production-crontab",
+        "hash": "942877749969822682"
+      },
+      {
+        "file": "infrastructure/kubernetes/api-gateway.yaml",
+        "hash": "16886137405366115411"
+      },
+      {
+        "file": "infrastructure/kubernetes/databases.yaml",
+        "hash": "5483216237095315533"
+      },
+      {
+        "file": "infrastructure/kubernetes/monitoring.yaml",
+        "hash": "12340883618904658692"
+      },
+      {
+        "file": "infrastructure/kubernetes/namespace.yaml",
+        "hash": "11389383610492986677"
+      },
+      {
+        "file": "infrastructure/kubernetes/production/cart-service.yaml",
+        "hash": "13676773360851210573"
+      },
+      {
+        "file": "infrastructure/kubernetes/production/ingress.yaml",
+        "hash": "8413489727684334337"
+      },
+      {
+        "file": "infrastructure/kubernetes/production/namespace.yaml",
+        "hash": "9278148258803908694"
+      },
+      {
+        "file": "infrastructure/kubernetes/production/ultramarket-production.yaml",
+        "hash": "12566369059501851673"
+      },
+      {
+        "file": "infrastructure/kubernetes/production/user-service.yaml",
+        "hash": "17885895908412436638"
+      },
+      {
+        "file": "infrastructure/kubernetes/secrets.yaml",
+        "hash": "10576880157490163650"
+      },
+      {
+        "file": "infrastructure/monitoring/alertmanager.yml",
+        "hash": "7057860153086379898"
+      },
+      {
+        "file": "infrastructure/monitoring/alerts.yml",
+        "hash": "2619360535973446196"
+      },
+      {
+        "file": "infrastructure/monitoring/blackbox.yml",
+        "hash": "4634967402689559088"
+      },
+      {
+        "file": "infrastructure/monitoring/docker-compose.monitoring.yml",
+        "hash": "13172467499232998364"
+      },
+      {
+        "file": "infrastructure/monitoring/grafana/dashboards/production-monitoring.json",
+        "hash": "2817615730965026564"
+      },
+      {
+        "file": "infrastructure/monitoring/grafana/dashboards/ultramarket-overview.json",
+        "hash": "10616114543531517771"
+      },
+      {
+        "file": "infrastructure/monitoring/grafana/provisioning/dashboards.yml",
+        "hash": "1996494783455336713"
+      },
+      {
+        "file": "infrastructure/monitoring/grafana/provisioning/datasources.yml",
+        "hash": "11131017253424948591"
+      },
+      {
+        "file": "infrastructure/monitoring/prometheus-rules.yml",
+        "hash": "865512046026602272"
+      },
+      {
+        "file": "infrastructure/monitoring/prometheus.yml",
+        "hash": "18118017931374962396"
+      },
+      {
+        "file": "infrastructure/production/deployment-guide.md",
+        "hash": "15563064434855260480"
+      },
+      {
+        "file": "install-k6.ps1",
+        "hash": "13574887022522444288"
+      },
+      {
+        "file": "jest.config.js",
+        "hash": "17329359243743213766"
+      },
+      {
+        "file": "jest.env.js",
+        "hash": "2361212203886237890"
+      },
+      {
+        "file": "jest.frontend.setup.js",
+        "hash": "16017042482065612796"
+      },
+      {
+        "file": "jest.global-setup.js",
+        "hash": "10681375682491296687"
+      },
+      {
+        "file": "jest.global-teardown.js",
+        "hash": "9834245241517124449"
+      },
+      {
+        "file": "jest.setup.js",
+        "hash": "8388682268554956863"
+      },
+      {
+        "file": "nx.json",
+        "hash": "16168939377892225150"
+      },
+      {
+        "file": "package.json",
+        "hash": "10934490442670429258"
+      },
+      {
+        "file": "scripts/docker-build-optimize.sh",
+        "hash": "10649104989852591886"
+      },
+      {
+        "file": "scripts/generate-secrets.js",
+        "hash": "17338849204698692265"
+      },
+      {
+        "file": "scripts/load-test.js",
+        "hash": "16344192056076489720"
+      },
+      {
+        "file": "scripts/recover-from-docker.ps1",
+        "hash": "11038547065112249083"
+      },
+      {
+        "file": "scripts/restore-all-services.ps1",
+        "hash": "11834622588160985573"
+      },
+      {
+        "file": "scripts/setup-project.sh",
+        "hash": "1330683613689437475"
+      },
+      {
+        "file": "scripts/start-dev.ps1",
+        "hash": "11323717016593250558"
+      },
+      {
+        "file": "scripts/start-dev.sh",
+        "hash": "14851980532336840146"
+      },
+      {
+        "file": "security-audit/comprehensive-security-audit.md",
+        "hash": "2957318752156216490"
+      },
+      {
+        "file": "security-audit/final-security-report.md",
+        "hash": "3229546280467434752"
+      },
+      {
+        "file": "security-audit/penetration-testing.js",
+        "hash": "11184599754061720024"
+      },
+      {
+        "file": "security-audit/security-checklist.md",
+        "hash": "4540854953031562389"
+      },
+      {
+        "file": "tests/e2e/cypress.config.js",
+        "hash": "17739035051016372369"
+      },
+      {
+        "file": "tests/e2e/cypress/e2e/auth.cy.ts",
+        "hash": "10228149205562531398"
+      },
+      {
+        "file": "tests/e2e/cypress/e2e/cart.cy.ts",
+        "hash": "173170415978535636"
+      },
+      {
+        "file": "tests/e2e/cypress/e2e/checkout.cy.ts",
+        "hash": "18086111783836177709"
+      },
+      {
+        "file": "tests/e2e/cypress/e2e/products.cy.ts",
+        "hash": "12886724486519684822"
+      },
+      {
+        "file": "tests/e2e/cypress/fixtures/data.json",
+        "hash": "13466761736859978460"
+      },
+      {
+        "file": "tests/e2e/cypress/support/commands.ts",
+        "hash": "7919685075162874889"
+      },
+      {
+        "file": "tests/e2e/cypress/support/e2e.ts",
+        "hash": "2774914329551667668"
+      },
+      {
+        "file": "tests/e2e/cypress/tsconfig.json",
+        "hash": "12375262226954001664"
+      },
+      {
+        "file": "tests/e2e/package.json",
+        "hash": "6006104917790925820"
+      },
+      {
+        "file": "tests/integration/api.integration.test.ts",
+        "hash": "16091840302873371124"
+      },
+      {
+        "file": "tests/performance/endurance-test.js",
+        "hash": "1701359591453794784"
+      },
+      {
+        "file": "tests/performance/load-test.js",
+        "hash": "17149473265956118510"
+      },
+      {
+        "file": "tests/performance/performance-suite.md",
+        "hash": "4806992465067833460"
+      },
+      {
+        "file": "tests/performance/production-load-test.js",
+        "hash": "6948791580018096324"
+      },
+      {
+        "file": "tests/performance/spike-test.js",
+        "hash": "7154217383297207458"
+      },
+      {
+        "file": "tests/performance/stress-test.js",
+        "hash": "14116262845481997564"
+      },
+      {
+        "file": "tsconfig.base.json",
+        "hash": "10776447203219689816"
+      },
+      {
+        "file": "tsconfig.json",
+        "hash": "2373597652103939259"
+      },
+      {
+        "file": "tsconfig.test.json",
+        "hash": "12226637082333205804"
+      }
+    ]
+  }
+}

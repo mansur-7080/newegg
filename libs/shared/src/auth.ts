@@ -35,7 +35,7 @@ export const generateToken = (
   secret: string,
   expiresIn: string | number
 ): string => {
-  return jwt.sign(payload, secret, { expiresIn });
+  return jwt.sign(payload, secret, { expiresIn: expiresIn.toString() });
 };
 
 // JWT token verification

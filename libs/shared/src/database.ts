@@ -28,7 +28,7 @@ type TransactionClient = Omit<
 >;
 
 // Database connection configuration
-const databaseConfig: Prisma.PrismaClientOptions = {
+const databaseConfig: any = {
   datasources: {
     db: {
       url: process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/ultramarket',
@@ -191,7 +191,7 @@ export class TransactionService {
   // Execute transaction with isolation level
   async executeTransactionWithIsolation<T>(
     callback: (tx: TransactionClient) => Promise<T>,
-    isolationLevel: Prisma.TransactionIsolationLevel = 'ReadCommitted'
+    isolationLevel: any = 'ReadCommitted'
   ): Promise<T> {
     return this.client.$transaction(callback, {
       isolationLevel,

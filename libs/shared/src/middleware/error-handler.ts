@@ -21,71 +21,22 @@ export interface ValidationError {
   code?: string;
 }
 
-export class AppError extends Error {
-  public readonly statusCode: number;
-  public readonly code: string;
-  public readonly isOperational: boolean;
-  public readonly details?: unknown;
-
-  constructor(
-    message: string,
-    statusCode: number = HttpStatusCode.INTERNAL_SERVER_ERROR,
-    code: string = ErrorCode.INTERNAL_ERROR,
-    details?: unknown,
-    isOperational: boolean = true
-  ) {
-    super(message);
-    this.name = 'AppError';
-    this.statusCode = statusCode;
-    this.code = code;
-    this.isOperational = isOperational;
-    this.details = details;
-
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
+// Import base error classes from errors.ts
+import { AppError, NotFoundError, UnauthorizedError, ForbiddenError, ConflictError } from '../errors';
 
 export class ValidationAppError extends AppError {
   public readonly validationErrors: ValidationError[];
 
   constructor(message: string, validationErrors: ValidationError[]) {
-    super(message, HttpStatusCode.BAD_REQUEST, ErrorCode.VALIDATION_ERROR);
+    super(message, 422, true, 'VALIDATION_ERROR');
     this.name = 'ValidationAppError';
     this.validationErrors = validationErrors;
   }
 }
 
-export class NotFoundError extends AppError {
-  constructor(resource: string = 'Resource') {
-    super(`${resource} not found`, HttpStatusCode.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND);
-    this.name = 'NotFoundError';
-  }
-}
-
-export class UnauthorizedError extends AppError {
-  constructor(message: string = 'Unauthorized') {
-    super(message, HttpStatusCode.UNAUTHORIZED, ErrorCode.INVALID_CREDENTIALS);
-    this.name = 'UnauthorizedError';
-  }
-}
-
-export class ForbiddenError extends AppError {
-  constructor(message: string = 'Forbidden') {
-    super(message, HttpStatusCode.FORBIDDEN, ErrorCode.INSUFFICIENT_PERMISSIONS);
-    this.name = 'ForbiddenError';
-  }
-}
-
-export class ConflictError extends AppError {
-  constructor(message: string = 'Resource already exists') {
-    super(message, HttpStatusCode.CONFLICT, ErrorCode.RESOURCE_ALREADY_EXISTS);
-    this.name = 'ConflictError';
-  }
-}
-
 export class RateLimitError extends AppError {
   constructor(message: string = 'Rate limit exceeded') {
-    super(message, HttpStatusCode.TOO_MANY_REQUESTS, ErrorCode.RATE_LIMIT_EXCEEDED);
+    super(message, 429, true, 'RATE_LIMIT_EXCEEDED');
     this.name = 'RateLimitError';
   }
 }
