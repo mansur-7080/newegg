@@ -266,13 +266,4 @@ export interface ResponseBuilderOptions {
 }
 
 // Export all types for easy import
-export type {
-  BaseApiResponse,
-  SuccessResponse,
-  ErrorResponse,
-  PaginatedResponse,
-  ApiError,
-  ErrorDetail,
-  ResponseMeta,
-  PaginationMeta,
-};
+// Note: These types are already exported above, so we don't need to re-export them

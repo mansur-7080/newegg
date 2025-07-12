@@ -180,7 +180,7 @@ export const serviceEnvironmentSchemas = {
         'ELASTICSEARCH_URL',
         'ELASTICSEARCH_USERNAME',
         'ELASTICSEARCH_PASSWORD',
-      ])
+      ], (schema) => schema)
     ),
 
   'order-service': baseEnvironmentSchema
@@ -198,7 +198,7 @@ export const serviceEnvironmentSchemas = {
         'STRIPE_WEBHOOK_SECRET',
         'PAYPAL_CLIENT_ID',
         'PAYPAL_CLIENT_SECRET',
-      ])
+      ], (schema) => schema)
     ),
 
   'cart-service': baseEnvironmentSchema
@@ -217,7 +217,7 @@ export const serviceEnvironmentSchemas = {
         'SMTP_USER',
         'SMTP_PASSWORD',
         'SMTP_FROM',
-      ])
+      ], (schema) => schema)
     ),
 
   'search-service': baseEnvironmentSchema
@@ -229,7 +229,7 @@ export const serviceEnvironmentSchemas = {
         'ELASTICSEARCH_URL',
         'ELASTICSEARCH_USERNAME',
         'ELASTICSEARCH_PASSWORD',
-      ])
+      ], (schema) => schema)
     ),
 
   'api-gateway': baseEnvironmentSchema.concat(redisEnvironmentSchema).concat(jwtEnvironmentSchema),

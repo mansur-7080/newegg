@@ -5,7 +5,7 @@
 
 import { Redis } from 'ioredis';
 import { performance } from 'perf_hooks';
-import { defaultLogger } from '../logging/logger';
+import { logger } from '../logging/logger';
 
 // Performance monitoring interfaces
 export interface PerformanceMetrics {
@@ -118,7 +118,7 @@ export class AdvancedCache {
         const decompressed = await this.decompress(cachedData);
         const result = JSON.parse(decompressed);
 
-        defaultLogger.debug('Cache hit', {
+        logger.debug('Cache hit', {
           key,
           duration: performance.now() - startTime,
           hitRate: this.getHitRate(),
@@ -129,7 +129,7 @@ export class AdvancedCache {
 
       this.missCount++;
 
-      defaultLogger.debug('Cache miss', {
+      logger.debug('Cache miss', {
         key,
         duration: performance.now() - startTime,
         hitRate: this.getHitRate(),
@@ -137,7 +137,7 @@ export class AdvancedCache {
 
       return null;
     } catch (error) {
-      defaultLogger.error('Cache get error', error);
+      logger.error('Cache get error', error);
       return null;
     }
   }
@@ -151,7 +151,7 @@ export class AdvancedCache {
 
       await this.redis.setex(this.getKey(key), ttl, compressed);
 
-      defaultLogger.debug('Cache set', {
+      logger.debug('Cache set', {
         key,
         ttl,
         size: serialized.length,
@@ -160,7 +160,7 @@ export class AdvancedCache {
         duration: performance.now() - startTime,
       });
     } catch (error) {
-      defaultLogger.error('Cache set error', error);
+      logger.error('Cache set error', error);
     }
   }
 
@@ -168,7 +168,7 @@ export class AdvancedCache {
     try {
       await this.redis.del(this.getKey(key));
     } catch (error) {
-      defaultLogger.error('Cache delete error', error);
+      logger.error('Cache delete error', error);
     }
   }
 
@@ -179,7 +179,7 @@ export class AdvancedCache {
         await this.redis.del(...keys);
       }
     } catch (error) {
-      defaultLogger.error('Cache clear error', error);
+      logger.error('Cache clear error', error);
     }
   }
 
@@ -289,7 +289,7 @@ export class QueryOptimizer {
 
     if (duration > 1000) {
       // Log queries slower than 1 second
-      defaultLogger.warn('Slow query detected', {
+      logger.warn('Slow query detected', {
         query: query.substring(0, 200),
         duration,
         pattern,
@@ -391,7 +391,7 @@ export class PerformanceMonitor {
 
     // Log slow operations
     if (metric.duration > 1000) {
-      defaultLogger.warn('Slow operation detected', {
+      logger.warn('Slow operation detected', {
         operation: metric.operation,
         duration: metric.duration,
         memoryDelta: metric.memoryUsage.heapUsed,
@@ -513,7 +513,7 @@ export class BatchProcessor<T, R> {
     try {
       return await this.processor(currentBatch);
     } catch (error) {
-      defaultLogger.error('Batch processing error', error);
+      logger.error('Batch processing error', error);
       throw error;
     }
   }
@@ -661,10 +661,10 @@ export function withPerformanceMonitoring<T extends any[], R>(
 
     try {
       const result = await fn(...args);
-      endMeasurement(false, 1);
+      endMeasurement();
       return result;
     } catch (error) {
-      endMeasurement(false, 1);
+      endMeasurement();
       throw error;
     }
   };

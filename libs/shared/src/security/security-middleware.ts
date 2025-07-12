@@ -153,13 +153,14 @@ export class SecurityMiddleware {
         method: req.method,
       });
 
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         error: {
           code: 'IP_BLOCKED',
           message: 'Access denied',
         },
       });
+      return;
     }
 
     next();
@@ -200,6 +201,7 @@ export class SecurityMiddleware {
           message: 'Invalid input data',
         },
       });
+      return;
     }
   }
 
@@ -505,7 +507,7 @@ export function getSecurityMiddleware(): SecurityMiddleware {
 // CSRF protection middleware
 export const csrfProtection = (req: Request, res: Response, next: NextFunction): void => {
   const token = req.get('X-CSRF-Token') || req.body._csrf || req.query._csrf;
-  const sessionToken = req.session?.csrfToken;
+  const sessionToken = (req as any).session?.csrfToken;
 
   if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
     if (!token || !sessionToken || token !== sessionToken) {
@@ -525,30 +527,33 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
 // File upload security
 export const secureFileUpload = (allowedTypes: string[], maxSize: number = 5 * 1024 * 1024) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.file) {
+    const file = (req as any).file;
+    if (!file) {
       return next();
     }
 
     // Check file type
-    if (!allowedTypes.includes(req.file.mimetype)) {
-      return res.status(400).json({
+    if (!allowedTypes.includes(file.mimetype)) {
+      res.status(400).json({
         success: false,
         error: {
           code: 'INVALID_FILE_TYPE',
           message: 'File type not allowed',
         },
       });
+      return;
     }
 
     // Check file size
-    if (req.file.size > maxSize) {
-      return res.status(400).json({
+    if (file.size > maxSize) {
+      res.status(400).json({
         success: false,
         error: {
           code: 'FILE_TOO_LARGE',
           message: 'File size exceeds limit',
         },
       });
+      return;
     }
 
     // Scan file for malware (placeholder)

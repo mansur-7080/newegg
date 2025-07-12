@@ -110,13 +110,13 @@ export function errorHandler(
 
   // Determine error details
   let statusCode = HttpStatusCode.INTERNAL_SERVER_ERROR;
-  let errorCode = ErrorCode.INTERNAL_ERROR;
+  let errorCode: ErrorCode = ErrorCode.INTERNAL_ERROR;
   let message = 'Internal server error';
   let details: unknown = undefined;
 
   if (error instanceof AppError) {
     statusCode = error.statusCode;
-    errorCode = error.code;
+    errorCode = error.code as ErrorCode;
     message = error.message;
     details = error.details;
   } else if (error.statusCode) {

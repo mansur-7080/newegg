@@ -4,7 +4,7 @@
  */
 
 import { performance } from 'perf_hooks';
-import { defaultLogger } from '../logging/logger';
+import { logger } from '../logging/logger';
 
 // =================== TYPES ===================
 
@@ -86,14 +86,14 @@ export class TestRunner {
     while (attempts <= testConfig.retries) {
       try {
         if (testConfig.verbose) {
-          defaultLogger.debug(`Running test: ${name} (attempt ${attempts + 1})`);
+          logger.debug(`Running test: ${name} (attempt ${attempts + 1})`);
         }
 
         await this.withTimeout(testFn, testConfig.timeout);
         this.metrics.passed++;
 
         if (testConfig.verbose) {
-          defaultLogger.debug(`✓ ${name} passed`);
+          logger.debug(`✓ ${name} passed`);
         }
 
         return true;
@@ -103,7 +103,7 @@ export class TestRunner {
 
         if (attempts <= testConfig.retries) {
           if (testConfig.verbose) {
-            defaultLogger.warn(`✗ ${name} failed (attempt ${attempts}), retrying...`);
+            logger.warn(`✗ ${name} failed (attempt ${attempts}), retrying...`);
           }
           await this.delay(1000); // Wait 1 second before retry
         }
@@ -112,7 +112,7 @@ export class TestRunner {
 
     this.metrics.failed++;
     if (testConfig.verbose) {
-      defaultLogger.error(`✗ ${name} failed after ${attempts} attempts:`, lastError?.message);
+      logger.error(`✗ ${name} failed after ${attempts} attempts:`, { error: lastError?.message });
     }
 
     return false;
