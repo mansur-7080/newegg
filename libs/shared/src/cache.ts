@@ -86,12 +86,9 @@ export class CacheService {
       password: this.config.password,
       db: this.config.db,
       keyPrefix: this.config.keyPrefix,
-      retryDelayOnFailover: this.config.retryDelayOnFailover,
       maxRetriesPerRequest: this.config.maxRetriesPerRequest,
       lazyConnect: this.config.lazyConnect,
-      keepAlive: this.config.keepAlive,
       connectTimeout: this.config.connectTimeout,
-      commandTimeout: this.config.commandTimeout,
     });
 
     this.setupEventHandlers();
