@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import { body, validationResult, param, query } from 'express-validator';
-import DOMPurify from 'isomorphic-dompurify';
+// import DOMPurify from 'isomorphic-dompurify';
 import { logger } from '../logger';
 import { getCache } from '../performance/caching';
 
@@ -210,7 +210,7 @@ export class SecurityMiddleware {
    */
   private sanitizeObject(obj: any): any {
     if (typeof obj !== 'object' || obj === null) {
-      return typeof obj === 'string' ? DOMPurify.sanitize(obj) : obj;
+      return typeof obj === 'string' ? simpleSanitize(obj) : obj;
     }
 
     if (Array.isArray(obj)) {
@@ -219,7 +219,7 @@ export class SecurityMiddleware {
 
     const sanitized: any = {};
     for (const [key, value] of Object.entries(obj)) {
-      const sanitizedKey = DOMPurify.sanitize(key);
+      const sanitizedKey = simpleSanitize(key);
       sanitized[sanitizedKey] = this.sanitizeObject(value);
     }
 
@@ -559,3 +559,8 @@ export const secureFileUpload = (allowedTypes: string[], maxSize: number = 5 * 1
     next();
   };
 }; 
+
+// Simple HTML sanitizer (removes all tags)
+function simpleSanitize(str: string): string {
+  return str.replace(/<[^>]+>/g, '');
+} 
