@@ -1,126 +1,184 @@
-import { Request, Response } from 'express';
-import { Category, ICategory } from '../models/Category';
-import { logger } from '../utils/logger';
+import { Request, Response, NextFunction } from 'express';
+import { body, query, validationResult } from 'express-validator';
+import {
+  CategoryService,
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  CategoryQueryParams,
+} from '../services/category.service';
+import { logger, AppError } from '../shared';
 
-// Get all categories
-export const getAllCategories = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const categories = await Category.find({ isActive: true })
-      .populate('parent', 'name')
-      .populate('subcategories', 'name')
-      .sort({ order: 1, name: 1 });
+export class CategoryController {
+  private categoryService: CategoryService;
 
-    res.status(200).json({
-      success: true,
-      data: categories
-    });
-  } catch (error) {
-    logger.error('Error getting categories:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get categories'
-    });
+  constructor() {
+    this.categoryService = new CategoryService();
   }
-};
 
-// Get category by ID
-export const getCategoryById = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const category = await Category.findById(req.params.id)
-      .populate('parent', 'name')
-      .populate('subcategories', 'name');
+  /**
+   * Get all categories with pagination and filtering
+   */
+  getCategories = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new AppError(400, 'Validation failed');
+      }
 
-    if (!category) {
-      res.status(404).json({
-        success: false,
-        error: 'Category not found'
+      // Cast query params to CategoryQueryParams
+      const queryParams: CategoryQueryParams = {
+        page: req.query.page ? parseInt(req.query.page as string) : undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+        search: req.query.search as string,
+        isActive: req.query.isActive ? req.query.isActive === 'true' : undefined,
+        parentId: req.query.parentId === 'null' ? null : (req.query.parentId as string),
+        includeChildren: req.query.includeChildren === 'true',
+        sortBy: (req.query.sortBy as string) || 'sortOrder',
+        sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'asc',
+      };
+
+      const categories = await this.categoryService.getCategories(queryParams);
+
+      logger.info('Categories retrieved successfully', {
+        count: categories.items.length,
+        page: categories.page,
+        totalItems: categories.total,
       });
-      return;
+
+      res.json(categories);
+    } catch (error) {
+      next(error);
     }
+  };
 
-    res.status(200).json({
-      success: true,
-      data: category
-    });
-  } catch (error) {
-    logger.error('Error getting category by ID:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get category'
-    });
-  }
-};
+  /**
+   * Get category tree
+   */
+  getCategoryTree = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const isActive = req.query.isActive ? req.query.isActive === 'true' : undefined;
 
-// Create new category
-export const createCategory = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const category = await Category.create(req.body);
+      const categories = await this.categoryService.getCategoryTree(isActive);
 
-    res.status(201).json({
-      success: true,
-      data: category
-    });
-  } catch (error) {
-    logger.error('Error creating category:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create category'
-    });
-  }
-};
-
-// Update category
-export const updateCategory = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const category = await Category.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!category) {
-      res.status(404).json({
-        success: false,
-        error: 'Category not found'
+      logger.info('Category tree retrieved successfully', {
+        count: categories.length,
       });
-      return;
+
+      res.json(categories);
+    } catch (error) {
+      next(error);
     }
+  };
 
-    res.status(200).json({
-      success: true,
-      data: category
-    });
-  } catch (error) {
-    logger.error('Error updating category:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update category'
-    });
-  }
-};
+  /**
+   * Get a single category by ID
+   */
+  getCategoryById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const includeChildren = req.query.includeChildren === 'true';
 
-// Delete category
-export const deleteCategory = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const category = await Category.findByIdAndDelete(req.params.id);
-
-    if (!category) {
-      res.status(404).json({
-        success: false,
-        error: 'Category not found'
-      });
-      return;
+      const category = await this.categoryService.getCategoryById(id, includeChildren);
+      res.json(category);
+    } catch (error) {
+      next(error);
     }
+  };
 
-    res.status(200).json({
-      success: true,
-      message: 'Category deleted successfully'
-    });
-  } catch (error) {
-    logger.error('Error deleting category:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete category'
-    });
-  }
-};
+  /**
+   * Get a single category by slug
+   */
+  getCategoryBySlug = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { slug } = req.params;
+      const includeChildren = req.query.includeChildren === 'true';
+
+      const category = await this.categoryService.getCategoryBySlug(slug, includeChildren);
+      res.json(category);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Create a new category
+   */
+  createCategory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new AppError(400, 'Validation failed');
+      }
+
+      const categoryData: CreateCategoryDto = req.body;
+      const newCategory = await this.categoryService.createCategory(categoryData);
+
+      logger.info('Category created successfully', { id: newCategory.id });
+      res.status(201).json(newCategory);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Update an existing category
+   */
+  updateCategory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new AppError(400, 'Validation failed');
+      }
+
+      const { id } = req.params;
+      const categoryData: UpdateCategoryDto = req.body;
+      const updatedCategory = await this.categoryService.updateCategory(id, categoryData);
+
+      logger.info('Category updated successfully', { id });
+      res.json(updatedCategory);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Delete a category
+   */
+  deleteCategory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+
+      await this.categoryService.deleteCategory(id);
+
+      logger.info('Category deleted successfully', { id });
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Input validation rules
+   */
+  static validateCreateCategory = [
+    body('name').isString().notEmpty().withMessage('Name is required'),
+    body('parentId').optional().isUUID().withMessage('Parent ID must be a valid UUID'),
+  ];
+
+  static validateUpdateCategory = [
+    body('name').optional().isString().notEmpty().withMessage('Name must be a non-empty string'),
+    body('parentId').optional().isUUID().withMessage('Parent ID must be a valid UUID'),
+    body('sortOrder')
+      .optional()
+      .isInt({ min: 0 })
+      .withMessage('Sort order must be a non-negative integer'),
+  ];
+
+  static validateGetCategories = [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit')
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage('Limit must be between 1-100'),
+  ];
+}

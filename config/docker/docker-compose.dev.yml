@@ -1,485 +1,348 @@
-# Docker Compose file for UltraMarket development environment
-# Optimized for development with hot reload and debugging capabilities
+version: '3.8'
 
 services:
-  # =================== INFRASTRUCTURE SERVICES ===================
-
-  # PostgreSQL - Primary Database
+  # Database Services
   postgres:
     image: postgres:15-alpine
-    container_name: ultramarket-postgres-dev
+    container_name: ultramarket_postgres
     environment:
-      POSTGRES_DB: ultramarket_dev
-      POSTGRES_USER: ultramarket_dev_user
-      POSTGRES_PASSWORD: dev_password_123
+      POSTGRES_DB: ultramarket
+      POSTGRES_USER: ultramarket_user
+      POSTGRES_PASSWORD: ultramarket_password
     ports:
-      - '5433:5432'
+      - '5432:5432'
     volumes:
-      - postgres_dev_data:/var/lib/postgresql/data
-      - ../../scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ultramarket_dev_user -d ultramarket_dev']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # MongoDB - Document Database
-  mongodb:
-    image: mongo:7
-    container_name: ultramarket-mongodb-dev
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ultramarket_dev_admin
-      MONGO_INITDB_ROOT_PASSWORD: dev_password_123
-      MONGO_INITDB_DATABASE: ultramarket_products_dev
-    ports:
-      - '27018:27017'
-    volumes:
-      - mongodb_dev_data:/data/db
-    networks:
-      - ultramarket-dev-network
-    healthcheck:
-      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis - Cache & Session Store
-  redis:
-    image: redis:7-alpine
-    container_name: ultramarket-redis-dev
-    command: redis-server --requirepass dev_password_123
-    ports:
-      - '6380:6379'
-    volumes:
-      - redis_dev_data:/data
-    networks:
-      - ultramarket-dev-network
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Elasticsearch - Search Engine
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: ultramarket-elasticsearch-dev
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - 'ES_JAVA_OPTS=-Xms512m -Xmx512m'
-    ports:
-      - '9200:9200'
-    volumes:
-      - elasticsearch_dev_data:/usr/share/elasticsearch/data
-    networks:
-      - ultramarket-dev-network
-    healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1']
+      test: ['CMD-SHELL', 'pg_isready -U ultramarket_user -d ultramarket']
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
 
-  # =================== CORE SERVICES ===================
+  redis:
+    image: redis:7-alpine
+    container_name: ultramarket_redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - ultramarket_network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # API Gateway
   api-gateway:
     build:
       context: ../../microservices/core/api-gateway/api-gateway
       dockerfile: Dockerfile.dev
-    container_name: ultramarket-api-gateway-dev
-    environment:
-      NODE_ENV: development
-      PORT: 3000
-      USER_SERVICE_URL: http://user-service:3001
-      AUTH_SERVICE_URL: http://auth-service:3002
-      PRODUCT_SERVICE_URL: http://product-service:3003
-      ORDER_SERVICE_URL: http://order-service:3004
-      PAYMENT_SERVICE_URL: http://payment-service:3005
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      JWT_SECRET: dev-jwt-secret-key-minimum-32-characters-long-for-development-only
+    container_name: ultramarket_api_gateway
     ports:
-      - '3000:3000'
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - ultramarket-dev-network
-    volumes:
-      - ../../microservices/core/api-gateway/api-gateway:/app
-      - /app/node_modules
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # User Service
-  user-service:
-    build:
-      context: ../../microservices/core/user-service/user-service
-      dockerfile: Dockerfile.dev
-    container_name: ultramarket-user-service-dev
+      - '8000:8000'
     environment:
-      NODE_ENV: development
-      PORT: 3001
-      SERVICE_NAME: user-service
-      DATABASE_URL: postgresql://ultramarket_dev_user:dev_password_123@postgres:5432/ultramarket_dev
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      JWT_SECRET: dev-jwt-secret-key-minimum-32-characters-long-for-development-only
-      JWT_REFRESH_SECRET: dev-jwt-refresh-secret-key-minimum-32-characters-long-for-development-only
-      BCRYPT_ROUNDS: 10
-    ports:
-      - '3001:3001'
+      - NODE_ENV=development
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=postgres
+      - KONG_PG_USER=ultramarket_user
+      - KONG_PG_PASSWORD=ultramarket_password
+      - KONG_PG_DATABASE=ultramarket
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
     volumes:
-      - ../../microservices/core/user-service/user-service:/app
-      - /app/node_modules
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - ./kong.yml:/etc/kong/kong.yml:ro
 
-  # Auth Service
+  # Core Services
   auth-service:
     build:
       context: ../../microservices/core/auth-service
       dockerfile: Dockerfile.dev
-    container_name: ultramarket-auth-service-dev
-    environment:
-      NODE_ENV: development
-      PORT: 3002
-      SERVICE_NAME: auth-service
-      DATABASE_URL: postgresql://ultramarket_dev_user:dev_password_123@postgres:5432/ultramarket_dev
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      JWT_SECRET: dev-jwt-secret-key-minimum-32-characters-long-for-development-only
-      JWT_REFRESH_SECRET: dev-jwt-refresh-secret-key-minimum-32-characters-long-for-development-only
+    container_name: ultramarket_auth_service
     ports:
-      - '3002:3002'
+      - '3001:3001'
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
+      - JWT_ACCESS_SECRET=your-super-secret-access-key-here-make-it-long-and-secure
+      - JWT_REFRESH_SECRET=your-super-secret-refresh-key-here-make-it-long-and-secure
+      - JWT_EMAIL_VERIFICATION_SECRET=your-email-verification-secret-key
+      - JWT_PASSWORD_RESET_SECRET=your-password-reset-secret-key
+      - REDIS_URL=redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
     volumes:
       - ../../microservices/core/auth-service:/app
       - /app/node_modules
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3002/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # =================== BUSINESS SERVICES ===================
+  user-service:
+    build:
+      context: ../../microservices/core/user-service/user-service
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket_user_service
+    ports:
+      - '3002:3002'
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ultramarket_network
+    volumes:
+      - ../../microservices/core/user-service/user-service:/app
+      - /app/node_modules
 
-  # Product Service
+  # Business Services
   product-service:
     build:
       context: ../../microservices/business/product-service/product-service
       dockerfile: Dockerfile.dev
-    container_name: ultramarket-product-service-dev
-    environment:
-      NODE_ENV: development
-      PORT: 3003
-      SERVICE_NAME: product-service
-      MONGODB_URL: mongodb://ultramarket_dev_admin:dev_password_123@mongodb:27017/ultramarket_products_dev?authSource=admin
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      REDIS_URL: redis://:dev_password_123@redis:6379
+    container_name: ultramarket_product_service
     ports:
       - '3003:3003'
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      mongodb:
-        condition: service_healthy
-      elasticsearch:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
     volumes:
       - ../../microservices/business/product-service/product-service:/app
       - /app/node_modules
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3003/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # Order Service
   order-service:
     build:
       context: ../../microservices/business/order-service/order-service
       dockerfile: Dockerfile.dev
-    container_name: ultramarket-order-service-dev
-    environment:
-      NODE_ENV: development
-      PORT: 3004
-      SERVICE_NAME: order-service
-      DATABASE_URL: postgresql://ultramarket_dev_user:dev_password_123@postgres:5432/ultramarket_dev
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      USER_SERVICE_URL: http://user-service:3001
-      PRODUCT_SERVICE_URL: http://product-service:3003
-      PAYMENT_SERVICE_URL: http://payment-service:3005
+    container_name: ultramarket_order_service
     ports:
       - '3004:3004'
+    environment:
+      - NODE_ENV=development
+      - PORT=3004
+      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
+      - REDIS_URL=redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
     volumes:
       - ../../microservices/business/order-service/order-service:/app
       - /app/node_modules
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3004/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # Payment Service
   payment-service:
     build:
       context: ../../microservices/business/payment-service/payment-service
       dockerfile: Dockerfile.dev
-    container_name: ultramarket-payment-service-dev
-    environment:
-      NODE_ENV: development
-      PORT: 3005
-      SERVICE_NAME: payment-service
-      DATABASE_URL: postgresql://ultramarket_dev_user:dev_password_123@postgres:5432/ultramarket_dev
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      STRIPE_SECRET_KEY: sk_test_your_stripe_test_key_here
-      STRIPE_WEBHOOK_SECRET: whsec_your_stripe_webhook_secret_here
+    container_name: ultramarket_payment_service
     ports:
       - '3005:3005'
+    environment:
+      - NODE_ENV=development
+      - PORT=3005
+      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
+      - REDIS_URL=redis://redis:6379
+      - STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+      - STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
     volumes:
       - ../../microservices/business/payment-service/payment-service:/app
       - /app/node_modules
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3005/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # Cart Service
   cart-service:
     build:
       context: ../../microservices/business/cart-service/cart-service
       dockerfile: Dockerfile.dev
-    container_name: ultramarket-cart-service-dev
-    environment:
-      NODE_ENV: development
-      PORT: 3006
-      SERVICE_NAME: cart-service
-      DATABASE_URL: postgresql://ultramarket_dev_user:dev_password_123@postgres:5432/ultramarket_dev
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      PRODUCT_SERVICE_URL: http://product-service:3003
+    container_name: ultramarket_cart_service
     ports:
       - '3006:3006'
+    environment:
+      - NODE_ENV=development
+      - PORT=3006
+      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
+      - REDIS_URL=redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
     volumes:
       - ../../microservices/business/cart-service/cart-service:/app
       - /app/node_modules
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3006/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # =================== PLATFORM SERVICES ===================
-
-  # Notification Service
-  notification-service:
-    build:
-      context: ../../microservices/platform/notification-service/notification-service
-      dockerfile: Dockerfile.dev
-    container_name: ultramarket-notification-service-dev
-    environment:
-      NODE_ENV: development
-      PORT: 3007
-      SERVICE_NAME: notification-service
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      SMTP_HOST: mailhog
-      SMTP_PORT: 1025
-      SMTP_USER: ''
-      SMTP_PASS: ''
-    ports:
-      - '3007:3007'
-    depends_on:
-      redis:
-        condition: service_healthy
-      mailhog:
-        condition: service_started
-    networks:
-      - ultramarket-dev-network
-    volumes:
-      - ../../microservices/platform/notification-service/notification-service:/app
-      - /app/node_modules
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3007/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Search Service
+  # Platform Services
   search-service:
     build:
       context: ../../microservices/platform/search-service/search-service
       dockerfile: Dockerfile.dev
-    container_name: ultramarket-search-service-dev
-    environment:
-      NODE_ENV: development
-      PORT: 3008
-      SERVICE_NAME: search-service
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      REDIS_URL: redis://:dev_password_123@redis:6379
-      PRODUCT_SERVICE_URL: http://product-service:3003
+    container_name: ultramarket_search_service
     ports:
-      - '3008:3008'
+      - '3007:3007'
+    environment:
+      - NODE_ENV=development
+      - PORT=3007
+      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      elasticsearch:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
     volumes:
       - ../../microservices/platform/search-service/search-service:/app
       - /app/node_modules
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3008/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # =================== FRONTEND APPLICATIONS ===================
-
-  # Web Application
-  web-app:
+  notification-service:
     build:
-      context: ../../frontend/web-app
+      context: ../../microservices/platform/notification-service/notification-service
       dockerfile: Dockerfile.dev
-    container_name: ultramarket-web-app-dev
-    environment:
-      NODE_ENV: development
-      PORT: 8080
-      NEXT_PUBLIC_API_URL: http://localhost:3000
-      NEXT_PUBLIC_WS_URL: ws://localhost:3000
+    container_name: ultramarket_notification_service
     ports:
-      - '8080:8080'
+      - '3008:3008'
+    environment:
+      - NODE_ENV=development
+      - PORT=3008
+      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
+      - REDIS_URL=redis://redis:6379
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=your-email@gmail.com
+      - SMTP_PASS=your-app-password
     depends_on:
-      - api-gateway
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
     volumes:
-      - ../../frontend/web-app:/app
+      - ../../microservices/platform/notification-service/notification-service:/app
       - /app/node_modules
-      - /app/.next
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8080']
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # Admin Panel
-  admin-panel:
+  # Analytics Services
+  analytics-service:
     build:
-      context: ../../frontend/admin-panel
+      context: ../../microservices/analytics/analytics-service
       dockerfile: Dockerfile.dev
-    container_name: ultramarket-admin-panel-dev
+    container_name: ultramarket_analytics_service
+    ports:
+      - '3009:3009'
     environment:
-      NODE_ENV: development
-      PORT: 8081
-      REACT_APP_API_URL: http://localhost:3000
-      REACT_APP_MONITORING_WS_URL: ws://localhost:3010
-    ports:
-      - '8081:8081'
+      - NODE_ENV=development
+      - PORT=3009
+      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      - api-gateway
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
     volumes:
-      - ../../frontend/admin-panel:/app
+      - ../../microservices/analytics/analytics-service:/app
       - /app/node_modules
-      - /app/build
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8081']
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # =================== DEVELOPMENT TOOLS ===================
-
-  # MailHog - Email Testing
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: ultramarket-mailhog-dev
+  # Monitoring Services
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ultramarket_prometheus
     ports:
-      - '1025:1025'
-      - '8025:8025'
+      - '9090:9090'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
 
-  # Adminer - Database Management
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ultramarket_grafana
+    ports:
+      - '3000:3000'
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - ultramarket_network
+    depends_on:
+      - prometheus
+
+  # Development Tools
   adminer:
     image: adminer:latest
-    container_name: ultramarket-adminer-dev
+    container_name: ultramarket_adminer
     ports:
       - '8080:8080'
     networks:
-      - ultramarket-dev-network
-    depends_on:
-      - postgres
-      - mongodb
+      - ultramarket_network
 
-  # Redis Commander - Redis Management
   redis-commander:
     image: rediscommander/redis-commander:latest
-    container_name: ultramarket-redis-commander-dev
-    environment:
-      REDIS_HOSTS: local:redis:6379:0:dev_password_123
+    container_name: ultramarket_redis_commander
     ports:
-      - '8082:8081'
+      - '8081:8081'
+    environment:
+      - REDIS_HOSTS=local:redis:6379
     networks:
-      - ultramarket-dev-network
+      - ultramarket_network
     depends_on:
       - redis
 
 volumes:
-  postgres_dev_data:
-  mongodb_dev_data:
-  redis_dev_data:
-  elasticsearch_dev_data:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
-  ultramarket-dev-network:
+  ultramarket_network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.21.0.0/16

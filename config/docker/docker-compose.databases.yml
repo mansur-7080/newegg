@@ -1,0 +1,232 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Primary Database
+  postgres-primary:
+    image: postgres:15-alpine
+    container_name: ultramarket-postgres-primary
+    environment:
+      POSTGRES_DB: ultramarket
+      POSTGRES_USER: ultramarket_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ultramarket_secure_password}
+      POSTGRES_MULTIPLE_DATABASES: auth_db,user_db,order_db,payment_db,analytics_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init-scripts:/docker-entrypoint-initdb.d
+      - ./postgres/config/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./postgres/config/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    ports:
+      - '5432:5432'
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ultramarket_user -d ultramarket']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL Read Replica
+  postgres-replica:
+    image: postgres:15-alpine
+    container_name: ultramarket-postgres-replica
+    environment:
+      POSTGRES_DB: ultramarket
+      POSTGRES_USER: ultramarket_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ultramarket_secure_password}
+      PGUSER: ultramarket_user
+      POSTGRES_MASTER_SERVICE: postgres-primary
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ./postgres/replica-config:/etc/postgresql
+    ports:
+      - '5433:5432'
+    depends_on:
+      - postgres-primary
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+
+  # MongoDB Primary
+  mongodb-primary:
+    image: mongo:7.0
+    container_name: ultramarket-mongodb-primary
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ultramarket_admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-mongodb_secure_password}
+      MONGO_INITDB_DATABASE: ultramarket
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongodb/init-scripts:/docker-entrypoint-initdb.d
+      - ./mongodb/config/mongod.conf:/etc/mongod.conf
+    ports:
+      - '27017:27017'
+    command: mongod --config /etc/mongod.conf
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cluster
+  redis-master:
+    image: redis:7-alpine
+    container_name: ultramarket-redis-master
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secure_password}
+    volumes:
+      - redis_data:/data
+      - ./redis/config/redis.conf:/etc/redis/redis.conf
+    ports:
+      - '6379:6379'
+    command: redis-server /etc/redis/redis.conf --requirepass ${REDIS_PASSWORD:-redis_secure_password}
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Sentinel
+  redis-sentinel:
+    image: redis:7-alpine
+    container_name: ultramarket-redis-sentinel
+    volumes:
+      - ./redis/sentinel/sentinel.conf:/etc/redis/sentinel.conf
+    ports:
+      - '26379:26379'
+    command: redis-sentinel /etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ultramarket-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - 'ES_JAVA_OPTS=-Xms2g -Xmx2g'
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: ultramarket-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - '5601:5601'
+    depends_on:
+      - elasticsearch
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+
+  # MinIO (S3 Compatible Storage)
+  minio:
+    image: minio/minio:latest
+    container_name: ultramarket-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ultramarket_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_secure_password}
+    volumes:
+      - minio_data:/data
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    command: server /data --console-address ":9001"
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # PgAdmin
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ultramarket-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@ultramarket.uz}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin_password}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - '5050:80'
+    depends_on:
+      - postgres-primary
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+
+  # MongoDB Express
+  mongo-express:
+    image: mongo-express:latest
+    container_name: ultramarket-mongo-express
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ultramarket_admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGODB_PASSWORD:-mongodb_secure_password}
+      ME_CONFIG_MONGODB_SERVER: mongodb-primary
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USER:-admin}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD:-admin_password}
+    ports:
+      - '8081:8081'
+    depends_on:
+      - mongodb-primary
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_replica_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  minio_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  ultramarket-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -244,7 +244,7 @@ export class ProductController {
       const { id } = req.params;
       const { quantity = 1 } = req.query;
 
-      const result = await this.productService.checkAvailability(id);
+      const result = await this.productService.checkProductAvailability([id]);
 
       res.status(200).json({
         success: true,
@@ -304,7 +304,7 @@ export class ProductController {
   getCategoryBySlug = async (req: Request, res: Response): Promise<void> => {
     try {
       const { slug } = req.params;
-      const category = await this.productService.getCategoryById(slug);
+      const category = await this.productService.getCategoryBySlug(slug);
 
       res.status(200).json({
         success: true,
@@ -324,9 +324,7 @@ export class ProductController {
   // Review endpoints
   createReview = async (req: Request, res: Response): Promise<void> => {
     try {
-      // TODO: Implement createReview method in ProductService
-      // const review = await this.productService.createReview(req.body);
-      const review = { message: 'Review creation not implemented yet' };
+      const review = await this.productService.createReview(req.body);
 
       res.status(201).json({
         success: true,
@@ -349,13 +347,11 @@ export class ProductController {
       const { id } = req.params;
       const { page = 1, limit = 10 } = req.query;
 
-      // TODO: Implement getProductReviews method in ProductService
-      // const reviews = await this.productService.getProductReviews(
-      //   id,
-      //   parseInt(page as string),
-      //   parseInt(limit as string)
-      // );
-      const reviews = { data: [], total: 0, message: 'Reviews not implemented yet' };
+      const reviews = await this.productService.getProductReviews(
+        id,
+        parseInt(page as string),
+        parseInt(limit as string)
+      );
 
       res.status(200).json({
         success: true,

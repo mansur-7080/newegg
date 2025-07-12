@@ -1,3 +1,5 @@
+import { Request } from 'express';
+
 // User types
 export interface User {
   id: string;
@@ -6,11 +8,25 @@ export interface User {
   firstName: string;
   lastName: string;
   phoneNumber?: string;
+  passwordHash?: string;
   role: UserRole;
   isActive: boolean;
   isEmailVerified: boolean;
+  isPhoneVerified?: boolean;
+  loginAttempts?: number;
+  mfaEnabled?: boolean;
+  authProvider: AuthProvider;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Extended Request interface for authenticated routes
+export interface AuthenticatedRequest extends Request {
+  user?: {
+    userId: string;
+    email: string;
+    role: UserRole;
+  };
 }
 
 export enum UserRole {
@@ -18,6 +34,14 @@ export enum UserRole {
   SELLER = 'SELLER',
   ADMIN = 'ADMIN',
   SUPER_ADMIN = 'SUPER_ADMIN',
+}
+
+export enum AuthProvider {
+  LOCAL = 'LOCAL',
+  GOOGLE = 'GOOGLE',
+  FACEBOOK = 'FACEBOOK',
+  APPLE = 'APPLE',
+  GITHUB = 'GITHUB',
 }
 
 // Product types
@@ -213,6 +237,23 @@ export interface TokenPair {
   refreshToken: string;
 }
 
+// User response type (without sensitive data)
+export interface UserResponse {
+  id: string;
+  email: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+  role: UserRole;
+  isActive: boolean;
+  isEmailVerified: boolean;
+  isPhoneVerified: boolean;
+  authProvider: AuthProvider;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Event types for Kafka
 export interface Event<T = any> {
   id: string;
@@ -238,4 +279,4 @@ export interface SearchResult<T> {
 export interface FacetBucket {
   key: string;
   count: number;
-} 
+}

@@ -14,32 +14,6 @@ export class AppError extends Error {
   }
 }
 
-// Factory function to create errors
-export function createError(statusCode: number, message: string, code?: string): AppError {
-  switch (statusCode) {
-    case 400:
-      return new BadRequestError(message, code);
-    case 401:
-      return new UnauthorizedError(message, code);
-    case 403:
-      return new ForbiddenError(message, code);
-    case 404:
-      return new NotFoundError(message, code);
-    case 409:
-      return new ConflictError(message, code);
-    case 422:
-      return new ValidationError({}, message);
-    case 429:
-      return new TooManyRequestsError(message, code);
-    case 500:
-      return new InternalServerError(message, code);
-    case 503:
-      return new ServiceUnavailableError(message, code);
-    default:
-      return new AppError(message, statusCode, true, code);
-  }
-}
-
 // Common error classes
 export class BadRequestError extends AppError {
   constructor(message = 'Bad Request', code?: string) {
@@ -129,3 +103,29 @@ export const ErrorCode = {
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+// Utility function to create errors with status codes
+export const createError = (statusCode: number, message: string, code?: string): AppError => {
+  switch (statusCode) {
+    case 400:
+      return new BadRequestError(message, code);
+    case 401:
+      return new UnauthorizedError(message, code);
+    case 403:
+      return new ForbiddenError(message, code);
+    case 404:
+      return new NotFoundError(message, code);
+    case 409:
+      return new ConflictError(message, code);
+    case 422:
+      return new ValidationError({}, message);
+    case 429:
+      return new TooManyRequestsError(message, code);
+    case 500:
+      return new InternalServerError(message, code);
+    case 503:
+      return new ServiceUnavailableError(message, code);
+    default:
+      return new AppError(message, statusCode, true, code);
+  }
+};

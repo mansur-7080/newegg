@@ -70,11 +70,9 @@ export class AdvancedCache {
       password: config.password,
       db: config.db,
       keyPrefix: config.keyPrefix,
+      maxRetriesPerRequest: 3,
       lazyConnect: true,
       connectTimeout: 10000,
-      commandTimeout: 5000,
-      family: 4,
-      maxRetriesPerRequest: 3,
     });
 
     this.metrics = {

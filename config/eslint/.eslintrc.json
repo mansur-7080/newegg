@@ -1,63 +1,73 @@
 {
   "root": true,
   "env": {
-    "browser": true,
-    "es2022": true,
     "node": true,
+    "es2022": true,
     "jest": true
-  },
-  "globals": {
-    "process": "readonly",
-    "console": "readonly",
-    "module": "readonly",
-    "require": "readonly",
-    "exports": "readonly",
-    "__dirname": "readonly",
-    "__filename": "readonly",
-    "global": "readonly",
-    "Buffer": "readonly",
-    "jest": "readonly",
-    "describe": "readonly",
-    "it": "readonly",
-    "test": "readonly",
-    "expect": "readonly",
-    "beforeEach": "readonly",
-    "afterEach": "readonly",
-    "beforeAll": "readonly",
-    "afterAll": "readonly"
   },
   "extends": [
     "eslint:recommended",
     "@typescript-eslint/recommended",
-    "@typescript-eslint/recommended-requiring-type-checking"
+    "@typescript-eslint/recommended-requiring-type-checking",
+    "plugin:@typescript-eslint/strict",
+    "plugin:node/recommended",
+    "plugin:security/recommended",
+    "plugin:import/recommended",
+    "plugin:import/typescript"
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "ecmaVersion": 2022,
     "sourceType": "module",
-    "project": "./tsconfig.json"
+    "project": ["./config/typescript/tsconfig.base.json"],
+    "tsconfigRootDir": "."
   },
-  "plugins": ["@typescript-eslint", "import", "security"],
+  "plugins": ["@typescript-eslint", "node", "security", "import", "jest", "promise"],
   "rules": {
     // TypeScript specific rules
     "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "@typescript-eslint/no-explicit-any": "warn",
-    "@typescript-eslint/explicit-function-return-type": "off",
-    "@typescript-eslint/explicit-module-boundary-types": "off",
-    "@typescript-eslint/no-inferrable-types": "off",
+    "@typescript-eslint/explicit-function-return-type": "warn",
+    "@typescript-eslint/explicit-module-boundary-types": "warn",
+    "@typescript-eslint/no-inferrable-types": "error",
     "@typescript-eslint/no-non-null-assertion": "warn",
     "@typescript-eslint/prefer-nullish-coalescing": "error",
     "@typescript-eslint/prefer-optional-chain": "error",
     "@typescript-eslint/no-floating-promises": "error",
     "@typescript-eslint/await-thenable": "error",
     "@typescript-eslint/no-misused-promises": "error",
+    "@typescript-eslint/promise-function-async": "error",
     "@typescript-eslint/require-await": "error",
+    "@typescript-eslint/no-unnecessary-type-assertion": "error",
+    "@typescript-eslint/prefer-as-const": "error",
     "@typescript-eslint/no-unsafe-assignment": "warn",
     "@typescript-eslint/no-unsafe-member-access": "warn",
     "@typescript-eslint/no-unsafe-call": "warn",
     "@typescript-eslint/no-unsafe-return": "warn",
 
+    // Code quality rules
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-debugger": "error",
+    "no-alert": "error",
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "no-script-url": "error",
+    "no-return-await": "error",
+    "prefer-const": "error",
+    "prefer-arrow-callback": "error",
+    "arrow-body-style": ["error", "as-needed"],
+    "no-var": "error",
+    "object-shorthand": "error",
+    "prefer-template": "error",
+    "template-curly-spacing": ["error", "never"],
+    "prefer-destructuring": ["error", { "object": true, "array": false }],
+
     // Import rules
+    "import/no-unresolved": "error",
+    "import/no-cycle": "error",
+    "import/no-unused-modules": "error",
+    "import/no-deprecated": "warn",
     "import/order": [
       "error",
       {
@@ -69,9 +79,6 @@
         }
       }
     ],
-    "import/no-unresolved": "off",
-    "import/no-cycle": "error",
-    "import/no-unused-modules": "off",
 
     // Security rules
     "security/detect-object-injection": "warn",
@@ -87,73 +94,83 @@
     "security/detect-possible-timing-attacks": "warn",
     "security/detect-pseudoRandomBytes": "error",
 
-    // General rules
-    "no-console": "off",
-    "no-debugger": "error",
-    "no-alert": "error",
-    "no-var": "error",
-    "prefer-const": "error",
-    "prefer-arrow-callback": "error",
-    "arrow-spacing": "error",
-    "no-duplicate-imports": "error",
-    "no-unused-expressions": "error",
-    "no-unreachable": "error",
-    "no-constant-condition": "error",
-    "no-empty": "error",
-    "no-extra-semi": "error",
-    "no-func-assign": "error",
-    "no-irregular-whitespace": "error",
-    "no-obj-calls": "error",
-    "no-sparse-arrays": "error",
-    "no-unexpected-multiline": "error",
-    "no-unreachable-loop": "error",
-    "use-isnan": "error",
-    "valid-typeof": "error",
+    // Node.js rules
+    "node/no-missing-import": "off", // Handled by TypeScript
+    "node/no-missing-require": "off", // Handled by TypeScript
+    "node/no-unpublished-import": "off",
+    "node/no-unsupported-features/es-syntax": "off",
+    "node/prefer-global/buffer": "error",
+    "node/prefer-global/console": "error",
+    "node/prefer-global/process": "error",
+    "node/prefer-global/url-search-params": "error",
+    "node/prefer-global/url": "error",
+    "node/prefer-promises/dns": "error",
+    "node/prefer-promises/fs": "error",
 
-    // Best practices
-    "curly": "error",
-    "dot-notation": "error",
-    "eqeqeq": "error",
-    "no-caller": "error",
-    "no-else-return": "error",
-    "no-eval": "error",
-    "no-extend-native": "error",
-    "no-extra-bind": "error",
-    "no-fallthrough": "error",
-    "no-floating-decimal": "error",
-    "no-implicit-coercion": "error",
-    "no-implied-eval": "error",
-    "no-iterator": "error",
-    "no-labels": "error",
-    "no-lone-blocks": "error",
-    "no-loop-func": "error",
-    "no-multi-spaces": "error",
-    "no-multi-str": "error",
-    "no-new": "error",
-    "no-new-func": "error",
-    "no-new-wrappers": "error",
-    "no-octal": "error",
-    "no-octal-escape": "error",
-    "no-param-reassign": "error",
-    "no-proto": "error",
-    "no-redeclare": "error",
-    "no-return-assign": "error",
-    "no-script-url": "error",
-    "no-self-compare": "error",
-    "no-sequences": "error",
-    "no-throw-literal": "error",
-    "no-unused-labels": "error",
-    "no-useless-call": "error",
-    "no-useless-concat": "error",
-    "no-void": "error",
-    "no-with": "error",
-    "radix": "error",
-    "wrap-iife": "error",
-    "yoda": "error"
+    // Promise rules
+    "promise/always-return": "error",
+    "promise/no-return-wrap": "error",
+    "promise/param-names": "error",
+    "promise/catch-or-return": "error",
+    "promise/no-native": "off",
+    "promise/no-nesting": "warn",
+    "promise/no-promise-in-callback": "warn",
+    "promise/no-callback-in-promise": "warn",
+    "promise/avoid-new": "warn",
+    "promise/no-new-statics": "error",
+    "promise/no-return-in-finally": "warn",
+    "promise/valid-params": "warn",
+
+    // Jest rules (for test files)
+    "jest/no-disabled-tests": "warn",
+    "jest/no-focused-tests": "error",
+    "jest/no-identical-title": "error",
+    "jest/prefer-to-have-length": "warn",
+    "jest/valid-expect": "error",
+
+    // Style rules
+    "indent": ["error", 2, { "SwitchCase": 1 }],
+    "quotes": ["error", "single", { "avoidEscape": true }],
+    "semi": ["error", "always"],
+    "comma-dangle": ["error", "always-multiline"],
+    "trailing-comma": "off",
+    "max-len": ["warn", { "code": 120, "ignoreUrls": true }],
+    "eol-last": ["error", "always"],
+    "no-trailing-spaces": "error",
+    "no-multiple-empty-lines": ["error", { "max": 2, "maxEOF": 1 }],
+    "space-before-function-paren": [
+      "error",
+      {
+        "anonymous": "always",
+        "named": "never",
+        "asyncArrow": "always"
+      }
+    ],
+    "keyword-spacing": ["error", { "before": true, "after": true }],
+    "space-infix-ops": "error",
+    "comma-spacing": ["error", { "before": false, "after": true }],
+    "brace-style": ["error", "1tbs", { "allowSingleLine": true }],
+    "curly": ["error", "all"],
+    "object-curly-spacing": ["error", "always"],
+    "array-bracket-spacing": ["error", "never"]
+  },
+  "settings": {
+    "import/resolver": {
+      "typescript": {
+        "alwaysTryTypes": true,
+        "project": "./config/typescript/tsconfig.base.json"
+      },
+      "node": {
+        "extensions": [".js", ".jsx", ".ts", ".tsx"]
+      }
+    },
+    "node": {
+      "tryExtensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".node"]
+    }
   },
   "overrides": [
     {
-      "files": ["*.test.ts", "*.spec.ts", "**/__tests__/**/*"],
+      "files": ["**/*.test.ts", "**/*.test.js", "**/*.spec.ts", "**/*.spec.js"],
       "env": {
         "jest": true
       },
@@ -162,52 +179,43 @@
         "@typescript-eslint/no-unsafe-assignment": "off",
         "@typescript-eslint/no-unsafe-member-access": "off",
         "@typescript-eslint/no-unsafe-call": "off",
-        "@typescript-eslint/no-unsafe-return": "off"
+        "security/detect-object-injection": "off"
       }
     },
     {
-      "files": ["*.js", "*.config.js", "jest.*.js", "babel.config.js"],
-      "env": {
-        "node": true,
-        "commonjs": true
-      },
+      "files": ["**/*.js"],
       "rules": {
         "@typescript-eslint/no-var-requires": "off",
-        "@typescript-eslint/no-require-imports": "off",
-        "@typescript-eslint/no-unsafe-assignment": "off",
-        "@typescript-eslint/no-unsafe-member-access": "off",
-        "@typescript-eslint/no-unsafe-call": "off",
-        "@typescript-eslint/no-unsafe-return": "off"
+        "@typescript-eslint/explicit-function-return-type": "off",
+        "@typescript-eslint/explicit-module-boundary-types": "off"
       }
     },
     {
-      "files": ["healthcheck.js"],
-      "env": {
-        "node": true
-      },
+      "files": ["scripts/**/*", "config/**/*"],
       "rules": {
         "no-console": "off",
+        "@typescript-eslint/no-var-requires": "off"
+      }
+    },
+    {
+      "files": ["**/*.config.js", "**/*.config.ts"],
+      "rules": {
         "@typescript-eslint/no-var-requires": "off",
-        "@typescript-eslint/no-require-imports": "off"
+        "import/no-unused-modules": "off"
       }
     }
   ],
-  "settings": {
-    "import/resolver": {
-      "typescript": {
-        "alwaysTryTypes": true,
-        "project": "./tsconfig.json"
-      }
-    }
-  },
   "ignorePatterns": [
+    "node_modules/",
     "dist/",
     "build/",
-    "node_modules/",
     "coverage/",
     "*.min.js",
     "*.bundle.js",
     "prisma/migrations/",
+    "public/",
+    "docs/",
+    "infrastructure/",
     "**/*.d.ts"
   ]
 }

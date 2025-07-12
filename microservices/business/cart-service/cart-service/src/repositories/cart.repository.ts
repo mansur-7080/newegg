@@ -1,11 +1,22 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { logger } from '../utils/logger';
+import { Decimal } from 'decimal.js';
 
-// Define the types for Cart and CartItem since they're not exported directly from @prisma/client
+// Define the types for Cart and CartItem that match the prisma schema
 export interface PrismaCart {
   id: string;
   userId: string;
-  totalAmount: number;
+  sessionId?: string;
+  subtotal: Decimal;
+  taxAmount: Decimal;
+  discountAmount: Decimal;
+  shippingAmount: Decimal;
+  totalAmount: Decimal;
+  currency: string;
+  status: string;
+  appliedCoupons: string[];
+  notes?: string;
+  expiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   items?: PrismaCartItem[];
@@ -15,8 +26,13 @@ export interface PrismaCartItem {
   id: string;
   cartId: string;
   productId: string;
+  variantId?: string;
+  name: string;
+  sku: string;
   quantity: number;
-  price: number;
+  price: Decimal;
+  comparePrice?: Decimal;
+  image?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -72,6 +88,8 @@ export class PrismaCartRepository implements CartRepository {
           productId,
           quantity,
           price,
+          name: item.name || 'Product', // Provide default values for required fields
+          sku: item.sku || `SKU-${productId}`,
         },
       });
     } catch (error) {

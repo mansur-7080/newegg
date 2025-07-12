@@ -6,6 +6,7 @@ import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { ConfigProvider, theme, App as AntdApp } from 'antd';
 import { ErrorBoundary } from 'react-error-boundary';
+import * as Sentry from '@sentry/react';
 
 import { store, persistor } from './store';
 import { AuthProvider } from './contexts/AuthContext';
@@ -38,6 +39,24 @@ const PromotionManagement = React.lazy(() => import('./pages/PromotionManagement
 const ContentManagement = React.lazy(() => import('./pages/ContentManagement'));
 const SystemMonitoring = React.lazy(() => import('./pages/SystemMonitoring'));
 const AuditLogs = React.lazy(() => import('./pages/AuditLogs'));
+
+// Initialize Sentry for error tracking
+Sentry.init({
+  dsn: process.env.REACT_APP_SENTRY_DSN || '',
+  environment: process.env.NODE_ENV || 'development',
+  integrations: [
+    new Sentry.BrowserTracing({
+      tracePropagationTargets: ['localhost', 'ultramarket.com'],
+    }),
+    new Sentry.Replay({
+      maskAllText: false,
+      blockAllMedia: false,
+    }),
+  ],
+  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
+});
 
 // React Query client
 const queryClient = new QueryClient({
@@ -157,16 +176,35 @@ const AuthRoutes: React.FC = () => {
 // Main App Component
 const App: React.FC = () => {
   useEffect(() => {
-    // Set up global error handling
+    // Set up global error handling with Sentry
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      // TODO: Send to error tracking service (e.g., Sentry)
+      Sentry.captureException(event.reason, {
+        tags: {
+          type: 'unhandled_promise_rejection',
+        },
+        extra: {
+          reason: event.reason,
+        },
+      });
+
       if (process.env.NODE_ENV === 'development') {
         console.error('Unhandled promise rejection:', event.reason);
       }
     };
 
     const handleError = (event: ErrorEvent) => {
-      // TODO: Send to error tracking service (e.g., Sentry)
+      Sentry.captureException(event.error, {
+        tags: {
+          type: 'global_error',
+        },
+        extra: {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+        },
+      });
+
       if (process.env.NODE_ENV === 'development') {
         console.error('Global error:', event.error);
       }
@@ -185,7 +223,15 @@ const App: React.FC = () => {
     <ErrorBoundary
       FallbackComponent={ErrorFallback}
       onError={(error, errorInfo) => {
-        // TODO: Send to error tracking service (e.g., Sentry)
+        Sentry.captureException(error, {
+          tags: {
+            type: 'react_error_boundary',
+          },
+          extra: {
+            errorInfo,
+          },
+        });
+
         if (process.env.NODE_ENV === 'development') {
           console.error('React Error Boundary:', error, errorInfo);
         }

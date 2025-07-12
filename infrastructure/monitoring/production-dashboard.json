@@ -1,0 +1,458 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "UltraMarket Production Dashboard - O'zbekiston E-commerce",
+    "tags": ["ultramarket", "production", "uzbekistan", "ecommerce"],
+    "timezone": "Asia/Tashkent",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "🚀 System Overview",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "up{job=\"ultramarket\"} == 1",
+            "legendFormat": "Services Online"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [
+                { "color": "red", "value": 0 },
+                { "color": "yellow", "value": 0.8 },
+                { "color": "green", "value": 0.95 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "📊 Business Metrics - O'zbekiston Market",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "increase(ultramarket_orders_total[1h])",
+            "legendFormat": "Orders/Hour"
+          },
+          {
+            "expr": "increase(ultramarket_revenue_uzs_total[1h])",
+            "legendFormat": "Revenue UZS/Hour"
+          },
+          {
+            "expr": "ultramarket_active_users",
+            "legendFormat": "Active Users"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "💳 Payment Success Rate - O'zbekiston Gateways",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "rate(ultramarket_payments_successful[5m]) / rate(ultramarket_payments_total[5m]) * 100",
+            "legendFormat": "Overall Success %"
+          },
+          {
+            "expr": "rate(ultramarket_payments_successful{gateway=\"click\"}[5m]) / rate(ultramarket_payments_total{gateway=\"click\"}[5m]) * 100",
+            "legendFormat": "Click Success %"
+          },
+          {
+            "expr": "rate(ultramarket_payments_successful{gateway=\"payme\"}[5m]) / rate(ultramarket_payments_total{gateway=\"payme\"}[5m]) * 100",
+            "legendFormat": "Payme Success %"
+          },
+          {
+            "expr": "rate(ultramarket_payments_successful{gateway=\"uzcard\"}[5m]) / rate(ultramarket_payments_total{gateway=\"uzcard\"}[5m]) * 100",
+            "legendFormat": "UzCard Success %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                { "color": "red", "value": 0 },
+                { "color": "yellow", "value": 95 },
+                { "color": "green", "value": 99 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "⚡ API Performance",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"ultramarket-api\"}[5m]))",
+            "legendFormat": "95th Percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=\"ultramarket-api\"}[5m]))",
+            "legendFormat": "Median"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Response Time (seconds)",
+            "max": 2,
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "🔍 Search Performance",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+        "targets": [
+          {
+            "expr": "rate(ultramarket_search_requests_total[5m])",
+            "legendFormat": "Search Requests/sec"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(ultramarket_search_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th Percentile Response Time"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "🗄️ Database Performance",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+        "targets": [
+          {
+            "expr": "rate(postgresql_queries_total[5m])",
+            "legendFormat": "PostgreSQL Queries/sec"
+          },
+          {
+            "expr": "rate(mongodb_operations_total[5m])",
+            "legendFormat": "MongoDB Operations/sec"
+          },
+          {
+            "expr": "redis_connected_clients",
+            "legendFormat": "Redis Connections"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "📱 Mobile vs Web Traffic",
+        "type": "piechart",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+        "targets": [
+          {
+            "expr": "sum by (device_type) (rate(ultramarket_requests_total[5m]))",
+            "legendFormat": "{{device_type}}"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "🌍 Geographic Distribution - O'zbekiston Regions",
+        "type": "worldmap",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+        "targets": [
+          {
+            "expr": "sum by (region) (ultramarket_users_by_region)",
+            "legendFormat": "{{region}}"
+          }
+        ],
+        "options": {
+          "map": "uzbekistan",
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 9,
+        "title": "📧 Notification Status - SMS/Email",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+        "targets": [
+          {
+            "expr": "rate(ultramarket_sms_sent_total{provider=\"eskiz\"}[5m])",
+            "legendFormat": "ESKIZ SMS/min"
+          },
+          {
+            "expr": "rate(ultramarket_sms_sent_total{provider=\"ucell\"}[5m])",
+            "legendFormat": "Ucell SMS/min"
+          },
+          {
+            "expr": "rate(ultramarket_emails_sent_total[5m])",
+            "legendFormat": "Emails/min"
+          },
+          {
+            "expr": "rate(ultramarket_push_notifications_total[5m])",
+            "legendFormat": "Push Notifications/min"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "🛒 Shopping Cart Metrics",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+        "targets": [
+          {
+            "expr": "ultramarket_active_carts",
+            "legendFormat": "Active Carts"
+          },
+          {
+            "expr": "rate(ultramarket_cart_abandonment_total[5m])",
+            "legendFormat": "Cart Abandonment Rate"
+          },
+          {
+            "expr": "avg(ultramarket_cart_value_uzs)",
+            "legendFormat": "Average Cart Value (UZS)"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "🚚 Delivery Performance - O'zbekiston Logistics",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+        "targets": [
+          {
+            "expr": "rate(ultramarket_deliveries_successful{region=\"tashkent\"}[1h])",
+            "legendFormat": "Tashkent Deliveries/hour"
+          },
+          {
+            "expr": "rate(ultramarket_deliveries_successful{region=\"samarkand\"}[1h])",
+            "legendFormat": "Samarkand Deliveries/hour"
+          },
+          {
+            "expr": "avg(ultramarket_delivery_time_hours{region=\"tashkent\"})",
+            "legendFormat": "Avg Delivery Time Tashkent (hours)"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "💰 Revenue by Payment Method",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
+        "targets": [
+          {
+            "expr": "increase(ultramarket_revenue_uzs_total{payment_method=\"click\"}[1h])",
+            "legendFormat": "Click Revenue (UZS)"
+          },
+          {
+            "expr": "increase(ultramarket_revenue_uzs_total{payment_method=\"payme\"}[1h])",
+            "legendFormat": "Payme Revenue (UZS)"
+          },
+          {
+            "expr": "increase(ultramarket_revenue_uzs_total{payment_method=\"uzcard\"}[1h])",
+            "legendFormat": "UzCard Revenue (UZS)"
+          },
+          {
+            "expr": "increase(ultramarket_revenue_uzs_total{payment_method=\"cash\"}[1h])",
+            "legendFormat": "Cash Revenue (UZS)"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Revenue (UZS)",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "🔥 Top Products - Real-time",
+        "type": "table",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+        "targets": [
+          {
+            "expr": "topk(10, sum by (product_name) (increase(ultramarket_product_views_total[1h])))",
+            "legendFormat": "{{product_name}}"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "columns": [
+                { "text": "Product", "value": "product_name" },
+                { "text": "Views", "value": "Value" }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "⚠️ Error Rates by Service",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 56 },
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job=\"ultramarket-api\",code=~\"5..\"}[5m])",
+            "legendFormat": "{{service}} 5xx Errors"
+          },
+          {
+            "expr": "rate(http_requests_total{job=\"ultramarket-api\",code=~\"4..\"}[5m])",
+            "legendFormat": "{{service}} 4xx Errors"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": { "params": [0.01], "type": "gt" },
+              "operator": { "type": "and" },
+              "query": { "params": ["A", "5m", "now"] },
+              "reducer": { "params": [], "type": "avg" },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "2m",
+          "frequency": "10s",
+          "handler": 1,
+          "name": "High Error Rate Alert",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 15,
+        "title": "🔧 System Resources",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 56 },
+        "targets": [
+          {
+            "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "legendFormat": "CPU Usage %"
+          },
+          {
+            "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+            "legendFormat": "Memory Usage %"
+          },
+          {
+            "expr": "100 - ((node_filesystem_avail_bytes{mountpoint=\"/\"} * 100) / node_filesystem_size_bytes{mountpoint=\"/\"})",
+            "legendFormat": "Disk Usage %"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Percentage",
+            "max": 100,
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 16,
+        "title": "📈 Growth Metrics",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 64 },
+        "targets": [
+          {
+            "expr": "increase(ultramarket_new_users_total[24h])",
+            "legendFormat": "New Users (24h)"
+          },
+          {
+            "expr": "increase(ultramarket_orders_total[24h])",
+            "legendFormat": "Orders (24h)"
+          },
+          {
+            "expr": "increase(ultramarket_revenue_uzs_total[24h])",
+            "legendFormat": "Revenue UZS (24h)"
+          },
+          {
+            "expr": "ultramarket_conversion_rate * 100",
+            "legendFormat": "Conversion Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "displayMode": "basic",
+              "orientation": "horizontal"
+            }
+          }
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        },
+        {
+          "datasource": "prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertstate=\"firing\",job=\"ultramarket\"}",
+          "iconColor": "red",
+          "name": "UltraMarket Alerts",
+          "titleFormat": "{{alertname}}",
+          "tagKeys": "severity,service"
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "current": { "text": "All", "value": "$__all" },
+          "datasource": "prometheus",
+          "definition": "label_values(up{job=\"ultramarket\"}, instance)",
+          "hide": 0,
+          "includeAll": true,
+          "label": "Instance",
+          "name": "instance",
+          "options": [],
+          "query": "label_values(up{job=\"ultramarket\"}, instance)",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "current": { "text": "All", "value": "$__all" },
+          "datasource": "prometheus",
+          "definition": "label_values(ultramarket_requests_total, service)",
+          "hide": 0,
+          "includeAll": true,
+          "label": "Service",
+          "name": "service",
+          "options": [],
+          "query": "label_values(ultramarket_requests_total, service)",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        }
+      ]
+    }
+  }
+}

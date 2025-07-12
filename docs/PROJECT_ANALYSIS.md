@@ -576,7 +576,7 @@ class SecurityMiddleware {
 1. **Service Mesh** (Istio) for better communication
 2. **Event-Driven Architecture** expansion
 3. **CQRS** implementation for read/write separation
-4. **Multi-region deployment** for global scale
+4. **O'zbekiston uchun optimallashtirilgan deployment**
 
 ### Team & Process
 

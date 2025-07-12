@@ -1,0 +1,607 @@
+version: '3.8'
+
+services:
+  # ======================
+  # DATABASES
+  # ======================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ultramarket-postgres
+    environment:
+      POSTGRES_DB: ultramarket
+      POSTGRES_USER: ultramarket_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ultramarket_secure_password}
+      POSTGRES_MULTIPLE_DATABASES: auth_db,user_db,order_db,payment_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+    ports:
+      - '5432:5432'
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ultramarket_user -d ultramarket']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  mongodb:
+    image: mongo:7
+    container_name: ultramarket-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ultramarket_admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-mongodb_secure_password}
+      MONGO_INITDB_DATABASE: ultramarket_products
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
+    ports:
+      - '27017:27017'
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: '1.5'
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ultramarket-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_secure_password} --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ultramarket-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - 'ES_JAVA_OPTS=-Xms1g -Xmx1g'
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ======================
+  # MESSAGE QUEUE
+  # ======================
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: ultramarket-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    ports:
+      - '9092:9092'
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: ultramarket-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - '2181:2181'
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+
+  # ======================
+  # CORE MICROSERVICES
+  # ======================
+
+  auth-service:
+    build:
+      context: ./microservices/core/auth-service
+      dockerfile: Dockerfile.prod
+    container_name: ultramarket-auth-service
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DATABASE_URL: postgresql://ultramarket_user:${POSTGRES_PASSWORD:-ultramarket_secure_password}@postgres:5432/auth_db
+      JWT_SECRET: ${JWT_SECRET:-auth_jwt_super_secret_key_production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-auth_refresh_super_secret_key_production}
+      JWT_EMAIL_VERIFICATION_SECRET: ${JWT_EMAIL_VERIFICATION_SECRET:-email_verification_secret}
+      JWT_PASSWORD_RESET_SECRET: ${JWT_PASSWORD_RESET_SECRET:-password_reset_secret}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secure_password}@redis:6379
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 100
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3002/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  user-service:
+    build:
+      context: ./microservices/core/user-service
+      dockerfile: Dockerfile.prod
+    container_name: ultramarket-user-service
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+      DATABASE_URL: postgresql://ultramarket_user:${POSTGRES_PASSWORD:-ultramarket_secure_password}@postgres:5432/user_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secure_password}@redis:6379
+      AUTH_SERVICE_URL: http://auth-service:3002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # ======================
+  # BUSINESS MICROSERVICES
+  # ======================
+
+  product-service:
+    build:
+      context: ./microservices/business/product-service
+      dockerfile: Dockerfile.prod
+    container_name: ultramarket-product-service
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      MONGODB_URI: mongodb://ultramarket_admin:${MONGODB_PASSWORD:-mongodb_secure_password}@mongodb:27017/ultramarket_products?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secure_password}@redis:6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      AUTH_SERVICE_URL: http://auth-service:3002
+      FILE_SERVICE_URL: http://file-service:3009
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3003/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  order-service:
+    build:
+      context: ./microservices/business/order-service
+      dockerfile: Dockerfile.prod
+    container_name: ultramarket-order-service
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      DATABASE_URL: postgresql://ultramarket_user:${POSTGRES_PASSWORD:-ultramarket_secure_password}@postgres:5432/order_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secure_password}@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      AUTH_SERVICE_URL: http://auth-service:3002
+      PRODUCT_SERVICE_URL: http://product-service:3003
+      PAYMENT_SERVICE_URL: http://payment-service:3006
+      INVENTORY_SERVICE_URL: http://inventory-service:3007
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      auth-service:
+        condition: service_healthy
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+
+  payment-service:
+    build:
+      context: ./microservices/business/payment-service
+      dockerfile: Dockerfile.prod
+    container_name: ultramarket-payment-service
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+      DATABASE_URL: postgresql://ultramarket_user:${POSTGRES_PASSWORD:-ultramarket_secure_password}@postgres:5432/payment_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secure_password}@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
+      AUTH_SERVICE_URL: http://auth-service:3002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  cart-service:
+    build:
+      context: ./microservices/business/cart-service
+      dockerfile: Dockerfile.prod
+    container_name: ultramarket-cart-service
+    environment:
+      NODE_ENV: production
+      PORT: 3008
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secure_password}@redis:6379
+      AUTH_SERVICE_URL: http://auth-service:3002
+      PRODUCT_SERVICE_URL: http://product-service:3003
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.3'
+
+  # ======================
+  # PLATFORM MICROSERVICES
+  # ======================
+
+  search-service:
+    build:
+      context: ./microservices/platform/search-service
+      dockerfile: Dockerfile.prod
+    container_name: ultramarket-search-service
+    environment:
+      NODE_ENV: production
+      PORT: 3010
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secure_password}@redis:6379
+      PRODUCT_SERVICE_URL: http://product-service:3003
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  notification-service:
+    build:
+      context: ./microservices/platform/notification-service
+      dockerfile: Dockerfile.prod
+    container_name: ultramarket-notification-service
+    environment:
+      NODE_ENV: production
+      PORT: 3011
+      MONGODB_URI: mongodb://ultramarket_admin:${MONGODB_PASSWORD:-mongodb_secure_password}@mongodb:27017/ultramarket_notifications?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secure_password}@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  file-service:
+    build:
+      context: ./microservices/platform/file-service
+      dockerfile: Dockerfile.prod
+    container_name: ultramarket-file-service
+    environment:
+      NODE_ENV: production
+      PORT: 3009
+      MONGODB_URI: mongodb://ultramarket_admin:${MONGODB_PASSWORD:-mongodb_secure_password}@mongodb:27017/ultramarket_files?authSource=admin
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio}
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-ultramarket_minio}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minio_secure_password}
+      CDN_URL: ${CDN_URL:-http://localhost:9000}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    volumes:
+      - file_uploads:/app/uploads
+
+  # ======================
+  # API GATEWAY
+  # ======================
+
+  api-gateway:
+    build:
+      context: ./microservices/core/api-gateway
+      dockerfile: Dockerfile.prod
+    container_name: ultramarket-api-gateway
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      AUTH_SERVICE_URL: http://auth-service:3002
+      USER_SERVICE_URL: http://user-service:3004
+      PRODUCT_SERVICE_URL: http://product-service:3003
+      ORDER_SERVICE_URL: http://order-service:3005
+      PAYMENT_SERVICE_URL: http://payment-service:3006
+      CART_SERVICE_URL: http://cart-service:3008
+      SEARCH_SERVICE_URL: http://search-service:3010
+      NOTIFICATION_SERVICE_URL: http://notification-service:3011
+      FILE_SERVICE_URL: http://file-service:3009
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secure_password}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-auth_jwt_super_secret_key_production}
+    depends_on:
+      - auth-service
+      - user-service
+      - product-service
+      - order-service
+      - payment-service
+      - cart-service
+      - search-service
+      - notification-service
+      - file-service
+    ports:
+      - '8000:8000'
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ======================
+  # STORAGE & CDN
+  # ======================
+
+  minio:
+    image: minio/minio:latest
+    container_name: ultramarket-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-ultramarket_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minio_secure_password}
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ======================
+  # MONITORING & LOGGING
+  # ======================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ultramarket-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ultramarket-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
+    ports:
+      - '3000:3000'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infrastructure/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+
+  # ======================
+  # REVERSE PROXY
+  # ======================
+
+  nginx:
+    image: nginx:alpine
+    container_name: ultramarket-nginx
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl
+      - ./infrastructure/nginx/logs:/var/log/nginx
+    depends_on:
+      - api-gateway
+    networks:
+      - ultramarket-network
+    restart: unless-stopped
+
+# ======================
+# NETWORKS
+# ======================
+
+networks:
+  ultramarket-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ======================
+# VOLUMES
+# ======================
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  kafka_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  minio_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  file_uploads:
+    driver: local

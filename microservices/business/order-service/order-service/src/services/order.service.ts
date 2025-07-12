@@ -1,18 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '../config/database';
+import { prisma } from '../config/prisma-shim';
 import { logger } from '../utils/logger';
-
-// Order status enum
-export enum OrderStatus {
-  PENDING = 'PENDING',
-  CONFIRMED = 'CONFIRMED',
-  PROCESSING = 'PROCESSING',
-  SHIPPED = 'SHIPPED',
-  DELIVERED = 'DELIVERED',
-  CANCELLED = 'CANCELLED',
-  REFUNDED = 'REFUNDED',
-  COMPLETED = 'COMPLETED',
-}
 
 // Response interfaces
 interface ServiceResponse<T> {
@@ -22,7 +10,7 @@ interface ServiceResponse<T> {
   error?: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
 }
 
@@ -46,6 +34,19 @@ export interface ShippingAddress {
 }
 
 // Order interface
+export type OrderStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'CANCELED'
+  | 'REFUNDED'
+  | 'ON_HOLD'
+  | 'COMPLETED'
+  | 'FAILED';
+
+export type OrderType = 'STANDARD' | 'EXPRESS' | 'INTERNATIONAL' | 'PICKUP';
+
 export interface Order {
   id: string;
   userId: string;
@@ -58,8 +59,10 @@ export interface Order {
   updatedAt: string;
 }
 
+import { OrderCreateData, OrderUpdateData } from '../types/order';
+
 export class OrderService {
-  async createOrder(orderData: any): Promise<ServiceResponse<any>> {
+  async createOrder(orderData: OrderCreateData): Promise<ServiceResponse<Order>> {
     try {
       // Validate required fields
       if (!orderData.userId || !orderData.items || orderData.items.length === 0) {
@@ -85,7 +88,7 @@ export class OrderService {
       const totalAmount = subtotal + taxAmount + shippingAmount - discountAmount;
 
       try {
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx: any) => {
           // Create order
           const order = await tx.order.create({
             data: {
@@ -123,9 +126,25 @@ export class OrderService {
           userId: orderData.userId,
         });
 
+        // Add default empty array for items to match Order interface
+        const order: Order = {
+          ...result,
+          id: result.id,
+          userId: result.userId,
+          items: [], // Required by the Order interface
+          totalAmount:
+            Number(result.subtotal) +
+            Number(result.taxAmount) +
+            Number(result.shippingAmount) -
+            Number(result.discountAmount),
+          status: result.status as unknown as OrderStatus, // Convert Prisma enum to our enum
+          createdAt: result.createdAt.toISOString(),
+          updatedAt: result.updatedAt.toISOString(),
+        };
+
         return {
           success: true,
-          data: result,
+          data: order,
           message: 'Order created successfully',
         };
       } catch (error) {
@@ -326,6 +345,6 @@ export class OrderService {
   }
 
   async cancelOrder(orderId: string, userId: string): Promise<ServiceResponse<any>> {
-    return this.updateOrderStatus(orderId, OrderStatus.CANCELLED, userId);
+    return this.updateOrderStatus(orderId, 'CANCELLED' as OrderStatus, userId);
   }
 }

@@ -1,0 +1,776 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ultramarket
+  labels:
+    name: ultramarket
+    environment: production
+
+---
+# ConfigMap for environment variables
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ultramarket-config
+  namespace: ultramarket
+data:
+  NODE_ENV: 'production'
+  TZ: 'Asia/Tashkent'
+  POSTGRES_HOST: 'postgres-service'
+  POSTGRES_PORT: '5432'
+  POSTGRES_DB: 'ultramarket_db'
+  MONGO_HOST: 'mongo-service'
+  MONGO_PORT: '27017'
+  MONGO_DB: 'ultramarket_db'
+  REDIS_HOST: 'redis-service'
+  REDIS_PORT: '6379'
+  ELASTICSEARCH_HOST: 'elasticsearch-service'
+  ELASTICSEARCH_PORT: '9200'
+  MINIO_HOST: 'minio-service'
+  MINIO_PORT: '9000'
+
+---
+# Secret for sensitive data
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ultramarket-secrets
+  namespace: ultramarket
+type: Opaque
+data:
+  POSTGRES_USER: dWx0cmFtYXJrZXRfdXNlcg== # ultramarket_user
+  POSTGRES_PASSWORD: dWx0cmFtYXJrZXRfcGFzc3dvcmQ= # ultramarket_password
+  MONGO_USER: dWx0cmFtYXJrZXRfdXNlcg== # ultramarket_user
+  MONGO_PASSWORD: dWx0cmFtYXJrZXRfcGFzc3dvcmQ= # ultramarket_password
+  REDIS_PASSWORD: dWx0cmFtYXJrZXRfcGFzc3dvcmQ= # ultramarket_password
+  JWT_SECRET: dWx0cmFtYXJrZXRfand0X3NlY3JldA== # ultramarket_jwt_secret
+  CLICK_SECRET_KEY: Y2xpY2tfc2VjcmV0X2tleQ== # click_secret_key
+  PAYME_SECRET_KEY: cGF5bWVfc2VjcmV0X2tleQ== # payme_secret_key
+  MINIO_ACCESS_KEY: dWx0cmFtYXJrZXRfdXNlcg== # ultramarket_user
+  MINIO_SECRET_KEY: dWx0cmFtYXJrZXRfcGFzc3dvcmQ= # ultramarket_password
+
+---
+# API Gateway Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: ultramarket
+  labels:
+    app: api-gateway
+    tier: core
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        tier: core
+    spec:
+      containers:
+        - name: api-gateway
+          image: ultramarket/api-gateway:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              value: '3000'
+          envFrom:
+            - configMapRef:
+                name: ultramarket-config
+            - secretRef:
+                name: ultramarket-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '250m'
+            limits:
+              memory: '512Mi'
+              cpu: '500m'
+
+---
+# API Gateway Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-service
+  namespace: ultramarket
+  labels:
+    app: api-gateway
+spec:
+  selector:
+    app: api-gateway
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
+  type: LoadBalancer
+
+---
+# Auth Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: ultramarket
+  labels:
+    app: auth-service
+    tier: core
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+        tier: core
+    spec:
+      containers:
+        - name: auth-service
+          image: ultramarket/auth-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3001
+          env:
+            - name: PORT
+              value: '3001'
+          envFrom:
+            - configMapRef:
+                name: ultramarket-config
+            - secretRef:
+                name: ultramarket-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '250m'
+            limits:
+              memory: '512Mi'
+              cpu: '500m'
+
+---
+# Auth Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: ultramarket
+  labels:
+    app: auth-service
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - port: 3001
+      targetPort: 3001
+      protocol: TCP
+  type: ClusterIP
+
+---
+# Product Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: ultramarket
+  labels:
+    app: product-service
+    tier: business
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+        tier: business
+    spec:
+      containers:
+        - name: product-service
+          image: ultramarket/product-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3002
+          env:
+            - name: PORT
+              value: '3002'
+          envFrom:
+            - configMapRef:
+                name: ultramarket-config
+            - secretRef:
+                name: ultramarket-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '500m'
+            limits:
+              memory: '1Gi'
+              cpu: '1000m'
+
+---
+# Product Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  namespace: ultramarket
+  labels:
+    app: product-service
+spec:
+  selector:
+    app: product-service
+  ports:
+    - port: 3002
+      targetPort: 3002
+      protocol: TCP
+  type: ClusterIP
+
+---
+# Order Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: ultramarket
+  labels:
+    app: order-service
+    tier: business
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+        tier: business
+    spec:
+      containers:
+        - name: order-service
+          image: ultramarket/order-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3003
+          env:
+            - name: PORT
+              value: '3003'
+          envFrom:
+            - configMapRef:
+                name: ultramarket-config
+            - secretRef:
+                name: ultramarket-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3003
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3003
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '500m'
+            limits:
+              memory: '1Gi'
+              cpu: '1000m'
+
+---
+# Order Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: ultramarket
+  labels:
+    app: order-service
+spec:
+  selector:
+    app: order-service
+  ports:
+    - port: 3003
+      targetPort: 3003
+      protocol: TCP
+  type: ClusterIP
+
+---
+# Payment Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: ultramarket
+  labels:
+    app: payment-service
+    tier: business
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        tier: business
+    spec:
+      containers:
+        - name: payment-service
+          image: ultramarket/payment-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3004
+          env:
+            - name: PORT
+              value: '3004'
+          envFrom:
+            - configMapRef:
+                name: ultramarket-config
+            - secretRef:
+                name: ultramarket-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3004
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3004
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '500m'
+            limits:
+              memory: '1Gi'
+              cpu: '1000m'
+
+---
+# Payment Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: ultramarket
+  labels:
+    app: payment-service
+spec:
+  selector:
+    app: payment-service
+  ports:
+    - port: 3004
+      targetPort: 3004
+      protocol: TCP
+  type: ClusterIP
+
+---
+# Search Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-service
+  namespace: ultramarket
+  labels:
+    app: search-service
+    tier: platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: search-service
+  template:
+    metadata:
+      labels:
+        app: search-service
+        tier: platform
+    spec:
+      containers:
+        - name: search-service
+          image: ultramarket/search-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3005
+          env:
+            - name: PORT
+              value: '3005'
+          envFrom:
+            - configMapRef:
+                name: ultramarket-config
+            - secretRef:
+                name: ultramarket-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3005
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3005
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '500m'
+            limits:
+              memory: '1Gi'
+              cpu: '1000m'
+
+---
+# Search Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-service
+  namespace: ultramarket
+  labels:
+    app: search-service
+spec:
+  selector:
+    app: search-service
+  ports:
+    - port: 3005
+      targetPort: 3005
+      protocol: TCP
+  type: ClusterIP
+
+---
+# File Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: file-service
+  namespace: ultramarket
+  labels:
+    app: file-service
+    tier: platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: file-service
+  template:
+    metadata:
+      labels:
+        app: file-service
+        tier: platform
+    spec:
+      containers:
+        - name: file-service
+          image: ultramarket/file-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3006
+          env:
+            - name: PORT
+              value: '3006'
+          envFrom:
+            - configMapRef:
+                name: ultramarket-config
+            - secretRef:
+                name: ultramarket-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3006
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3006
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '500m'
+            limits:
+              memory: '1Gi'
+              cpu: '1000m'
+
+---
+# File Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: file-service
+  namespace: ultramarket
+  labels:
+    app: file-service
+spec:
+  selector:
+    app: file-service
+  ports:
+    - port: 3006
+      targetPort: 3006
+      protocol: TCP
+  type: ClusterIP
+
+---
+# Notification Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: ultramarket
+  labels:
+    app: notification-service
+    tier: platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+        tier: platform
+    spec:
+      containers:
+        - name: notification-service
+          image: ultramarket/notification-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3007
+          env:
+            - name: PORT
+              value: '3007'
+          envFrom:
+            - configMapRef:
+                name: ultramarket-config
+            - secretRef:
+                name: ultramarket-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3007
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3007
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '250m'
+            limits:
+              memory: '512Mi'
+              cpu: '500m'
+
+---
+# Notification Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: ultramarket
+  labels:
+    app: notification-service
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - port: 3007
+      targetPort: 3007
+      protocol: TCP
+  type: ClusterIP
+
+---
+# Ingress Configuration
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ultramarket-ingress
+  namespace: ultramarket
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+    cert-manager.io/cluster-issuer: 'letsencrypt-prod'
+spec:
+  tls:
+    - hosts:
+        - api.ultramarket.uz
+      secretName: ultramarket-tls
+  rules:
+    - host: api.ultramarket.uz
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway-service
+                port:
+                  number: 80
+
+---
+# Horizontal Pod Autoscaler for API Gateway
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-gateway-hpa
+  namespace: ultramarket
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+# Horizontal Pod Autoscaler for Product Service
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: product-service-hpa
+  namespace: ultramarket
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: product-service
+  minReplicas: 3
+  maxReplicas: 15
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+# Horizontal Pod Autoscaler for Payment Service
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: payment-service-hpa
+  namespace: ultramarket
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payment-service
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+# Network Policy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ultramarket-network-policy
+  namespace: ultramarket
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ultramarket
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: ultramarket
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53

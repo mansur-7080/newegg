@@ -1,193 +1,504 @@
+/**
+ * UltraMarket API Gateway
+ * Professional API Gateway with routing, load balancing, and security
+ */
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import compression from 'compression';
-import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
-import { config } from 'dotenv';
+import compression from 'compression';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { authMiddleware } from './middleware/auth';
-import { errorHandler } from './middleware/errorHandler';
-import { metricsMiddleware } from './middleware/metrics';
-import { logger } from './utils/logger';
-import { healthRoutes } from './routes/health';
-import { authRoutes } from './routes/auth';
+import { validateEnvironmentOnStartup } from '@ultramarket/shared/validation/environment';
+import { logger } from '@ultramarket/shared/logging/logger';
+import { errorHandler } from '@ultramarket/shared/middleware/error-handler';
+import { securityMiddleware } from '@ultramarket/shared/middleware/security';
+import { validateToken } from '@ultramarket/shared/auth/jwt';
 
-config();
+// Validate environment on startup
+validateEnvironmentOnStartup('api-gateway');
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const HOST = process.env.HOST ?? 'localhost';
 
-// Security middleware
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
-      },
-    },
-  })
-);
-
-// CORS configuration
-app.use(
-  cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  })
-);
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use(limiter);
-
-// General middleware
-app.use(compression());
-app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Metrics middleware
-app.use(metricsMiddleware);
-
-// Health check routes
-app.use('/health', healthRoutes);
-app.use('/api/auth', authRoutes);
-
-// Service proxy configurations
+// Service configurations
 const services = {
   auth: {
-    target: process.env.AUTH_SERVICE_URL || 'http://localhost:3002',
-    pathRewrite: { '^/api/auth': '/api/auth' },
+    url: process.env.AUTH_SERVICE_URL || 'http://localhost:3002',
+    health: '/health',
   },
   user: {
-    target: process.env.USER_SERVICE_URL || 'http://localhost:3001',
-    pathRewrite: { '^/api/users': '/api/users' },
+    url: process.env.USER_SERVICE_URL || 'http://localhost:3001',
+    health: '/health',
   },
   product: {
-    target: process.env.PRODUCT_SERVICE_URL || 'http://localhost:3003',
-    pathRewrite: { '^/api/products': '/api/products' },
-  },
-  cart: {
-    target: process.env.CART_SERVICE_URL || 'http://localhost:3005',
-    pathRewrite: { '^/api/cart': '/api/cart' },
+    url: process.env.PRODUCT_SERVICE_URL || 'http://localhost:3003',
+    health: '/health',
   },
   order: {
-    target: process.env.ORDER_SERVICE_URL || 'http://localhost:3006',
-    pathRewrite: { '^/api/orders': '/api/orders' },
+    url: process.env.ORDER_SERVICE_URL || 'http://localhost:3004',
+    health: '/health',
   },
   payment: {
-    target: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3007',
-    pathRewrite: { '^/api/payments': '/api/payments' },
-  },
-  notification: {
-    target: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3008',
-    pathRewrite: { '^/api/notifications': '/api/notifications' },
+    url: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3005',
+    health: '/health',
   },
   search: {
-    target: process.env.SEARCH_SERVICE_URL || 'http://localhost:3009',
-    pathRewrite: { '^/api/search': '/api/search' },
+    url: process.env.SEARCH_SERVICE_URL || 'http://localhost:3006',
+    health: '/health',
+  },
+  notification: {
+    url: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3007',
+    health: '/health',
   },
   analytics: {
-    target: process.env.ANALYTICS_SERVICE_URL || 'http://localhost:3010',
-    pathRewrite: { '^/api/analytics': '/api/analytics' },
+    url: process.env.ANALYTICS_SERVICE_URL || 'http://localhost:3008',
+    health: '/health',
   },
 };
 
-// Create proxy middleware for each service
-Object.entries(services).forEach(([serviceName, config]) => {
-  const proxyMiddleware = createProxyMiddleware({
-    target: config.target,
-    changeOrigin: true,
-    pathRewrite: config.pathRewrite,
-    onError: (err, req, res) => {
-      logger.error(`Proxy error for ${serviceName}:`, err);
-      res.status(503).json({
-        error: 'Service Unavailable',
-        message: `${serviceName} service is currently unavailable`,
-        timestamp: new Date().toISOString(),
-      });
-    },
-    onProxyReq: (proxyReq, req, res) => {
-      // Add correlation ID for tracing
-      const correlationId =
-        req.headers['x-correlation-id'] ||
-        `gw-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      proxyReq.setHeader('X-Correlation-ID', correlationId);
-      proxyReq.setHeader('X-Forwarded-For', req.ip);
-      proxyReq.setHeader('X-Gateway-Version', '1.0.0');
-    },
+// Security middleware
+app.use(helmet());
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN ?? '*',
+    credentials: true,
+  })
+);
+
+// Compression middleware
+app.use(compression());
+
+// Global rate limiting
+const globalLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS ?? '900000', 10),
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS ?? '1000', 10),
+  message: 'Too many requests from this IP',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  skipFailedRequests: false,
+});
+app.use(globalLimiter);
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Security middleware
+app.use(securityMiddleware());
+
+// Request logging middleware
+app.use((req, res, next) => {
+  logger.info('API Gateway Request', {
+    method: req.method,
+    url: req.url,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
   });
+  next();
+});
 
-  // Apply authentication middleware for protected routes
-  const protectedRoutes = ['/api/orders', '/api/cart', '/api/payments', '/api/analytics'];
-  const routePath = `/api/${
-    serviceName === 'user'
-      ? 'users'
-      : serviceName === 'product'
-        ? 'products'
-        : serviceName === 'auth'
-          ? 'auth'
-          : serviceName
-  }`;
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    service: 'api-gateway',
+    timestamp: new Date().toISOString(),
+    version: process.env.APP_VERSION ?? '1.0.0',
+  });
+});
 
-  // Auth routes don't need auth middleware (they provide auth)
-  if (serviceName === 'auth') {
-    app.use(routePath, proxyMiddleware);
-  } else if (protectedRoutes.some((route) => routePath.startsWith(route))) {
-    app.use(routePath, authMiddleware, proxyMiddleware);
-  } else {
-    app.use(routePath, proxyMiddleware);
+// Service health check
+app.get('/health/services', async (req, res) => {
+  try {
+    const healthChecks = await Promise.allSettled(
+      Object.entries(services).map(async ([name, service]) => {
+        try {
+          const response = await fetch(`${service.url}${service.health}`);
+          const data = await response.json();
+          return {
+            name,
+            status: response.ok ? 'healthy' : 'unhealthy',
+            data,
+          };
+        } catch (error) {
+          return {
+            name,
+            status: 'unhealthy',
+            error: error instanceof Error ? error.message : 'Unknown error',
+          };
+        }
+      })
+    );
+
+    const results = healthChecks.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      } else {
+        const serviceName = Object.keys(services)[index];
+        return {
+          name: serviceName,
+          status: 'unhealthy',
+          error: result.reason instanceof Error ? result.reason.message : 'Unknown error',
+        };
+      }
+    });
+
+    const allHealthy = results.every((result) => result.status === 'healthy');
+
+    res.status(allHealthy ? 200 : 503).json({
+      status: allHealthy ? 'healthy' : 'degraded',
+      services: results,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Service health check failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to check service health',
+    });
   }
 });
 
-// API documentation route
+// API Documentation
 app.get('/api/docs', (req, res) => {
   res.json({
-    name: 'UltraMarket API Gateway',
+    message: 'UltraMarket API Documentation',
     version: '1.0.0',
-    description: 'Central API Gateway for UltraMarket microservices',
-    services: Object.keys(services),
     endpoints: {
-      health: '/health',
-      auth: '/api/auth',
-      users: '/api/users',
-      products: '/api/products',
-      cart: '/api/cart',
-      orders: '/api/orders',
-      payments: '/api/payments',
-      notifications: '/api/notifications',
-      search: '/api/search',
-      analytics: '/api/analytics',
+      auth: {
+        base: '/api/v1/auth',
+        endpoints: [
+          'POST /register - Register new user',
+          'POST /login - User login',
+          'POST /refresh - Refresh token',
+          'POST /logout - User logout',
+          'GET /profile - Get user profile',
+          'PUT /profile - Update user profile',
+        ],
+      },
+      products: {
+        base: '/api/v1/products',
+        endpoints: [
+          'GET / - Get all products',
+          'GET /:id - Get product by ID',
+          'GET /sku/:sku - Get product by SKU',
+          'GET /featured/list - Get featured products',
+          'GET /category/:categoryId - Get products by category',
+          'POST / - Create product (Admin)',
+          'PUT /:id - Update product (Admin)',
+          'DELETE /:id - Delete product (Admin)',
+        ],
+      },
+      categories: {
+        base: '/api/v1/categories',
+        endpoints: [
+          'GET / - Get all categories',
+          'GET /tree - Get category tree',
+          'GET /root - Get root categories',
+          'GET /:id - Get category by ID',
+          'GET /slug/:slug - Get category by slug',
+          'GET /:id/children - Get child categories',
+          'GET /:id/stats - Get category statistics',
+          'POST / - Create category (Admin)',
+          'PUT /:id - Update category (Admin)',
+          'DELETE /:id - Delete category (Admin)',
+        ],
+      },
+      search: {
+        base: '/api/v1/search',
+        endpoints: [
+          'GET /products - Search products',
+          'GET /categories - Search categories',
+          'GET /autocomplete/products - Product autocomplete',
+          'GET /autocomplete/categories - Category autocomplete',
+          'GET /suggestions - Get search suggestions',
+          'GET /analytics - Get search analytics',
+        ],
+      },
+      orders: {
+        base: '/api/v1/orders',
+        endpoints: [
+          'GET / - Get user orders',
+          'GET /:id - Get order by ID',
+          'POST / - Create order',
+          'PUT /:id - Update order',
+          'DELETE /:id - Cancel order',
+        ],
+      },
+      cart: {
+        base: '/api/v1/cart',
+        endpoints: [
+          'GET / - Get user cart',
+          'POST /items - Add item to cart',
+          'PUT /items/:id - Update cart item',
+          'DELETE /items/:id - Remove item from cart',
+          'DELETE / - Clear cart',
+        ],
+      },
+      checkout: {
+        base: '/api/v1/checkout',
+        endpoints: [
+          'POST / - Process checkout',
+          'POST /validate - Validate checkout',
+          'GET /shipping - Get shipping options',
+          'GET /payment-methods - Get payment methods',
+        ],
+      },
     },
-    timestamp: new Date().toISOString(),
   });
 });
+
+// Authentication routes
+app.use(
+  '/api/v1/auth',
+  createProxyMiddleware({
+    target: services.auth.url,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/auth': '/api/v1/auth',
+    },
+    onError: (err, req, res) => {
+      logger.error('Auth service proxy error', { error: err.message });
+      res.status(503).json({
+        success: false,
+        message: 'Authentication service unavailable',
+      });
+    },
+  })
+);
+
+// Product routes
+app.use(
+  '/api/v1/products',
+  createProxyMiddleware({
+    target: services.product.url,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/products': '/api/v1/products',
+    },
+    onError: (err, req, res) => {
+      logger.error('Product service proxy error', { error: err.message });
+      res.status(503).json({
+        success: false,
+        message: 'Product service unavailable',
+      });
+    },
+  })
+);
+
+// Category routes
+app.use(
+  '/api/v1/categories',
+  createProxyMiddleware({
+    target: services.product.url,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/categories': '/api/v1/categories',
+    },
+    onError: (err, req, res) => {
+      logger.error('Category service proxy error', { error: err.message });
+      res.status(503).json({
+        success: false,
+        message: 'Category service unavailable',
+      });
+    },
+  })
+);
+
+// Search routes
+app.use(
+  '/api/v1/search',
+  createProxyMiddleware({
+    target: services.product.url,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/search': '/api/v1/search',
+    },
+    onError: (err, req, res) => {
+      logger.error('Search service proxy error', { error: err.message });
+      res.status(503).json({
+        success: false,
+        message: 'Search service unavailable',
+      });
+    },
+  })
+);
+
+// Order routes (protected)
+app.use(
+  '/api/v1/orders',
+  validateToken,
+  createProxyMiddleware({
+    target: services.order.url,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/orders': '/api/v1/orders',
+    },
+    onError: (err, req, res) => {
+      logger.error('Order service proxy error', { error: err.message });
+      res.status(503).json({
+        success: false,
+        message: 'Order service unavailable',
+      });
+    },
+  })
+);
+
+// Cart routes (protected)
+app.use(
+  '/api/v1/cart',
+  validateToken,
+  createProxyMiddleware({
+    target: services.order.url,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/cart': '/api/v1/cart',
+    },
+    onError: (err, req, res) => {
+      logger.error('Cart service proxy error', { error: err.message });
+      res.status(503).json({
+        success: false,
+        message: 'Cart service unavailable',
+      });
+    },
+  })
+);
+
+// Checkout routes (protected)
+app.use(
+  '/api/v1/checkout',
+  validateToken,
+  createProxyMiddleware({
+    target: services.order.url,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/checkout': '/api/v1/checkout',
+    },
+    onError: (err, req, res) => {
+      logger.error('Checkout service proxy error', { error: err.message });
+      res.status(503).json({
+        success: false,
+        message: 'Checkout service unavailable',
+      });
+    },
+  })
+);
+
+// Payment routes (protected)
+app.use(
+  '/api/v1/payments',
+  validateToken,
+  createProxyMiddleware({
+    target: services.payment.url,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/payments': '/api/v1/payments',
+    },
+    onError: (err, req, res) => {
+      logger.error('Payment service proxy error', { error: err.message });
+      res.status(503).json({
+        success: false,
+        message: 'Payment service unavailable',
+      });
+    },
+  })
+);
+
+// Notification routes (protected)
+app.use(
+  '/api/v1/notifications',
+  validateToken,
+  createProxyMiddleware({
+    target: services.notification.url,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/notifications': '/api/v1/notifications',
+    },
+    onError: (err, req, res) => {
+      logger.error('Notification service proxy error', { error: err.message });
+      res.status(503).json({
+        success: false,
+        message: 'Notification service unavailable',
+      });
+    },
+  })
+);
+
+// Analytics routes (protected)
+app.use(
+  '/api/v1/analytics',
+  validateToken,
+  createProxyMiddleware({
+    target: services.analytics.url,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/analytics': '/api/v1/analytics',
+    },
+    onError: (err, req, res) => {
+      logger.error('Analytics service proxy error', { error: err.message });
+      res.status(503).json({
+        success: false,
+        message: 'Analytics service unavailable',
+      });
+    },
+  })
+);
+
+// Admin routes (protected)
+app.use(
+  '/api/v1/admin',
+  validateToken,
+  createProxyMiddleware({
+    target: services.product.url,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/admin': '/api/v1/admin',
+    },
+    onError: (err, req, res) => {
+      logger.error('Admin service proxy error', { error: err.message });
+      res.status(503).json({
+        success: false,
+        message: 'Admin service unavailable',
+      });
+    },
+  })
+);
+
+// Error handling middleware
+app.use(errorHandler);
 
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
-    error: 'Not Found',
-    message: 'The requested resource was not found',
+    success: false,
+    message: 'Route not found',
     path: req.originalUrl,
-    timestamp: new Date().toISOString(),
   });
 });
 
-// Error handling middleware
-app.use(errorHandler);
+// Start server
+app.listen(PORT, HOST, () => {
+  logger.info('API Gateway started successfully', {
+    port: PORT,
+    host: HOST,
+    environment: process.env.NODE_ENV ?? 'development',
+  });
+
+  logger.info('Service configurations', {
+    auth: services.auth.url,
+    product: services.product.url,
+    order: services.order.url,
+    payment: services.payment.url,
+    search: services.search.url,
+    notification: services.notification.url,
+    analytics: services.analytics.url,
+  });
+});
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
@@ -198,13 +509,6 @@ process.on('SIGTERM', () => {
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
   process.exit(0);
-});
-
-// Start server
-app.listen(PORT, () => {
-  logger.info(`🚀 API Gateway running on port ${PORT}`);
-  logger.info(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
-  logger.info(`🔍 Health Check: http://localhost:${PORT}/health`);
 });
 
 export default app;

@@ -1,521 +1,194 @@
-import { Request } from 'express';
-import { prisma } from '../config/database';
+import { Request, Response, NextFunction } from 'express';
+import { userService } from '../services/user.service';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { asyncHandler } from '../middleware/error.middleware';
 import { logger } from '../utils/logger';
-import { AppError } from '../middleware/errorHandler';
-import { EmailService } from '../services/email.service';
-import { RedisService } from '../services/redis.service';
 
 export class UserController {
-  private emailService: EmailService;
-  private redisService: RedisService;
+  /**
+   * Create a new user
+   */
+  createUser = asyncHandler(async (req: Request, res: Response) => {
+    const userData = req.body;
 
-  constructor() {
-    this.emailService = new EmailService();
-    this.redisService = new RedisService();
-  }
+    const user = await userService.createUser(userData);
+    const userResponse = userService.transformUserWithAddresses(user);
+
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      data: userResponse,
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   /**
-   * Get all users (Admin only)
+   * Get users with pagination and filtering (admin only)
    */
-  async getAllUsers(options: {
-    page: number;
-    limit: number;
-    search?: string;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-  }) {
-    try {
-      const { page, limit, search, sortBy = 'createdAt', sortOrder = 'desc' } = options;
-      const skip = (page - 1) * limit;
+  getUsers = asyncHandler(async (req: Request, res: Response) => {
+    const options = req.query;
 
-      // Build where clause
-      const where: any = {};
-      if (search) {
-        where.OR = [
-          { firstName: { contains: search, mode: 'insensitive' } },
-          { lastName: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ];
-      }
+    const result = await userService.getUsers(options);
 
-      // Get users with pagination
-      const [users, total] = await Promise.all([
-        prisma.user.findMany({
-          where,
-          skip,
-          take: limit,
-          orderBy: { [sortBy]: sortOrder },
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            phone: true,
-            emailVerified: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true,
-            lastLoginAt: true,
-          },
-        }),
-        prisma.user.count({ where }),
-      ]);
+    // Transform users to exclude sensitive data
+    const transformedUsers = result.users.map((user) =>
+      userService.transformUserWithAddresses(user)
+    );
 
-      const totalPages = Math.ceil(total / limit);
+    res.json({
+      success: true,
+      data: {
+        ...result,
+        users: transformedUsers,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  });
 
-      return {
-        success: true,
-        data: {
-          users,
-          pagination: {
-            page,
-            limit,
-            total,
-            totalPages,
-            hasNext: page < totalPages,
-            hasPrev: page > 1,
-          },
-        },
-      };
-    } catch (error) {
-      logger.error('Failed to get all users', {
-        error: error instanceof Error ? error.message : error,
-      });
-      throw error;
-    }
-  }
+  /**
+   * Get current user profile
+   */
+  getCurrentUser = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.userId;
+
+    const user = await userService.getUserById(userId);
+    const userResponse = userService.transformUserWithAddresses(user);
+
+    res.json({
+      success: true,
+      data: userResponse,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  /**
+   * Update current user profile
+   */
+  updateCurrentUser = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.userId;
+    const updateData = req.body;
+
+    const user = await userService.updateUser(userId, updateData);
+    const userResponse = userService.transformUserWithAddresses(user);
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: userResponse,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  /**
+   * Change current user password
+   */
+  changePassword = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    await userService.changePassword(userId, currentPassword, newPassword);
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  /**
+   * Update current user email
+   */
+  updateEmail = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.userId;
+    const { email, password } = req.body;
+
+    const user = await userService.updateEmail(userId, email, password);
+    const userResponse = userService.transformUserWithAddresses(user);
+
+    res.json({
+      success: true,
+      message: 'Email updated successfully. Please verify your new email.',
+      data: userResponse,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  /**
+   * Delete current user account
+   */
+  deleteCurrentUser = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.userId;
+
+    await userService.deleteUser(userId);
+
+    res.json({
+      success: true,
+      message: 'Account deleted successfully',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  /**
+   * Get user statistics (admin only)
+   */
+  getUserStats = asyncHandler(async (req: Request, res: Response) => {
+    const stats = await userService.getUserStats();
+
+    res.json({
+      success: true,
+      data: stats,
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   /**
    * Get user by ID
    */
-  async getUserById(userId: string, currentUserId: string) {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: {
-          addresses: true,
-          preferences: true,
-        },
-      });
+  getUserById = asyncHandler(async (req: Request, res: Response) => {
+    const { userId } = req.params;
 
-      if (!user) {
-        throw new AppError('User not found', 404);
-      }
+    const user = await userService.getUserById(userId);
+    const userResponse = userService.transformUserWithAddresses(user);
 
-      // Check if current user can access this user's data
-      if (currentUserId !== userId) {
-        // Remove sensitive information for other users
-        const { password, ...safeUser } = user;
-        return safeUser;
-      }
-
-      const { password, ...safeUser } = user;
-      return safeUser;
-    } catch (error) {
-      logger.error('Failed to get user by ID', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-      });
-      throw error;
-    }
-  }
+    res.json({
+      success: true,
+      data: userResponse,
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   /**
-   * Update user profile
+   * Update user by ID (admin only)
    */
-  async updateProfile(userId: string, updateData: any) {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-      });
+  updateUserById = asyncHandler(async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const updateData = req.body;
 
-      if (!user) {
-        throw new AppError('User not found', 404);
-      }
+    const user = await userService.adminUpdateUser(userId, updateData);
+    const userResponse = userService.transformUserWithAddresses(user);
 
-      // Update user
-      const updatedUser = await prisma.user.update({
-        where: { id: userId },
-        data: updateData,
-        include: {
-          addresses: true,
-          preferences: true,
-        },
-      });
-
-      const { password, ...safeUser } = updatedUser;
-
-      logger.info('User profile updated', { userId });
-
-      return safeUser;
-    } catch (error) {
-      logger.error('Failed to update user profile', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-      });
-      throw error;
-    }
-  }
+    res.json({
+      success: true,
+      message: 'User updated successfully',
+      data: userResponse,
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   /**
-   * Get user profile
+   * Delete user by ID (admin only)
    */
-  async getProfile(userId: string) {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: {
-          addresses: true,
-          preferences: true,
-        },
-      });
+  deleteUserById = asyncHandler(async (req: Request, res: Response) => {
+    const { userId } = req.params;
 
-      if (!user) {
-        throw new AppError('User not found', 404);
-      }
+    await userService.deleteUser(userId);
 
-      const { password, ...safeUser } = user;
-      return safeUser;
-    } catch (error) {
-      logger.error('Failed to get user profile', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Add new address
-   */
-  async addAddress(userId: string, addressData: any) {
-    try {
-      // If this is the first address, make it default
-      const existingAddresses = await prisma.address.count({
-        where: { userId },
-      });
-
-      const address = await prisma.address.create({
-        data: {
-          ...addressData,
-          userId,
-          isDefault: existingAddresses === 0 || addressData.isDefault,
-        },
-      });
-
-      // If this address is default, unset other addresses as default
-      if (address.isDefault) {
-        await prisma.address.updateMany({
-          where: {
-            userId,
-            id: { not: address.id },
-          },
-          data: { isDefault: false },
-        });
-      }
-
-      logger.info('Address added', { userId, addressId: address.id });
-
-      return address;
-    } catch (error) {
-      logger.error('Failed to add address', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get user addresses
-   */
-  async getAddresses(userId: string) {
-    try {
-      const addresses = await prisma.address.findMany({
-        where: { userId },
-        orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
-      });
-
-      return addresses;
-    } catch (error) {
-      logger.error('Failed to get user addresses', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Update address
-   */
-  async updateAddress(userId: string, addressId: string, updateData: any) {
-    try {
-      const address = await prisma.address.findFirst({
-        where: {
-          id: addressId,
-          userId,
-        },
-      });
-
-      if (!address) {
-        throw new AppError('Address not found', 404);
-      }
-
-      const updatedAddress = await prisma.address.update({
-        where: { id: addressId },
-        data: updateData,
-      });
-
-      // If this address is now default, unset other addresses as default
-      if (updatedAddress.isDefault) {
-        await prisma.address.updateMany({
-          where: {
-            userId,
-            id: { not: addressId },
-          },
-          data: { isDefault: false },
-        });
-      }
-
-      logger.info('Address updated', { userId, addressId });
-
-      return updatedAddress;
-    } catch (error) {
-      logger.error('Failed to update address', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-        addressId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Delete address
-   */
-  async deleteAddress(userId: string, addressId: string) {
-    try {
-      const address = await prisma.address.findFirst({
-        where: {
-          id: addressId,
-          userId,
-        },
-      });
-
-      if (!address) {
-        throw new AppError('Address not found', 404);
-      }
-
-      await prisma.address.delete({
-        where: { id: addressId },
-      });
-
-      logger.info('Address deleted', { userId, addressId });
-
-      return { success: true };
-    } catch (error) {
-      logger.error('Failed to delete address', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-        addressId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Upload user avatar
-   */
-  async uploadAvatar(userId: string, file: any) {
-    try {
-      // This would typically involve uploading to S3 or similar
-      // For now, we'll just return a placeholder
-      const avatarUrl = `https://ultramarket-avatars.s3.amazonaws.com/${userId}/${file.filename}`;
-
-      // Update user with avatar URL
-      await prisma.user.update({
-        where: { id: userId },
-        data: { avatarUrl },
-      });
-
-      logger.info('Avatar uploaded', { userId, avatarUrl });
-
-      return { avatarUrl };
-    } catch (error) {
-      logger.error('Failed to upload avatar', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Delete user avatar
-   */
-  async deleteAvatar(userId: string) {
-    try {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { avatarUrl: null },
-      });
-
-      logger.info('Avatar deleted', { userId });
-
-      return { success: true };
-    } catch (error) {
-      logger.error('Failed to delete avatar', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Deactivate user account
-   */
-  async deactivateAccount(userId: string, reason?: string) {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-      });
-
-      if (!user) {
-        throw new AppError('User not found', 404);
-      }
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          status: 'DEACTIVATED',
-          deactivatedAt: new Date(),
-          deactivationReason: reason,
-        },
-      });
-
-      // Send deactivation email
-      await this.emailService.sendDeactivationEmail(user.email, user.firstName, reason);
-
-      logger.info('Account deactivated', { userId, reason });
-
-      return { success: true };
-    } catch (error) {
-      logger.error('Failed to deactivate account', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Reactivate user account
-   */
-  async reactivateAccount(userId: string) {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-      });
-
-      if (!user) {
-        throw new AppError('User not found', 404);
-      }
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          status: 'ACTIVE',
-          deactivatedAt: null,
-          deactivationReason: null,
-        },
-      });
-
-      logger.info('Account reactivated', { userId });
-
-      return { success: true };
-    } catch (error) {
-      logger.error('Failed to reactivate account', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get user orders
-   */
-  async getUserOrders(
-    userId: string,
-    options: {
-      page: number;
-      limit: number;
-      status?: string;
-    }
-  ) {
-    try {
-      const { page, limit, status } = options;
-      const skip = (page - 1) * limit;
-
-      // This would typically call the order service
-      // For now, return mock data
-      const orders = [];
-      const total = 0;
-
-      return {
-        orders,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
-    } catch (error) {
-      logger.error('Failed to get user orders', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get user reviews
-   */
-  async getUserReviews(
-    userId: string,
-    options: {
-      page: number;
-      limit: number;
-    }
-  ) {
-    try {
-      const { page, limit } = options;
-      const skip = (page - 1) * limit;
-
-      // This would typically call the review service
-      // For now, return mock data
-      const reviews = [];
-      const total = 0;
-
-      return {
-        reviews,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
-    } catch (error) {
-      logger.error('Failed to get user reviews', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-      });
-      throw error;
-    }
-  }
+    res.json({
+      success: true,
+      message: 'User deleted successfully',
+      timestamp: new Date().toISOString(),
+    });
+  });
 }
+
+export const userController = new UserController();

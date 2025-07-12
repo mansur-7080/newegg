@@ -1,18 +1,18 @@
-# UltraMarket Production Docker Compose Configuration
-# Optimized for production deployment with security, performance, and monitoring
+# UltraMarket O'zbekiston Production Docker Compose Configuration
+# O'zbekiston uchun moslashtirilgan va optimallashtirilgan konfiguratsiya
 
 services:
   # =================== INFRASTRUCTURE SERVICES ===================
 
-  # PostgreSQL - Primary Database with High Availability
-  postgres-primary:
+  # PostgreSQL - Asosiy ma'lumotlar bazasi
+  postgres:
     image: postgres:15-alpine
-    container_name: ultramarket-postgres-primary
+    container_name: ultramarket-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-ultramarket_uzb}
+      POSTGRES_USER: ${POSTGRES_USER:-ultramarket_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_password_123}
       POSTGRES_INITDB_ARGS: '--auth-host=scram-sha-256'
       POSTGRES_HOST_AUTH_METHOD: 'scram-sha-256'
     volumes:

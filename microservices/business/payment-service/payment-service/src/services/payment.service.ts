@@ -1,8 +1,40 @@
 import Stripe from 'stripe';
 import { PaymentMethod, PaymentStatus, Currency } from '../types/payment.types';
-import { logger, createError } from '@ultramarket/shared';
+import { logger } from '@ultramarket/common';
+import { createError } from '@ultramarket/common';
 import { PaymentModel } from '../models/Payment';
 import { EventEmitter } from 'events';
+import axios from 'axios';
+
+// O'zbekiston Payment Providers
+interface ClickConfig {
+  serviceId: string;
+  merchantId: string;
+  secretKey: string;
+  environment: 'test' | 'production';
+}
+
+interface PaymeConfig {
+  merchantId: string;
+  secretKey: string;
+  environment: 'test' | 'production';
+}
+
+interface ApelsinConfig {
+  merchantId: string;
+  secretKey: string;
+  environment: 'test' | 'production';
+}
+
+interface UzbekPaymentOrder {
+  id: string;
+  status: string;
+  amount: number;
+  currency: string;
+  merchantId: string;
+  paymentUrl?: string;
+  transactionId?: string;
+}
 
 export interface PaymentRequest {
   amount: number;
@@ -48,6 +80,9 @@ export interface RefundRequest {
 export class PaymentService extends EventEmitter {
   private stripe: Stripe;
   private webhookSecret: string;
+  private clickConfig: ClickConfig;
+  private paymeConfig: PaymeConfig;
+  private apelsinConfig: ApelsinConfig;
 
   constructor() {
     super();
@@ -55,6 +90,26 @@ export class PaymentService extends EventEmitter {
       apiVersion: '2023-10-16',
     });
     this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+
+    // O'zbekiston payment providers configuration
+    this.clickConfig = {
+      serviceId: process.env.CLICK_SERVICE_ID || '',
+      merchantId: process.env.CLICK_MERCHANT_ID || '',
+      secretKey: process.env.CLICK_SECRET_KEY || '',
+      environment: (process.env.CLICK_ENVIRONMENT as 'test' | 'production') || 'test',
+    };
+
+    this.paymeConfig = {
+      merchantId: process.env.PAYME_MERCHANT_ID || '',
+      secretKey: process.env.PAYME_SECRET_KEY || '',
+      environment: (process.env.PAYME_ENVIRONMENT as 'test' | 'production') || 'test',
+    };
+
+    this.apelsinConfig = {
+      merchantId: process.env.APELSIN_MERCHANT_ID || '',
+      secretKey: process.env.APELSIN_SECRET_KEY || '',
+      environment: (process.env.APELSIN_ENVIRONMENT as 'test' | 'production') || 'test',
+    };
   }
 
   /**
@@ -196,65 +251,543 @@ export class PaymentService extends EventEmitter {
   }
 
   /**
-   * Process PayPal payment
+   * Process PayPal payment using PayPal Orders API
    */
   private async processPayPalPayment(
     paymentId: string,
     request: PaymentRequest
   ): Promise<PaymentResponse> {
-    // PayPal integration would go here
-    // This is a placeholder implementation
-    return {
-      id: paymentId,
-      status: PaymentStatus.PENDING,
-      amount: request.amount,
-      currency: request.currency,
-      method: request.method,
-      redirectUrl: `https://paypal.com/checkout/${paymentId}`,
-      metadata: request.metadata,
-    };
+    try {
+      logger.info('Processing PayPal payment', {
+        paymentId,
+        orderId: request.orderId,
+        amount: request.amount,
+      });
+
+      // Get PayPal access token
+      const accessToken = await this.getPayPalAccessToken();
+
+      // Create PayPal order
+      const paypalOrder = await this.createPayPalOrder(accessToken, request);
+
+      // Find approval link
+      const approvalLink = paypalOrder.links.find((link) => link.rel === 'approve');
+      if (!approvalLink) {
+        throw createError(500, 'PayPal approval link not found');
+      }
+
+      logger.info('PayPal order created successfully', {
+        paypalOrderId: paypalOrder.id,
+        paymentId,
+        status: paypalOrder.status,
+      });
+
+      return {
+        id: paymentId,
+        status: PaymentStatus.PENDING,
+        amount: request.amount,
+        currency: request.currency,
+        method: request.method,
+        transactionId: paypalOrder.id,
+        redirectUrl: approvalLink.href,
+        metadata: {
+          ...request.metadata,
+          paypalOrderId: paypalOrder.id,
+          paypalIntent: paypalOrder.intent,
+        },
+      };
+    } catch (error) {
+      logger.error('PayPal payment processing failed', error);
+      throw createError(
+        400,
+        `PayPal payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   }
 
   /**
-   * Process Apple Pay payment
+   * Get PayPal access token
    */
-  private async processApplePayPayment(
+  private async getPayPalAccessToken(): Promise<string> {
+    try {
+      const authUrl =
+        this.paypalConfig.environment === 'live'
+          ? 'https://api-m.paypal.com/v1/oauth2/token'
+          : 'https://api-m.sandbox.paypal.com/v1/oauth2/token';
+
+      const response = await axios.post(authUrl, 'grant_type=client_credentials', {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${btoa(`${this.paypalConfig.clientId}:${this.paypalConfig.clientSecret}`)}`,
+        },
+      });
+
+      return response.data.access_token;
+    } catch (error) {
+      logger.error('Failed to get PayPal access token', error);
+      throw createError(500, 'PayPal authentication failed');
+    }
+  }
+
+  /**
+   * Create PayPal order
+   */
+  private async createPayPalOrder(
+    accessToken: string,
+    request: PaymentRequest
+  ): Promise<PayPalOrder> {
+    try {
+      const apiUrl =
+        this.paypalConfig.environment === 'live'
+          ? 'https://api-m.paypal.com/v2/checkout/orders'
+          : 'https://api-m.sandbox.paypal.com/v2/checkout/orders';
+
+      const orderData = {
+        intent: 'CAPTURE',
+        purchase_units: [
+          {
+            reference_id: request.orderId,
+            description: request.description || 'UltraMarket Purchase',
+            amount: {
+              currency_code: request.currency,
+              value: request.amount.toString(),
+            },
+            payee: {
+              email_address: process.env.PAYPAL_MERCHANT_EMAIL || 'merchant@ultramarket.com',
+            },
+            custom_id: paymentId,
+          },
+        ],
+        application_context: {
+          return_url: `${process.env.FRONTEND_URL}/payment/success`,
+          cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
+          brand_name: 'UltraMarket',
+          landing_page: 'LOGIN',
+          user_action: 'PAY_NOW',
+          shipping_preference: 'NO_SHIPPING',
+        },
+      };
+
+      const response = await axios.post(apiUrl, orderData, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      logger.error('Failed to create PayPal order', error);
+      throw createError(500, 'PayPal order creation failed');
+    }
+  }
+
+  /**
+   * Capture PayPal payment
+   */
+  async capturePayPalPayment(paypalOrderId: string): Promise<PaymentResponse> {
+    try {
+      const accessToken = await this.getPayPalAccessToken();
+
+      const apiUrl =
+        this.paypalConfig.environment === 'live'
+          ? `https://api-m.paypal.com/v2/checkout/orders/${paypalOrderId}/capture`
+          : `https://api-m.sandbox.paypal.com/v2/checkout/orders/${paypalOrderId}/capture`;
+
+      const response = await axios.post(
+        apiUrl,
+        {},
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      const captureData = response.data;
+
+      logger.info('PayPal payment captured successfully', {
+        paypalOrderId,
+        captureId: captureData.purchase_units[0].payments.captures[0].id,
+        status: captureData.status,
+      });
+
+      return {
+        id: captureData.purchase_units[0].payments.captures[0].id,
+        status: PaymentStatus.COMPLETED,
+        amount: parseFloat(captureData.purchase_units[0].payments.captures[0].amount.value),
+        currency: captureData.purchase_units[0].payments.captures[0].amount
+          .currency_code as Currency,
+        method: PaymentMethod.PAYPAL,
+        transactionId: captureData.purchase_units[0].payments.captures[0].id,
+        metadata: {
+          paypalOrderId: captureData.id,
+          paypalCaptureId: captureData.purchase_units[0].payments.captures[0].id,
+          paypalStatus: captureData.status,
+        },
+      };
+    } catch (error) {
+      logger.error('PayPal payment capture failed', error);
+      throw createError(500, 'PayPal payment capture failed');
+    }
+  }
+
+  /**
+   * Process Click payment (O'zbekiston)
+   */
+  private async processClickPayment(
     paymentId: string,
     request: PaymentRequest
   ): Promise<PaymentResponse> {
-    // Apple Pay uses Stripe Payment Request API
-    return this.processCardPayment(paymentId, request);
+    try {
+      logger.info('Processing Click payment', {
+        paymentId,
+        orderId: request.orderId,
+        amount: request.amount,
+      });
+
+      const clickOrder = await this.createClickOrder(request);
+
+      logger.info('Click order created successfully', {
+        clickOrderId: clickOrder.id,
+        paymentId,
+        status: clickOrder.status,
+      });
+
+      return {
+        id: paymentId,
+        status: PaymentStatus.PENDING,
+        amount: request.amount,
+        currency: request.currency,
+        method: request.method,
+        transactionId: clickOrder.id,
+        redirectUrl: clickOrder.paymentUrl,
+        metadata: {
+          ...request.metadata,
+          clickOrderId: clickOrder.id,
+          clickMerchantId: clickOrder.merchantId,
+        },
+      };
+    } catch (error) {
+      logger.error('Click payment processing failed', error);
+      throw createError(
+        400,
+        `Click payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   }
 
   /**
-   * Process Google Pay payment
+   * Process Payme payment (O'zbekiston)
    */
-  private async processGooglePayPayment(
+  private async processPaymePayment(
     paymentId: string,
     request: PaymentRequest
   ): Promise<PaymentResponse> {
-    // Google Pay uses Stripe Payment Request API
-    return this.processCardPayment(paymentId, request);
+    try {
+      logger.info('Processing Payme payment', {
+        paymentId,
+        orderId: request.orderId,
+        amount: request.amount,
+      });
+
+      const paymeOrder = await this.createPaymeOrder(request);
+
+      logger.info('Payme order created successfully', {
+        paymeOrderId: paymeOrder.id,
+        paymentId,
+        status: paymeOrder.status,
+      });
+
+      return {
+        id: paymentId,
+        status: PaymentStatus.PENDING,
+        amount: request.amount,
+        currency: request.currency,
+        method: request.method,
+        transactionId: paymeOrder.id,
+        redirectUrl: paymeOrder.paymentUrl,
+        metadata: {
+          ...request.metadata,
+          paymeOrderId: paymeOrder.id,
+          paymeMerchantId: paymeOrder.merchantId,
+        },
+      };
+    } catch (error) {
+      logger.error('Payme payment processing failed', error);
+      throw createError(
+        400,
+        `Payme payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   }
 
   /**
-   * Process bank transfer
+   * Process Apelsin payment (O'zbekiston)
+   */
+  private async processApelsinPayment(
+    paymentId: string,
+    request: PaymentRequest
+  ): Promise<PaymentResponse> {
+    try {
+      logger.info('Processing Apelsin payment', {
+        paymentId,
+        orderId: request.orderId,
+        amount: request.amount,
+      });
+
+      const apelsinOrder = await this.createApelsinOrder(request);
+
+      logger.info('Apelsin order created successfully', {
+        apelsinOrderId: apelsinOrder.id,
+        paymentId,
+        status: apelsinOrder.status,
+      });
+
+      return {
+        id: paymentId,
+        status: PaymentStatus.PENDING,
+        amount: request.amount,
+        currency: request.currency,
+        method: request.method,
+        transactionId: apelsinOrder.id,
+        redirectUrl: apelsinOrder.paymentUrl,
+        metadata: {
+          ...request.metadata,
+          apelsinOrderId: apelsinOrder.id,
+          apelsinMerchantId: apelsinOrder.merchantId,
+        },
+      };
+    } catch (error) {
+      logger.error('Apelsin payment processing failed', error);
+      throw createError(
+        400,
+        `Apelsin payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Create Click order
+   */
+  private async createClickOrder(request: PaymentRequest): Promise<UzbekPaymentOrder> {
+    try {
+      const apiUrl =
+        this.clickConfig.environment === 'production'
+          ? 'https://api.click.uz/v2/merchant/invoice/create'
+          : 'https://testmerchant.click.uz/v2/merchant/invoice/create';
+
+      const orderData = {
+        service_id: this.clickConfig.serviceId,
+        merchant_id: this.clickConfig.merchantId,
+        amount: request.amount,
+        currency: request.currency,
+        merchant_trans_id: request.orderId,
+        merchant_prepare_id: request.orderId,
+        return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success`,
+        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/cancel`,
+        description: request.description || "UltraMarket to'lov",
+      };
+
+      const response = await axios.post(apiUrl, orderData, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${btoa(`${this.clickConfig.merchantId}:${this.clickConfig.secretKey}`)}`,
+        },
+      });
+
+      return {
+        id: response.data.invoice_id,
+        status: 'pending',
+        amount: request.amount,
+        currency: request.currency,
+        merchantId: this.clickConfig.merchantId,
+        paymentUrl: response.data.payment_url,
+        transactionId: response.data.invoice_id,
+      };
+    } catch (error) {
+      logger.error('Failed to create Click order', error);
+      throw createError(500, 'Click order creation failed');
+    }
+  }
+
+  /**
+   * Create Payme order
+   */
+  private async createPaymeOrder(request: PaymentRequest): Promise<UzbekPaymentOrder> {
+    try {
+      const apiUrl =
+        this.paymeConfig.environment === 'production'
+          ? 'https://checkout.paycom.uz'
+          : 'https://test.paycom.uz';
+
+      const orderData = {
+        method: 'cards.create',
+        params: {
+          amount: request.amount * 100, // Payme uses tiyin (1/100 of sum)
+          currency: request.currency,
+          account: {
+            order: request.orderId,
+          },
+          description: request.description || "UltraMarket to'lov",
+          callback_url: `${process.env.API_URL}/payment/payme/callback`,
+          callback_timeout: 15,
+        },
+      };
+
+      const response = await axios.post(apiUrl, orderData, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${btoa(`${this.paymeConfig.merchantId}:${this.paymeConfig.secretKey}`)}`,
+        },
+      });
+
+      return {
+        id: response.data.result.id,
+        status: 'pending',
+        amount: request.amount,
+        currency: request.currency,
+        merchantId: this.paymeConfig.merchantId,
+        paymentUrl: response.data.result.pay_url,
+        transactionId: response.data.result.id,
+      };
+    } catch (error) {
+      logger.error('Failed to create Payme order', error);
+      throw createError(500, 'Payme order creation failed');
+    }
+  }
+
+  /**
+   * Create Apelsin order
+   */
+  private async createApelsinOrder(request: PaymentRequest): Promise<UzbekPaymentOrder> {
+    try {
+      const apiUrl =
+        this.apelsinConfig.environment === 'production'
+          ? 'https://pay.apelsin.uz/api/v1/invoice'
+          : 'https://test.pay.apelsin.uz/api/v1/invoice';
+
+      const orderData = {
+        merchant_id: this.apelsinConfig.merchantId,
+        amount: request.amount,
+        currency: request.currency,
+        order_id: request.orderId,
+        description: request.description || "UltraMarket to'lov",
+        return_url: `${process.env.FRONTEND_URL}/payment/success`,
+        cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
+        callback_url: `${process.env.API_URL}/payment/apelsin/callback`,
+      };
+
+      const response = await axios.post(apiUrl, orderData, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apelsinConfig.secretKey}`,
+        },
+      });
+
+      return {
+        id: response.data.invoice_id,
+        status: 'pending',
+        amount: request.amount,
+        currency: request.currency,
+        merchantId: this.apelsinConfig.merchantId,
+        paymentUrl: response.data.payment_url,
+        transactionId: response.data.invoice_id,
+      };
+    } catch (error) {
+      logger.error('Failed to create Apelsin order', error);
+      throw createError(500, 'Apelsin order creation failed');
+    }
+  }
+
+  /**
+   * Process bank transfer (O'zbekiston banks)
    */
   private async processBankTransfer(
     paymentId: string,
     request: PaymentRequest
   ): Promise<PaymentResponse> {
-    // Bank transfer implementation
+    try {
+      logger.info('Processing bank transfer', {
+        paymentId,
+        orderId: request.orderId,
+        amount: request.amount,
+      });
+
+      // Generate bank transfer instructions
+      const transferInstructions = this.generateBankTransferInstructions(request);
+
+      logger.info('Bank transfer instructions generated', {
+        paymentId,
+        bankAccount: transferInstructions.bankAccount,
+        amount: transferInstructions.amount,
+      });
+
+      return {
+        id: paymentId,
+        status: PaymentStatus.PENDING,
+        amount: request.amount,
+        currency: request.currency,
+        method: request.method,
+        metadata: {
+          ...request.metadata,
+          bankAccount: transferInstructions.bankAccount,
+          bankName: transferInstructions.bankName,
+          transferCode: transferInstructions.transferCode,
+          instructions: transferInstructions.instructions,
+        },
+      };
+    } catch (error) {
+      logger.error('Bank transfer processing failed', error);
+      throw createError(
+        400,
+        `Bank transfer failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Generate bank transfer instructions for O'zbekiston banks
+   */
+  private generateBankTransferInstructions(request: PaymentRequest) {
+    const banks = [
+      {
+        name: 'NBU (Milliy Bank)',
+        account: '2021 4000 1234 5678',
+        mfo: '00014',
+      },
+      {
+        name: 'Asaka Bank',
+        account: '2021 4000 8765 4321',
+        mfo: '00015',
+      },
+      {
+        name: 'Xalq Banki',
+        account: '2021 4000 1111 2222',
+        mfo: '00016',
+      },
+    ];
+
+    const selectedBank = banks[Math.floor(Math.random() * banks.length)];
+    const transferCode = `UZ${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+
     return {
-      id: paymentId,
-      status: PaymentStatus.PENDING,
+      bankName: selectedBank.name,
+      bankAccount: selectedBank.account,
+      mfo: selectedBank.mfo,
       amount: request.amount,
       currency: request.currency,
-      method: request.method,
-      metadata: {
-        ...request.metadata,
-        instructions: 'Bank transfer instructions will be sent via email',
-      },
+      transferCode: transferCode,
+      instructions: `
+        To'lov ma'lumotlari:
+        Bank: ${selectedBank.name}
+        Hisob raqami: ${selectedBank.account}
+        MFO: ${selectedBank.mfo}
+        Summa: ${request.amount} ${request.currency}
+        To'lov kodi: ${transferCode}
+        Izoh: UltraMarket buyurtma ${request.orderId}
+      `,
     };
   }
 

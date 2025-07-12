@@ -89,7 +89,6 @@ export class CacheService {
       maxRetriesPerRequest: this.config.maxRetriesPerRequest,
       lazyConnect: this.config.lazyConnect,
       connectTimeout: this.config.connectTimeout,
-      commandTimeout: this.config.commandTimeout,
     });
 
     this.setupEventHandlers();

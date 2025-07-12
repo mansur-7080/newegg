@@ -20,7 +20,18 @@ const updateProfileValidation = [
     .trim()
     .isLength({ min: 2 })
     .withMessage('Last name must be at least 2 characters'),
-  body('phone').optional().isMobilePhone().withMessage('Valid phone number is required'),
+  body('phone')
+    .optional()
+    .custom((value) => {
+      if (value) {
+        // O'zbek telefon raqami validatsiyasi
+        const phoneRegex = /^(\+998|998|8)?[0-9]{9}$/;
+        if (!phoneRegex.test(value.replace(/\s/g, ''))) {
+          throw new Error("O'zbek telefon raqami formatida kiriting (+998901234567)");
+        }
+      }
+      return true;
+    }),
   body('dateOfBirth').optional().isISO8601().withMessage('Valid date is required'),
   body('gender')
     .optional()
@@ -29,12 +40,23 @@ const updateProfileValidation = [
 ];
 
 const updateAddressValidation = [
-  body('type').isIn(['home', 'work', 'other']).withMessage('Valid address type is required'),
-  body('street').trim().notEmpty().withMessage('Street is required'),
-  body('city').trim().notEmpty().withMessage('City is required'),
-  body('state').trim().notEmpty().withMessage('State is required'),
-  body('postalCode').trim().notEmpty().withMessage('Postal code is required'),
-  body('country').trim().notEmpty().withMessage('Country is required'),
+  body('type')
+    .isIn(['home', 'work', 'billing', 'shipping'])
+    .withMessage('Valid address type is required'),
+  body('region').trim().notEmpty().withMessage('Viloyat majburiy'),
+  body('district').trim().notEmpty().withMessage('Tuman majburiy'),
+  body('street').trim().notEmpty().withMessage("Ko'cha nomi majburiy"),
+  body('house').trim().notEmpty().withMessage('Uy raqami majburiy'),
+  body('city').optional().trim(),
+  body('mahalla').optional().trim(),
+  body('apartment').optional().trim(),
+  body('postalCode').optional().trim(),
+  body('landmark').optional().trim(),
+  body('instructions').optional().trim(),
+  body('country')
+    .optional()
+    .equals('UZ')
+    .withMessage("Faqat O'zbekiston manzillari qabul qilinadi"),
   body('isDefault').optional().isBoolean().withMessage('isDefault must be boolean'),
 ];
 

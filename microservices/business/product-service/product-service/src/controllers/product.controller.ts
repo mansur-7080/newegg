@@ -1,271 +1,174 @@
-import { Request, Response } from 'express';
-import { Product, IProduct } from '../models/Product';
-import { logger } from '../utils/logger';
+import { Request, Response, NextFunction } from 'express';
+import { body, query, validationResult } from 'express-validator';
+import { ProductService } from '../services/product.service';
+import { logger, AppError } from '../shared';
+import { 
+  CreateProductDto,
+  UpdateProductDto,
+  ProductQueryParams,
+  ProductStatus
+} from '../models/product.model';
 
-// Get all products with pagination and filtering
-export const getAllProducts = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const skip = (page - 1) * limit;
+export class ProductController {
+  private productService: ProductService;
 
-    const filter: any = { isActive: true };
+  constructor() {
+    this.productService = new ProductService();
+  }
 
-    // Apply filters
-    if (req.query.category) {
-      filter.category = req.query.category;
-    }
-    if (req.query.brand) {
-      filter.brand = req.query.brand;
-    }
-    if (req.query.minPrice || req.query.maxPrice) {
-      filter.price = {};
-      if (req.query.minPrice) filter.price.$gte = parseFloat(req.query.minPrice as string);
-      if (req.query.maxPrice) filter.price.$lte = parseFloat(req.query.maxPrice as string);
-    }
-
-    const products = await Product.find(filter)
-      .populate('category', 'name')
-      .populate('subcategory', 'name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Product.countDocuments(filter);
-
-    res.status(200).json({
-      success: true,
-      data: products,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
+  /**
+   * Get all products with pagination and filtering
+   */
+  getProducts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new AppError(400, 'Validation failed');
       }
-    });
-  } catch (error) {
-    logger.error('Error getting products:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get products'
-    });
-  }
-};
 
-// Get product by ID
-export const getProductById = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const product = await Product.findById(req.params.id)
-      .populate('category', 'name')
-      .populate('subcategory', 'name');
+      // Cast query params to ProductQueryParams
+      const queryParams: ProductQueryParams = {
+        page: req.query.page ? parseInt(req.query.page as string) : undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+        search: req.query.search as string,
+        category: req.query.category as string,
+        brand: req.query.brand as string,
+        minPrice: req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined,
+        maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
+        status: req.query.status as ProductStatus,
+        isActive: req.query.isActive ? req.query.isActive === 'true' : undefined,
+        isFeatured: req.query.isFeatured ? req.query.isFeatured === 'true' : undefined,
+        sortBy: req.query.sortBy as string || 'createdAt',
+        sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'desc',
+        tags: req.query.tags ? (req.query.tags as string).split(',') : undefined,
+      };
 
-    if (!product) {
-      res.status(404).json({
-        success: false,
-        error: 'Product not found'
+      const products = await this.productService.getProducts(queryParams);
+      
+      logger.info('Products retrieved successfully', {
+        count: products.items.length,
+        page: products.page,
+        totalItems: products.total
       });
-      return;
+
+      res.json(products);
+    } catch (error) {
+      next(error);
     }
+  };
 
-    res.status(200).json({
-      success: true,
-      data: product
-    });
-  } catch (error) {
-    logger.error('Error getting product by ID:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get product'
-    });
-  }
-};
-
-// Create new product
-export const createProduct = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const product = await Product.create(req.body);
-
-    res.status(201).json({
-      success: true,
-      data: product
-    });
-  } catch (error) {
-    logger.error('Error creating product:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create product'
-    });
-  }
-};
-
-// Update product
-export const updateProduct = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!product) {
-      res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
-      return;
+  /**
+   * Get a single product by ID
+   */
+  getProductById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const product = await this.productService.getProductById(id);
+      res.json(product);
+    } catch (error) {
+      next(error);
     }
+  };
 
-    res.status(200).json({
-      success: true,
-      data: product
-    });
-  } catch (error) {
-    logger.error('Error updating product:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update product'
-    });
-  }
-};
-
-// Delete product
-export const deleteProduct = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const product = await Product.findByIdAndDelete(req.params.id);
-
-    if (!product) {
-      res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
-      return;
+  /**
+   * Get a single product by slug
+   */
+  getProductBySlug = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { slug } = req.params;
+      const product = await this.productService.getProductBySlug(slug);
+      res.json(product);
+    } catch (error) {
+      next(error);
     }
+  };
 
-    res.status(200).json({
-      success: true,
-      message: 'Product deleted successfully'
-    });
-  } catch (error) {
-    logger.error('Error deleting product:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete product'
-    });
-  }
-};
-
-// Get products by category
-export const getProductsByCategory = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const skip = (page - 1) * limit;
-
-    const products = await Product.find({
-      category: req.params.categoryId,
-      isActive: true
-    })
-      .populate('category', 'name')
-      .populate('subcategory', 'name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Product.countDocuments({
-      category: req.params.categoryId,
-      isActive: true
-    });
-
-    res.status(200).json({
-      success: true,
-      data: products,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
+  /**
+   * Create a new product
+   */
+  createProduct = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new AppError(400, 'Validation failed');
       }
-    });
-  } catch (error) {
-    logger.error('Error getting products by category:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get products by category'
-    });
-  }
-};
-
-// Get featured products
-export const getFeaturedProducts = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const limit = parseInt(req.query.limit as string) || 10;
-
-    const products = await Product.find({
-      isFeatured: true,
-      isActive: true
-    })
-      .populate('category', 'name')
-      .populate('subcategory', 'name')
-      .sort({ rating: -1, soldCount: -1 })
-      .limit(limit);
-
-    res.status(200).json({
-      success: true,
-      data: products
-    });
-  } catch (error) {
-    logger.error('Error getting featured products:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get featured products'
-    });
-  }
-};
-
-// Search products
-export const searchProducts = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { q, page = 1, limit = 10 } = req.query;
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
-
-    if (!q) {
-      res.status(400).json({
-        success: false,
-        error: 'Search query is required'
-      });
-      return;
+      
+      // In a real app, get userId from JWT token
+      const userId = req.headers['x-user-id'] as string || '00000000-0000-0000-0000-000000000000';
+      
+      const productData: CreateProductDto = req.body;
+      const newProduct = await this.productService.createProduct(productData, userId);
+      
+      logger.info('Product created successfully', { id: newProduct.id });
+      res.status(201).json(newProduct);
+    } catch (error) {
+      next(error);
     }
+  };
 
-    const products = await Product.find({
-      $text: { $search: q as string },
-      isActive: true
-    })
-      .populate('category', 'name')
-      .populate('subcategory', 'name')
-      .sort({ score: { $meta: 'textScore' } })
-      .skip(skip)
-      .limit(parseInt(limit as string));
-
-    const total = await Product.countDocuments({
-      $text: { $search: q as string },
-      isActive: true
-    });
-
-    res.status(200).json({
-      success: true,
-      data: products,
-      pagination: {
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
-        total,
-        pages: Math.ceil(total / parseInt(limit as string))
+  /**
+   * Update an existing product
+   */
+  updateProduct = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new AppError(400, 'Validation failed');
       }
-    });
-  } catch (error) {
-    logger.error('Error searching products:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to search products'
-    });
-  }
-};
+      
+      const { id } = req.params;
+      // In a real app, get userId from JWT token
+      const userId = req.headers['x-user-id'] as string || '00000000-0000-0000-0000-000000000000';
+      
+      const productData: UpdateProductDto = req.body;
+      const updatedProduct = await this.productService.updateProduct(id, productData, userId);
+      
+      logger.info('Product updated successfully', { id });
+      res.json(updatedProduct);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Delete a product
+   */
+  deleteProduct = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      // In a real app, get userId from JWT token
+      const userId = req.headers['x-user-id'] as string || '00000000-0000-0000-0000-000000000000';
+      
+      await this.productService.deleteProduct(id, userId);
+      
+      logger.info('Product deleted successfully', { id });
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Input validation rules
+   */
+  static validateCreateProduct = [
+    body('name').isString().notEmpty().withMessage('Name is required'),
+    body('sku').isString().notEmpty().withMessage('SKU is required'),
+    body('price').isFloat({ gt: 0 }).withMessage('Price must be a positive number'),
+    body('categoryId').isUUID().withMessage('Valid category ID is required'),
+  ];
+
+  static validateUpdateProduct = [
+    body('name').optional().isString().notEmpty().withMessage('Name must be a non-empty string'),
+    body('sku').optional().isString().notEmpty().withMessage('SKU must be a non-empty string'),
+    body('price').optional().isFloat({ gt: 0 }).withMessage('Price must be a positive number'),
+    body('categoryId').optional().isUUID().withMessage('Category ID must be a valid UUID'),
+  ];
+
+  static validateGetProducts = [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
+    query('minPrice').optional().isFloat({ min: 0 }).withMessage('Min price must be a non-negative number'),
+    query('maxPrice').optional().isFloat({ min: 0 }).withMessage('Max price must be a non-negative number'),
+  ];
+}

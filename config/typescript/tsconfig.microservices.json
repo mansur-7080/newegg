@@ -1,0 +1,68 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./",
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+
+    // Microservice-specific settings
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+
+    // Stricter settings for backend services
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Additional paths for microservices
+    "paths": {
+      "@ultramarket/shared": ["../../libs/shared/src"],
+      "@ultramarket/shared/*": ["../../libs/shared/src/*"],
+      "@ultramarket/types": ["../../libs/types/src"],
+      "@ultramarket/types/*": ["../../libs/types/src/*"],
+      "@ultramarket/utils": ["../../libs/utils/src"],
+      "@ultramarket/utils/*": ["../../libs/utils/src/*"],
+      "@ultramarket/constants": ["../../libs/constants/src"],
+      "@ultramarket/constants/*": ["../../libs/constants/src/*"],
+      "@/*": ["./src/*"]
+    },
+
+    // Types for backend services
+    "types": ["node", "jest", "express"],
+
+    // Backend-specific options
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*", "tests/**/*", "*.ts", "*.js"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "**/*.min.js",
+    "**/*.bundle.js",
+    "**/*.test.js",
+    "**/*.spec.js"
+  ],
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node",
+    "transpileOnly": true,
+    "files": true
+  }
+}

@@ -173,8 +173,8 @@ FROM_EMAIL=noreply@yourdomain.com
 # AWS Services (Configure with your AWS account)
 AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY
 AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
-AWS_REGION=us-east-1
-AWS_S3_BUCKET=ultramarket-assets
+AWS_REGION=me-central-1
+AWS_S3_BUCKET=ultramarket-assets-uzb
 
 # Stripe Payment (Configure with your Stripe account)
 STRIPE_SECRET_KEY=sk_live_YOUR_STRIPE_SECRET_KEY
@@ -188,9 +188,9 @@ ELASTICSEARCH_PASSWORD=YOUR_ELASTICSEARCH_PASSWORD
 ELASTICSEARCH_INDEX_PREFIX=ultramarket
 
 # =================== FRONTEND URLS ===================
-FRONTEND_URL=https://yourdomain.com
-ADMIN_URL=https://admin.yourdomain.com
-API_URL=https://api.yourdomain.com
+FRONTEND_URL=https://ultramarket.uz
+ADMIN_URL=https://admin.ultramarket.uz
+API_URL=https://api.ultramarket.uz
 
 # =================== MONITORING ===================
 PROMETHEUS_PORT=9090

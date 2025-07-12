@@ -1,0 +1,593 @@
+# UltraMarket Comprehensive Monitoring Setup
+# Professional monitoring stack with Prometheus, Grafana, AlertManager
+# Optimized for production e-commerce platform monitoring
+
+version: '3.8'
+
+services:
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: ultramarket-prometheus
+    restart: unless-stopped
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/rules:/etc/prometheus/rules
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--log.level=info'
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=prometheus'
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: ultramarket-grafana
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=ultramarket2024
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_DEFAULT_THEME=dark
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_SNAPSHOTS_EXTERNAL_ENABLED=false
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=smtp.gmail.com:587
+      - GF_SMTP_USER=alerts@ultramarket.uz
+      - GF_SMTP_PASSWORD=smtp_password
+      - GF_SMTP_FROM_ADDRESS=alerts@ultramarket.uz
+      - GF_SMTP_FROM_NAME=UltraMarket Monitoring
+    networks:
+      - ultramarket-monitoring
+    depends_on:
+      - prometheus
+    labels:
+      - 'monitoring=grafana'
+
+  # AlertManager - Alert Management
+  alertmanager:
+    image: prom/alertmanager:v0.25.0
+    container_name: ultramarket-alertmanager
+    restart: unless-stopped
+    ports:
+      - '9093:9093'
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--log.level=info'
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=alertmanager'
+
+  # Node Exporter - System Metrics
+  node-exporter:
+    image: prom/node-exporter:v1.6.0
+    container_name: ultramarket-node-exporter
+    restart: unless-stopped
+    ports:
+      - '9100:9100'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=node-exporter'
+
+  # Redis Exporter - Redis Metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.52.0
+    container_name: ultramarket-redis-exporter
+    restart: unless-stopped
+    ports:
+      - '9121:9121'
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=redis_password
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=redis-exporter'
+
+  # PostgreSQL Exporter - Database Metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.12.0
+    container_name: ultramarket-postgres-exporter
+    restart: unless-stopped
+    ports:
+      - '9187:9187'
+    environment:
+      - DATA_SOURCE_NAME=postgresql://ultramarket:password@postgres:5432/ultramarket?sslmode=disable
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=postgres-exporter'
+
+  # MongoDB Exporter - MongoDB Metrics
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.39.0
+    container_name: ultramarket-mongodb-exporter
+    restart: unless-stopped
+    ports:
+      - '9216:9216'
+    environment:
+      - MONGODB_URI=mongodb://ultramarket:password@mongodb:27017/ultramarket
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=mongodb-exporter'
+
+  # Nginx Exporter - Web Server Metrics
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:0.11.0
+    container_name: ultramarket-nginx-exporter
+    restart: unless-stopped
+    ports:
+      - '9113:9113'
+    command:
+      - '-nginx.scrape-uri=http://nginx:8080/nginx_status'
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=nginx-exporter'
+
+  # Blackbox Exporter - Endpoint Monitoring
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.24.0
+    container_name: ultramarket-blackbox-exporter
+    restart: unless-stopped
+    ports:
+      - '9115:9115'
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=blackbox-exporter'
+
+  # Loki - Log Aggregation
+  loki:
+    image: grafana/loki:2.8.0
+    container_name: ultramarket-loki
+    restart: unless-stopped
+    ports:
+      - '3100:3100'
+    volumes:
+      - ./loki/loki.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=loki'
+
+  # Promtail - Log Collector
+  promtail:
+    image: grafana/promtail:2.8.0
+    container_name: ultramarket-promtail
+    restart: unless-stopped
+    volumes:
+      - ./promtail/promtail.yml:/etc/promtail/config.yml
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=promtail'
+
+  # Jaeger - Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.47.0
+    container_name: ultramarket-jaeger
+    restart: unless-stopped
+    ports:
+      - '16686:16686'
+      - '14268:14268'
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=jaeger'
+
+  # Cadvisor - Container Metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: ultramarket-cadvisor
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=cadvisor'
+
+  # Elasticsearch - Log Storage
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: ultramarket-elasticsearch
+    restart: unless-stopped
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - xpack.security.enabled=false
+      - xpack.monitoring.collection.enabled=true
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=elasticsearch'
+
+  # Kibana - Log Visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    container_name: ultramarket-kibana
+    restart: unless-stopped
+    ports:
+      - '5601:5601'
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - ultramarket-monitoring
+    depends_on:
+      - elasticsearch
+    labels:
+      - 'monitoring=kibana'
+
+  # Filebeat - Log Shipper
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.8.0
+    container_name: ultramarket-filebeat
+    restart: unless-stopped
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - ultramarket-monitoring
+    depends_on:
+      - elasticsearch
+    labels:
+      - 'monitoring=filebeat'
+
+  # Metricbeat - System Metrics
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:8.8.0
+    container_name: ultramarket-metricbeat
+    restart: unless-stopped
+    user: root
+    volumes:
+      - ./metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /proc:/hostfs/proc:ro
+      - /:/hostfs:ro
+    networks:
+      - ultramarket-monitoring
+    depends_on:
+      - elasticsearch
+    labels:
+      - 'monitoring=metricbeat'
+
+  # Uptime Kuma - Uptime Monitoring
+  uptime-kuma:
+    image: louislam/uptime-kuma:1.23.0
+    container_name: ultramarket-uptime-kuma
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    volumes:
+      - uptime_kuma_data:/app/data
+    networks:
+      - ultramarket-monitoring
+    labels:
+      - 'monitoring=uptime-kuma'
+
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+  loki_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  uptime_kuma_data:
+    driver: local
+
+networks:
+  ultramarket-monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+---
+# Prometheus Configuration
+# File: prometheus/prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'ultramarket-production'
+    environment: 'production'
+
+rule_files:
+  - 'rules/*.yml'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 5s
+
+  # Node Exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 5s
+
+  # Redis Exporter
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 5s
+
+  # PostgreSQL Exporter
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 5s
+
+  # MongoDB Exporter
+  - job_name: 'mongodb-exporter'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+    scrape_interval: 5s
+
+  # Nginx Exporter
+  - job_name: 'nginx-exporter'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+    scrape_interval: 5s
+
+  # Blackbox Exporter
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - https://ultramarket.uz
+          - https://api.ultramarket.uz
+          - https://admin.ultramarket.uz
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Cadvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 5s
+
+  # UltraMarket Microservices
+  - job_name: 'ultramarket-services'
+    static_configs:
+      - targets:
+          - 'api-gateway:3000'
+          - 'user-service:3001'
+          - 'product-service:3002'
+          - 'order-service:3003'
+          - 'cart-service:3004'
+          - 'payment-service:3005'
+          - 'review-service:3006'
+          - 'notification-service:3007'
+          - 'inventory-service:3008'
+          - 'analytics-service:3009'
+    metrics_path: /metrics
+    scrape_interval: 5s
+
+  # Kubernetes API (if running on K8s)
+  - job_name: 'kubernetes-apiservers'
+    kubernetes_sd_configs:
+      - role: endpoints
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - source_labels:
+          [
+            __meta_kubernetes_namespace,
+            __meta_kubernetes_service_name,
+            __meta_kubernetes_endpoint_port_name,
+          ]
+        action: keep
+        regex: default;kubernetes;https
+
+  # Kubernetes Nodes (if running on K8s)
+  - job_name: 'kubernetes-nodes'
+    kubernetes_sd_configs:
+      - role: node
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics
+
+---
+# AlertManager Configuration
+# File: alertmanager/alertmanager.yml
+global:
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alerts@ultramarket.uz'
+  smtp_auth_username: 'alerts@ultramarket.uz'
+  smtp_auth_password: 'smtp_password'
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'web.hook'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+
+receivers:
+  - name: 'web.hook'
+    webhook_configs:
+      - url: 'http://127.0.0.1:5001/'
+
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@ultramarket.uz'
+        subject: 'CRITICAL: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Labels: {{ .Labels }}
+          {{ end }}
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#alerts'
+        title: 'CRITICAL ALERT'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'devops@ultramarket.uz'
+        subject: 'WARNING: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Labels: {{ .Labels }}
+          {{ end }}
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']
+
+---
+# Grafana Datasource Configuration
+# File: grafana/provisioning/datasources/datasource.yml
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: true
+
+  - name: Elasticsearch
+    type: elasticsearch
+    access: proxy
+    url: http://elasticsearch:9200
+    database: 'logstash-*'
+    editable: true
+
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    editable: true
+
+---
+# Grafana Dashboard Configuration
+# File: grafana/provisioning/dashboards/dashboard.yml
+apiVersion: 1
+
+providers:
+  - name: 'default'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

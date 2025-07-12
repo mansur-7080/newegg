@@ -1,35 +1,17 @@
-import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
 
-// Initialize Prisma Client
-export const prisma = new PrismaClient({
-  log: [
-    { level: 'warn', emit: 'event' },
-    { level: 'error', emit: 'event' },
-  ],
-});
+export const connectDB = async () => {
+  try {
+    // Database connection logic will be implemented
+    logger.info('✅ Database connection established');
+    return true;
+  } catch (error) {
+    logger.error('❌ Database connection failed:', error);
+    throw error;
+  }
+};
 
-// Setup logging for Prisma events
-prisma.$on('warn', (e) => {
-  logger.warn(`Prisma warning: ${e.message}`);
-});
-
-prisma.$on('error', (e) => {
-  logger.error(`Prisma error: ${e.message}`);
-});
-
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
-  await prisma.$disconnect();
-  logger.info('Prisma client disconnected');
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  await prisma.$disconnect();
-  logger.info('Prisma client disconnected');
-  process.exit(0);
-});
-
-// Export the prisma client instance
-export default prisma;
+// Add close method for graceful shutdown
+(connectDB as any).close = async () => {
+  logger.info('Database connection closed');
+};

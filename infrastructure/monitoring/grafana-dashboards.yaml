@@ -1,0 +1,214 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: ultramarket
+  labels:
+    app: grafana
+    component: dashboards
+data:
+  ultramarket-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "UltraMarket Overview",
+        "tags": ["ultramarket", "overview"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "Service Health",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=~'ultramarket-.*'}",
+                "legendFormat": "{{job}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "green", "value": 1}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "title": "Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{job='ultramarket-api-gateway'}[5m])) by (method)",
+                "legendFormat": "{{method}}"
+              }
+            ]
+          },
+          {
+            "title": "Error Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{job='ultramarket-api-gateway',code=~'5..'}[5m])) / sum(rate(http_requests_total{job='ultramarket-api-gateway'}[5m]))",
+                "legendFormat": "Error Rate"
+              }
+            ]
+          },
+          {
+            "title": "Response Time",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job='ultramarket-api-gateway'}[5m])) by (le))",
+                "legendFormat": "95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job='ultramarket-api-gateway'}[5m])) by (le))",
+                "legendFormat": "50th percentile"
+              }
+            ]
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "5s"
+      }
+    }
+
+  ultramarket-business.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "UltraMarket Business Metrics",
+        "tags": ["ultramarket", "business"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "Orders per Hour",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(orders_total[1h]) * 3600",
+                "legendFormat": "Orders/Hour"
+              }
+            ]
+          },
+          {
+            "title": "Revenue",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(revenue_total[1h]) * 3600",
+                "legendFormat": "Revenue/Hour (UZS)"
+              }
+            ]
+          },
+          {
+            "title": "Payment Success Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "(sum(rate(payment_successful_total[5m])) / sum(rate(payment_attempts_total[5m]))) * 100",
+                "legendFormat": "Success Rate %"
+              }
+            ]
+          },
+          {
+            "title": "Active Users",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "active_users_total",
+                "legendFormat": "Active Users"
+              }
+            ]
+          },
+          {
+            "title": "Top Products",
+            "type": "table",
+            "targets": [
+              {
+                "expr": "topk(10, sum by (product_name) (rate(product_views_total[1h])))",
+                "legendFormat": "{{product_name}}"
+              }
+            ]
+          }
+        ],
+        "time": {
+          "from": "now-24h",
+          "to": "now"
+        },
+        "refresh": "1m"
+      }
+    }
+
+  ultramarket-infrastructure.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "UltraMarket Infrastructure",
+        "tags": ["ultramarket", "infrastructure"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "CPU Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(container_cpu_usage_seconds_total{namespace='ultramarket'}[5m]) * 100",
+                "legendFormat": "{{pod}}"
+              }
+            ]
+          },
+          {
+            "title": "Memory Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "container_memory_usage_bytes{namespace='ultramarket'} / 1024 / 1024",
+                "legendFormat": "{{pod}} (MB)"
+              }
+            ]
+          },
+          {
+            "title": "Database Connections",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "pg_stat_database_numbackends",
+                "legendFormat": "PostgreSQL"
+              },
+              {
+                "expr": "mongodb_connections{state='current'}",
+                "legendFormat": "MongoDB"
+              },
+              {
+                "expr": "redis_connected_clients",
+                "legendFormat": "Redis"
+              }
+            ]
+          },
+          {
+            "title": "Disk Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "(node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100",
+                "legendFormat": "{{device}}"
+              }
+            ]
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }

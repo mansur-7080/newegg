@@ -15,10 +15,10 @@
 
 O'zbekiston e-commerce platformasi quyidagi talablar uchun mo'ljallangan:
 
-- **100K+ faol foydalanuvchilar**
-- **10K+ mahsulotlar katalogi**
-- **50K+ kunlik tranzaksiyalar**
-- **O'zbekiston hududi**
+- **1M+ faol foydalanuvchilar**
+- **100K+ mahsulotlar katalogi**
+- **100K+ kunlik tranzaksiyalar**
+- **O'zbekiston hududi (Toshkent markaz sifatida)**
 - **99.9% mavjudlik**
 
 ---

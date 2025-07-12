@@ -11,6 +11,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@ultramarket/shared": "file:../../../../libs/shared",
     "@types/ioredis": "^4.28.10",
     "axios": "^1.6.0",
     "cors": "^2.8.5",

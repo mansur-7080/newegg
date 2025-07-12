@@ -1,9 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { apiService, Product } from '../services/api';
+import AdvancedFilters from '../components/product/AdvancedFilters';
+
+// Simplified product interface for recommended and popular products
+interface SimpleProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  rating: number;
+  reviewCount: number;
+  imageUrl: string;
+  inStock: boolean;
+  category: string;
+  brand: string;
+}
 
 interface ProductsResponse {
   products: Product[];
@@ -21,7 +36,89 @@ const ProductListPage: React.FC = () => {
     maxPrice: searchParams.get('maxPrice') || '',
     sortBy: searchParams.get('sortBy') || 'name',
     sortOrder: searchParams.get('sortOrder') || 'asc',
+    availability: searchParams.get('availability') === 'true',
+    ratings: searchParams.get('ratings') || '',
   });
+
+  // For demo purposes only - simulated recommended products
+  const [recommendedProducts, setRecommendedProducts] = useState<SimpleProduct[]>([
+    {
+      id: 'rec1',
+      name: 'Samsung Galaxy S22 Ultra',
+      description: 'Flagship smartphone with S Pen',
+      price: 1199.99,
+      rating: 4.8,
+      reviewCount: 1245,
+      imageUrl: 'https://via.placeholder.com/300x300?text=Samsung+S22+Ultra',
+      inStock: true,
+      category: 'smartphones',
+      brand: 'Samsung',
+    },
+    {
+      id: 'rec2',
+      name: 'Apple MacBook Pro 16',
+      description: 'Powerful laptop for professionals',
+      price: 2499.99,
+      rating: 4.9,
+      reviewCount: 892,
+      imageUrl: 'https://via.placeholder.com/300x300?text=MacBook+Pro',
+      inStock: true,
+      category: 'laptops',
+      brand: 'Apple',
+    },
+    {
+      id: 'rec3',
+      name: 'Sony WH-1000XM4',
+      description: 'Premium noise-cancelling headphones',
+      price: 349.99,
+      rating: 4.7,
+      reviewCount: 3456,
+      imageUrl: 'https://via.placeholder.com/300x300?text=Sony+WH-1000XM4',
+      inStock: true,
+      category: 'audio',
+      brand: 'Sony',
+    },
+  ]);
+
+  // Popular in current category - simulated data
+  const [popularInCategory, setPopularInCategory] = useState<SimpleProduct[]>([
+    {
+      id: 'pop1',
+      name: 'ASUS ROG Strix G15',
+      description: 'Gaming laptop with RTX 3070',
+      price: 1599.99,
+      rating: 4.6,
+      reviewCount: 782,
+      imageUrl: 'https://via.placeholder.com/300x300?text=ROG+Strix+G15',
+      inStock: true,
+      category: 'laptops',
+      brand: 'ASUS',
+    },
+    {
+      id: 'pop2',
+      name: 'Logitech G Pro X',
+      description: 'Gaming keyboard with mechanical switches',
+      price: 129.99,
+      rating: 4.5,
+      reviewCount: 1230,
+      imageUrl: 'https://via.placeholder.com/300x300?text=G+Pro+X',
+      inStock: true,
+      category: 'peripherals',
+      brand: 'Logitech',
+    },
+    {
+      id: 'pop3',
+      name: 'Razer DeathAdder V2',
+      description: 'Ergonomic gaming mouse',
+      price: 69.99,
+      rating: 4.7,
+      reviewCount: 2134,
+      imageUrl: 'https://via.placeholder.com/300x300?text=DeathAdder+V2',
+      inStock: true,
+      category: 'peripherals',
+      brand: 'Razer',
+    },
+  ]);
 
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '12');
@@ -29,7 +126,14 @@ const ProductListPage: React.FC = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['products', page, limit, filters],
     queryFn: async () => {
-      const response = await apiService.getProducts(page, limit, filters);
+      // Convert string values to numbers for the API
+      const apiFilters = {
+        ...filters,
+        minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
+        maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
+      };
+
+      const response = await apiService.getProducts(page, limit, apiFilters);
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to fetch products');
       }
@@ -37,7 +141,7 @@ const ProductListPage: React.FC = () => {
     },
   });
 
-  const handleFilterChange = (key: string, value: string) => {
+  const handleFilterChange = (key: string, value: string | boolean) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
 
@@ -45,8 +149,32 @@ const ProductListPage: React.FC = () => {
     newParams.set('page', '1'); // Reset to first page when filtering
 
     Object.entries(newFilters).forEach(([k, v]) => {
-      if (v) {
-        newParams.set(k, v);
+      if (v !== undefined && v !== '') {
+        newParams.set(k, String(v));
+      }
+    });
+
+    setSearchParams(newParams);
+  };
+
+  const handleAdvancedFilterChange = (advancedFilters: any) => {
+    const newFilters = {
+      ...filters,
+      brand: advancedFilters.checkboxes.brand?.join(',') || '',
+      ratings: advancedFilters.checkboxes.ratings?.join(',') || '',
+      minPrice: advancedFilters.price.min,
+      maxPrice: advancedFilters.price.max,
+      availability: advancedFilters.availability,
+    };
+
+    setFilters(newFilters);
+
+    const newParams = new URLSearchParams();
+    newParams.set('page', '1');
+
+    Object.entries(newFilters).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') {
+        newParams.set(k, String(v));
       }
     });
 
@@ -58,6 +186,26 @@ const ProductListPage: React.FC = () => {
     newParams.set('page', newPage.toString());
     setSearchParams(newParams);
   };
+
+  useEffect(() => {
+    // Simulate API calls for recommended and popular products
+    const fetchRecommendedProducts = async () => {
+      const response = await apiService.getRecommendedProducts();
+      if (response.success) {
+        setRecommendedProducts(response.data);
+      }
+    };
+
+    const fetchPopularInCategory = async () => {
+      const response = await apiService.getPopularInCategory(filters.category);
+      if (response.success) {
+        setPopularInCategory(response.data);
+      }
+    };
+
+    fetchRecommendedProducts();
+    fetchPopularInCategory();
+  }, [filters.category]);
 
   if (isLoading) {
     return (
@@ -95,88 +243,58 @@ const ProductListPage: React.FC = () => {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Filters Sidebar */}
           <div className="lg:w-1/4">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold mb-4">Filtrlar</h3>
+            {/* Advanced Filters */}
+            <AdvancedFilters
+              onFilterChange={handleAdvancedFilterChange}
+              category={filters.category}
+            />
+          </div>
 
-              {/* Category Filter */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Kategoriya</label>
+          {/* Product Grid */}
+          <div className="lg:w-3/4">
+            {/* Sorting Controls */}
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 p-4 bg-white rounded-lg shadow-sm">
+              <div className="mb-4 md:mb-0">
+                <label className="mr-2 text-sm text-gray-600">Saralash:</label>
                 <select
-                  value={filters.category}
-                  onChange={(e) => handleFilterChange('category', e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={filters.sortBy}
+                  onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Barcha kategoriyalar</option>
-                  <option value="electronics">Elektronika</option>
-                  <option value="clothing">Kiyim</option>
-                  <option value="books">Kitoblar</option>
-                  <option value="home">Uy-ro'zg'or</option>
+                  <option value="name">Nom bo'yicha</option>
+                  <option value="price">Narx bo'yicha</option>
+                  <option value="rating">Reyting bo'yicha</option>
+                  <option value="newest">Eng yangi</option>
+                </select>
+                <select
+                  value={filters.sortOrder}
+                  onChange={(e) => handleFilterChange('sortOrder', e.target.value)}
+                  className="ml-2 border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="asc">O'sish tartibida</option>
+                  <option value="desc">Kamayish tartibida</option>
                 </select>
               </div>
 
-              {/* Brand Filter */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Brend</label>
+              <div className="flex items-center">
+                <label className="mr-2 text-sm text-gray-600">Sahifadagi mahsulotlar:</label>
                 <select
-                  value={filters.brand}
-                  onChange={(e) => handleFilterChange('brand', e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Barcha brendlar</option>
-                  <option value="apple">Apple</option>
-                  <option value="samsung">Samsung</option>
-                  <option value="sony">Sony</option>
-                  <option value="nike">Nike</option>
-                </select>
-              </div>
-
-              {/* Price Range */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Narx oralig'i
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.minPrice}
-                    onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                    className="w-1/2 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.maxPrice}
-                    onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                    className="w-1/2 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Sort Options */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Saralash</label>
-                <select
-                  value={`${filters.sortBy}-${filters.sortOrder}`}
+                  value={limit.toString()}
                   onChange={(e) => {
-                    const [sortBy, sortOrder] = e.target.value.split('-');
-                    handleFilterChange('sortBy', sortBy);
-                    handleFilterChange('sortOrder', sortOrder);
+                    const newParams = new URLSearchParams(searchParams);
+                    newParams.set('limit', e.target.value);
+                    newParams.set('page', '1');
+                    setSearchParams(newParams);
                   }}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="name-asc">Nom (A-Z)</option>
-                  <option value="name-desc">Nom (Z-A)</option>
-                  <option value="price-asc">Narx (Arzon-Qimmat)</option>
-                  <option value="price-desc">Narx (Qimmat-Arzon)</option>
-                  <option value="rating-desc">Reyting (Yuqori-Past)</option>
+                  <option value="12">12</option>
+                  <option value="24">24</option>
+                  <option value="48">48</option>
                 </select>
               </div>
             </div>
-          </div>
 
-          {/* Products Grid */}
-          <div className="lg:w-3/4">
             {data?.products && data.products.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -286,6 +404,140 @@ const ProductListPage: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Recommended Products - Newegg Style */}
+        {recommendedProducts.length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Sizga tavsiya etilgan mahsulotlar
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {recommendedProducts.map((product) => (
+                <Link
+                  to={`/products/${product.id}`}
+                  key={product.id}
+                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                >
+                  <div className="aspect-w-1 aspect-h-1 bg-gray-200">
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-48 object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-400">Rasm yo'q</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                      {product.name}
+                    </h3>
+
+                    <div className="flex items-center mb-2">
+                      <div className="flex text-yellow-400">
+                        {[...Array(5)].map((_, i) => (
+                          <svg
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < Math.floor(product.rating) ? 'fill-current' : 'text-gray-300'
+                            }`}
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ))}
+                        <span className="ml-1 text-sm text-gray-600">{product.rating}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xl font-bold text-blue-600">
+                        ${product.price.toFixed(2)}
+                      </span>
+                      <span
+                        className={`text-sm ${product.inStock ? 'text-green-600' : 'text-red-600'}`}
+                      >
+                        {product.inStock ? 'Mavjud' : 'Tugagan'}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Popular in Category - Newegg Style */}
+        {filters.category && popularInCategory.length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              "{filters.category}" kategoriyasidagi mashhur mahsulotlar
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {popularInCategory.map((product) => (
+                <Link
+                  to={`/products/${product.id}`}
+                  key={product.id}
+                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                >
+                  <div className="aspect-w-1 aspect-h-1 bg-gray-200">
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-48 object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-400">Rasm yo'q</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                      {product.name}
+                    </h3>
+
+                    <div className="flex items-center mb-2">
+                      <div className="flex text-yellow-400">
+                        {[...Array(5)].map((_, i) => (
+                          <svg
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < Math.floor(product.rating) ? 'fill-current' : 'text-gray-300'
+                            }`}
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ))}
+                        <span className="ml-1 text-sm text-gray-600">{product.rating}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xl font-bold text-blue-600">
+                        ${product.price.toFixed(2)}
+                      </span>
+                      <span
+                        className={`text-sm ${product.inStock ? 'text-green-600' : 'text-red-600'}`}
+                      >
+                        {product.inStock ? 'Mavjud' : 'Tugagan'}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

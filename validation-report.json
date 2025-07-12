@@ -1,0 +1,204 @@
+﻿{
+    "SuccessRate":  95.56,
+    "ValidationResults":  {
+                              "StartTime":  {
+                                                "value":  "\/Date(1752289944506)\/",
+                                                "DisplayHint":  2,
+                                                "DateTime":  "12 июля 2025 г. 8:12:24"
+                                            },
+                              "FailedChecks":  2,
+                              "Warnings":  0,
+                              "Components":  {
+                                                 "Payment Gateway Integration":  {
+                                                                                     "Message":  "Component validated successfully",
+                                                                                     "Status":  "PASSED"
+                                                                                 },
+                                                 "Database Optimization":  {
+                                                                               "Message":  "Component validated successfully",
+                                                                               "Status":  "PASSED"
+                                                                           },
+                                                 "Core Service: user-service":  {
+                                                                                    "Message":  "Component validated successfully",
+                                                                                    "Status":  "PASSED"
+                                                                                },
+                                                 "Scripts Category: deployment":  {
+                                                                                      "Message":  "Component validated successfully",
+                                                                                      "Status":  "PASSED"
+                                                                                  },
+                                                 "Scripts Category: security":  {
+                                                                                    "Message":  "Component validated successfully",
+                                                                                    "Status":  "PASSED"
+                                                                                },
+                                                 "Business Service: review-service":  {
+                                                                                          "Message":  "Component validated successfully",
+                                                                                          "Status":  "PASSED"
+                                                                                      },
+                                                 "Test Suites":  {
+                                                                     "Message":  "Component validated successfully",
+                                                                     "Status":  "PASSED"
+                                                                 },
+                                                 "Frontend Applications":  {
+                                                                               "Message":  "Component validated successfully",
+                                                                               "Status":  "PASSED"
+                                                                           },
+                                                 "SMS Service Integration":  {
+                                                                                 "Message":  "Component validated successfully",
+                                                                                 "Status":  "PASSED"
+                                                                             },
+                                                 "Platform Service: file-service":  {
+                                                                                        "Message":  "Component validated successfully",
+                                                                                        "Status":  "PASSED"
+                                                                                    },
+                                                 "Business Service: product-service":  {
+                                                                                           "Message":  "Component validated successfully",
+                                                                                           "Status":  "PASSED"
+                                                                                       },
+                                                 "Core Service: auth-service":  {
+                                                                                    "Message":  "Component validated successfully",
+                                                                                    "Status":  "PASSED"
+                                                                                },
+                                                 "Platform Service: notification-service":  {
+                                                                                                "Message":  "Component validated successfully",
+                                                                                                "Status":  "PASSED"
+                                                                                            },
+                                                 "Business Service: cart-service":  {
+                                                                                        "Message":  "Component validated successfully",
+                                                                                        "Status":  "PASSED"
+                                                                                    },
+                                                 "Jest Configuration":  {
+                                                                            "Message":  "Component validated successfully",
+                                                                            "Status":  "PASSED"
+                                                                        },
+                                                 "Documentation: README.md":  {
+                                                                                  "Message":  "Component validated successfully",
+                                                                                  "Status":  "PASSED"
+                                                                              },
+                                                 "Business Service: payment-service":  {
+                                                                                           "Message":  "Component validated successfully",
+                                                                                           "Status":  "PASSED"
+                                                                                       },
+                                                 "Platform Service: search-service":  {
+                                                                                          "Message":  "Component validated successfully",
+                                                                                          "Status":  "PASSED"
+                                                                                      },
+                                                 "Documentation: FINAL_PROJECT_SUMMARY.md":  {
+                                                                                                 "Message":  "Component validated successfully",
+                                                                                                 "Status":  "PASSED"
+                                                                                             },
+                                                 "Kubernetes Manifests":  {
+                                                                              "Message":  "Component validated successfully",
+                                                                              "Status":  "PASSED"
+                                                                          },
+                                                 "Helm Charts":  {
+                                                                     "Message":  "Component validated successfully",
+                                                                     "Status":  "PASSED"
+                                                                 },
+                                                 "Scripts Category: database":  {
+                                                                                    "Message":  "Component validated successfully",
+                                                                                    "Status":  "PASSED"
+                                                                                },
+                                                 "Scripts Category: backup":  {
+                                                                                  "Message":  "Component validated successfully",
+                                                                                  "Status":  "PASSED"
+                                                                              },
+                                                 "Monitoring Configuration":  {
+                                                                                  "Message":  "Component validated successfully",
+                                                                                  "Status":  "PASSED"
+                                                                              },
+                                                 "Docker Configuration":  {
+                                                                              "Message":  "Component validated successfully",
+                                                                              "Status":  "PASSED"
+                                                                          },
+                                                 "Documentation: MAINTENANCE_PROCEDURES.md":  {
+                                                                                                  "Message":  "Component validated successfully",
+                                                                                                  "Status":  "PASSED"
+                                                                                              },
+                                                 "Security Audit Files":  {
+                                                                              "Message":  "Component validated successfully",
+                                                                              "Status":  "PASSED"
+                                                                          },
+                                                 "Performance Scripts":  {
+                                                                             "Message":  "Component validated successfully",
+                                                                             "Status":  "PASSED"
+                                                                         },
+                                                 "Documentation: API_COMPLETE_DOCUMENTATION.md":  {
+                                                                                                      "Message":  "Component validated successfully",
+                                                                                                      "Status":  "PASSED"
+                                                                                                  },
+                                                 "Root Directory Structure":  {
+                                                                                  "Message":  "Component validated successfully",
+                                                                                  "Status":  "PASSED"
+                                                                              },
+                                                 "Security Configurations":  {
+                                                                                 "Message":  "Component validated successfully",
+                                                                                 "Status":  "PASSED"
+                                                                             },
+                                                 "Core Service: config-service":  {
+                                                                                      "Message":  "Component validated successfully",
+                                                                                      "Status":  "PASSED"
+                                                                                  },
+                                                 "Business Service: order-service":  {
+                                                                                         "Message":  "Component validated successfully",
+                                                                                         "Status":  "PASSED"
+                                                                                     },
+                                                 "Root Package.json":  {
+                                                                           "Message":  "Component validated successfully",
+                                                                           "Status":  "PASSED"
+                                                                       },
+                                                 "Environment Configurations":  {
+                                                                                    "Message":  "Component validated successfully",
+                                                                                    "Status":  "PASSED"
+                                                                                },
+                                                 "Business Service: inventory-service":  {
+                                                                                             "Message":  "Component validated successfully",
+                                                                                             "Status":  "PASSED"
+                                                                                         },
+                                                 "Platform Service: analytics-service":  {
+                                                                                             "Message":  "Component validation failed",
+                                                                                             "Status":  "FAILED"
+                                                                                         },
+                                                 "Core Service: store-service":  {
+                                                                                     "Message":  "Component validation failed",
+                                                                                     "Status":  "FAILED"
+                                                                                 },
+                                                 "Microservices Structure":  {
+                                                                                 "Message":  "Component validated successfully",
+                                                                                 "Status":  "PASSED"
+                                                                             },
+                                                 "Shared Libraries":  {
+                                                                          "Message":  "Component validated successfully",
+                                                                          "Status":  "PASSED"
+                                                                      },
+                                                 "Scripts Category: validation":  {
+                                                                                      "Message":  "Component validated successfully",
+                                                                                      "Status":  "PASSED"
+                                                                                  },
+                                                 "Platform Service: audit-service":  {
+                                                                                         "Message":  "Component validated successfully",
+                                                                                         "Status":  "PASSED"
+                                                                                     },
+                                                 "TypeScript Configuration":  {
+                                                                                  "Message":  "Component validated successfully",
+                                                                                  "Status":  "PASSED"
+                                                                              },
+                                                 "Platform Service: content-service":  {
+                                                                                           "Message":  "Component validated successfully",
+                                                                                           "Status":  "PASSED"
+                                                                                       },
+                                                 "Documentation: DEVELOPER_GUIDE.md":  {
+                                                                                           "Message":  "Component validated successfully",
+                                                                                           "Status":  "PASSED"
+                                                                                       }
+                                             },
+                              "PassedChecks":  43,
+                              "EndTime":  {
+                                              "value":  "\/Date(1752289944666)\/",
+                                              "DisplayHint":  2,
+                                              "DateTime":  "12 июля 2025 г. 8:12:24"
+                                          },
+                              "TotalChecks":  45
+                          },
+    "GeneratedAt":  "2025-07-12 08:12:24",
+    "OverallStatus":  "NEARLY_READY",
+    "ProjectVersion":  "1.0.0"
+}

@@ -244,7 +244,7 @@ describe('CartService', () => {
       mockRedisClient.get.mockResolvedValue(JSON.stringify(existingCart));
 
       const mockCoupon = {
-        type: 'percentage',
+        type: 'percentage' as 'percentage' | 'fixed',
         value: 20,
         minimumPurchase: 500,
       };

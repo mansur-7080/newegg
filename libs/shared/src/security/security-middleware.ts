@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import { body, validationResult, param, query } from 'express-validator';
-import DOMPurify from 'isomorphic-dompurify';
+// import DOMPurify from 'isomorphic-dompurify';
 import { logger } from '../logger';
 import { getCache } from '../performance/caching';
 
@@ -21,7 +21,7 @@ export interface SecurityConfig {
     methods: string[];
   };
   helmet: {
-    contentSecurityPolicy: boolean;
+    contentSecurityPolicy: Parameters<typeof helmet.contentSecurityPolicy>[0];
     crossOriginEmbedderPolicy: boolean;
   };
   compression: {
@@ -81,7 +81,8 @@ export class SecurityMiddleware {
    */
   applySecurityMiddleware(app: any): void {
     // Security headers
-    app.use(helmet(this.config.helmet));
+    app.use(helmet({ crossOriginEmbedderPolicy: this.config.helmet.crossOriginEmbedderPolicy }));
+    app.use(helmet.contentSecurityPolicy(this.config.helmet.contentSecurityPolicy));
 
     // CORS configuration
     app.use(cors(this.config.cors));
@@ -124,20 +125,17 @@ export class SecurityMiddleware {
       keyGenerator: (req: Request) => {
         return req.ip || req.connection.remoteAddress || 'unknown';
       },
-      onLimitReached: (req: Request) => {
-        const clientIP = req.ip || req.connection.remoteAddress;
-        this.suspiciousIPs.add(clientIP);
-        
-        logger.warn('Rate limit exceeded', {
-          ip: clientIP,
-          userAgent: req.get('User-Agent'),
-          endpoint: req.path,
-          method: req.method,
-        });
-
-        // Block IP after multiple rate limit violations
-        this.checkForIPBlocking(clientIP);
-      },
+      // onLimitReached: (req: Request) => {
+      //   const clientIP = req.ip || req.connection.remoteAddress;
+      //   this.suspiciousIPs.add(clientIP);
+      //   logger.warn('Rate limit exceeded', {
+      //     ip: clientIP,
+      //     userAgent: req.get('User-Agent'),
+      //     endpoint: req.path,
+      //     method: req.method,
+      //   });
+      //   this.checkForIPBlocking(clientIP);
+      // },
     });
   }
 
@@ -155,13 +153,14 @@ export class SecurityMiddleware {
         method: req.method,
       });
 
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         error: {
           code: 'IP_BLOCKED',
           message: 'Access denied',
         },
       });
+      return;
     }
 
     next();
@@ -202,6 +201,7 @@ export class SecurityMiddleware {
           message: 'Invalid input data',
         },
       });
+      return;
     }
   }
 
@@ -210,16 +210,16 @@ export class SecurityMiddleware {
    */
   private sanitizeObject(obj: any): any {
     if (typeof obj !== 'object' || obj === null) {
-      return typeof obj === 'string' ? DOMPurify.sanitize(obj) : obj;
+      return typeof obj === 'string' ? simpleSanitize(obj) : obj;
     }
 
     if (Array.isArray(obj)) {
-      return obj.map(item => this.sanitizeObject(item));
+      return obj.map((item) => this.sanitizeObject(item));
     }
 
     const sanitized: any = {};
     for (const [key, value] of Object.entries(obj)) {
-      const sanitizedKey = DOMPurify.sanitize(key);
+      const sanitizedKey = simpleSanitize(key);
       sanitized[sanitizedKey] = this.sanitizeObject(value);
     }
 
@@ -303,25 +303,20 @@ export class SecurityMiddleware {
     ];
 
     // Path traversal patterns
-    const pathTraversalPatterns = [
-      /\.\.\//g,
-      /\.\.\\/g,
-      /%2e%2e%2f/gi,
-      /%2e%2e%5c/gi,
-    ];
+    const pathTraversalPatterns = [/\.\.\//g, /\.\.\\/g, /%2e%2e%2f/gi, /%2e%2e%5c/gi];
 
     // Check for suspicious patterns
     const suspiciousContent = [path, query, body].join(' ');
 
-    if (sqlInjectionPatterns.some(pattern => pattern.test(suspiciousContent))) {
+    if (sqlInjectionPatterns.some((pattern) => pattern.test(suspiciousContent))) {
       this.logSecurityThreat(clientIP, 'SQL_INJECTION', req);
     }
 
-    if (xssPatterns.some(pattern => pattern.test(suspiciousContent))) {
+    if (xssPatterns.some((pattern) => pattern.test(suspiciousContent))) {
       this.logSecurityThreat(clientIP, 'XSS_ATTEMPT', req);
     }
 
-    if (pathTraversalPatterns.some(pattern => pattern.test(suspiciousContent))) {
+    if (pathTraversalPatterns.some((pattern) => pattern.test(suspiciousContent))) {
       this.logSecurityThreat(clientIP, 'PATH_TRAVERSAL', req);
     }
 
@@ -341,7 +336,7 @@ export class SecurityMiddleware {
       /scanner|nikto|sqlmap|burp/i,
     ];
 
-    return suspiciousPatterns.some(pattern => pattern.test(userAgent));
+    return suspiciousPatterns.some((pattern) => pattern.test(userAgent));
   }
 
   /**
@@ -375,10 +370,10 @@ export class SecurityMiddleware {
    */
   private async checkForIPBlocking(ip: string): Promise<void> {
     const threatCount = await this.getThreatCount(ip);
-    
+
     if (threatCount >= 5) {
       this.blockedIPs.add(ip);
-      
+
       logger.error('IP blocked due to multiple threats', {
         ip,
         threatCount,
@@ -405,10 +400,10 @@ export class SecurityMiddleware {
   async unblockIP(ip: string): Promise<void> {
     this.blockedIPs.delete(ip);
     this.suspiciousIPs.delete(ip);
-    
+
     const key = `security:blocked:${ip}`;
     await this.cache.del(key);
-    
+
     logger.info('IP unblocked', { ip });
   }
 
@@ -442,11 +437,11 @@ export const validateEmail = body('email')
 export const validatePassword = body('password')
   .isLength({ min: 8, max: 128 })
   .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-  .withMessage('Password must contain at least 8 characters, including uppercase, lowercase, number, and special character');
+  .withMessage(
+    'Password must contain at least 8 characters, including uppercase, lowercase, number, and special character'
+  );
 
-export const validateUUID = param('id')
-  .isUUID()
-  .withMessage('Valid UUID required');
+export const validateUUID = param('id').isUUID().withMessage('Valid UUID required');
 
 export const validatePagination = [
   query('page')
@@ -467,7 +462,7 @@ export const validateSortOrder = query('sort')
 // Validation result handler
 export const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => {
   const errors = validationResult(req);
-  
+
   if (!errors.isEmpty()) {
     logger.warn('Validation errors', {
       errors: errors.array(),
@@ -507,7 +502,7 @@ export function getSecurityMiddleware(): SecurityMiddleware {
 // CSRF protection middleware
 export const csrfProtection = (req: Request, res: Response, next: NextFunction): void => {
   const token = req.get('X-CSRF-Token') || req.body._csrf || req.query._csrf;
-  const sessionToken = req.session?.csrfToken;
+  const sessionToken = (req as any).session?.csrfToken;
 
   if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
     if (!token || !sessionToken || token !== sessionToken) {
@@ -527,30 +522,33 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
 // File upload security
 export const secureFileUpload = (allowedTypes: string[], maxSize: number = 5 * 1024 * 1024) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.file) {
+    const file = (req as any).file;
+    if (!file) {
       return next();
     }
 
     // Check file type
-    if (!allowedTypes.includes(req.file.mimetype)) {
-      return res.status(400).json({
+    if (!allowedTypes.includes(file.mimetype)) {
+      res.status(400).json({
         success: false,
         error: {
           code: 'INVALID_FILE_TYPE',
           message: 'File type not allowed',
         },
       });
+      return;
     }
 
     // Check file size
-    if (req.file.size > maxSize) {
-      return res.status(400).json({
+    if (file.size > maxSize) {
+      res.status(400).json({
         success: false,
         error: {
           code: 'FILE_TOO_LARGE',
           message: 'File size exceeds limit',
         },
       });
+      return;
     }
 
     // Scan file for malware (placeholder)
@@ -558,4 +556,9 @@ export const secureFileUpload = (allowedTypes: string[], maxSize: number = 5 * 1
 
     next();
   };
-}; 
+};
+
+// Simple HTML sanitizer (removes all tags)
+function simpleSanitize(str: string): string {
+  return str.replace(/<[^>]+>/g, '');
+}

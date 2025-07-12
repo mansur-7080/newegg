@@ -24,5 +24,6 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   moduleNameMapper: {
     '@ultramarket/(.*)': '<rootDir>/../../../../libs/$1/src',
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
 };

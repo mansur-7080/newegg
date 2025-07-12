@@ -10,7 +10,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
 } from '../validators/userValidators';
-import { UserRole } from '@ultramarket/common';
+import { UserRole } from '@ultramarket/shared';
 
 const router = Router();
 

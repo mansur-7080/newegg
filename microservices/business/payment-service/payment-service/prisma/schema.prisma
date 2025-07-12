@@ -11,207 +11,176 @@ datasource db {
 }
 
 model Payment {
-  id              String        @id @default(cuid())
-  orderId         String        @unique
-  userId          String
-  amount          Decimal       @db.Decimal(10, 2)
-  currency        String        @default("USD")
-  status          PaymentStatus @default(PENDING)
-  method          PaymentMethodType
-  provider        PaymentProvider
-  providerTransactionId String?
-  providerResponse Json?
-  description     String?
-  metadata        Json?
-  failureReason   String?
-  refundAmount    Decimal?      @db.Decimal(10, 2)
-  refundReason    String?
-  refundedAt      DateTime?
-  expiresAt       DateTime?
-  processedAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
+  id                     String    @id @default(cuid())
+  orderId                String    @map("order_id")
+  userId                 String    @map("user_id")
+  amount                 Float
+  currency               String    @default("UZS")
+  method                 PaymentMethod
+  status                 PaymentStatus @default(PENDING)
+  gatewayTransactionId   String?   @map("gateway_transaction_id")
+  gatewayPaymentId       String?   @map("gateway_payment_id")
+  failureReason          String?   @map("failure_reason")
+  metadata               Json?
+  
+  // Timestamps
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  completedAt            DateTime? @map("completed_at")
+  failedAt               DateTime? @map("failed_at")
+  cancelledAt            DateTime? @map("cancelled_at")
+  
   // Relations
-  paymentMethod   PaymentMethodRecord? @relation(fields: [methodId], references: [id])
-  methodId        String?
-  refunds         Refund[]
-
+  refunds                Refund[]
+  webhooks               Webhook[]
+  
+  @@map("payments")
   @@index([orderId])
   @@index([userId])
   @@index([status])
-  @@index([provider])
+  @@index([method])
   @@index([createdAt])
-  @@map("payments")
-}
-
-model PaymentMethodRecord {
-  id              String        @id @default(cuid())
-  userId          String
-  type            PaymentMethodType
-  provider        PaymentProvider
-  providerToken   String?
-  isDefault       Boolean       @default(false)
-  isActive        Boolean       @default(true)
-  lastUsedAt      DateTime?
-  expiresAt       DateTime?
-  metadata        Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  // Relations
-  payments        Payment[]
-
-  @@index([userId])
-  @@index([type])
-  @@index([provider])
-  @@index([isDefault])
-  @@map("payment_methods")
+  @@index([gatewayTransactionId])
 }
 
 model Refund {
-  id              String        @id @default(cuid())
-  paymentId       String
-  amount          Decimal       @db.Decimal(10, 2)
-  reason          String?
-  status          RefundStatus  @default(PENDING)
-  providerRefundId String?
-  providerResponse Json?
-  processedAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
+  id                     String    @id @default(cuid())
+  paymentId              String    @map("payment_id")
+  amount                 Float
+  reason                 String
+  status                 RefundStatus @default(PENDING)
+  refundedBy             String    @map("refunded_by")
+  gatewayRefundId        String?   @map("gateway_refund_id")
+  failureReason          String?   @map("failure_reason")
+  metadata               Json?
+  
+  // Timestamps
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  completedAt            DateTime? @map("completed_at")
+  failedAt               DateTime? @map("failed_at")
+  
   // Relations
-  payment         Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-
-  @@index([paymentId])
-  @@index([status])
-  @@index([createdAt])
+  payment                Payment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  
   @@map("refunds")
-}
-
-model Subscription {
-  id              String            @id @default(cuid())
-  userId          String
-  planId          String
-  status          SubscriptionStatus @default(ACTIVE)
-  provider        PaymentProvider
-  providerSubscriptionId String?
-  currentPeriodStart DateTime
-  currentPeriodEnd   DateTime
-  cancelAtPeriodEnd Boolean         @default(false)
-  canceledAt       DateTime?
-  endedAt          DateTime?
-  trialStart       DateTime?
-  trialEnd         DateTime?
-  metadata         Json?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-
-  // Relations
-  payments        SubscriptionPayment[]
-
-  @@index([userId])
-  @@index([status])
-  @@index([provider])
-  @@index([currentPeriodEnd])
-  @@map("subscriptions")
-}
-
-model SubscriptionPayment {
-  id              String        @id @default(cuid())
-  subscriptionId  String
-  amount          Decimal       @db.Decimal(10, 2)
-  currency        String        @default("USD")
-  status          PaymentStatus @default(PENDING)
-  provider        PaymentProvider
-  providerTransactionId String?
-  providerResponse Json?
-  periodStart     DateTime
-  periodEnd       DateTime
-  processedAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  // Relations
-  subscription    Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-
-  @@index([subscriptionId])
-  @@index([status])
-  @@index([periodStart, periodEnd])
-  @@map("subscription_payments")
-}
-
-model PaymentWebhook {
-  id              String   @id @default(cuid())
-  provider        PaymentProvider
-  eventType       String
-  payload         Json
-  signature       String?
-  isProcessed     Boolean  @default(false)
-  processedAt     DateTime?
-  errorMessage    String?
-  createdAt       DateTime @default(now())
-
-  @@index([provider])
-  @@index([eventType])
-  @@index([isProcessed])
-  @@index([createdAt])
-  @@map("payment_webhooks")
-}
-
-model PaymentLog {
-  id              String        @id @default(cuid())
-  paymentId       String?
-  userId          String?
-  action          String
-  status          String
-  amount          Decimal?      @db.Decimal(10, 2)
-  currency        String?
-  provider        PaymentProvider?
-  providerResponse Json?
-  errorMessage    String?
-  ipAddress       String?
-  userAgent       String?
-  createdAt       DateTime      @default(now())
-
   @@index([paymentId])
-  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Webhook {
+  id                     String    @id @default(cuid())
+  paymentId              String    @map("payment_id")
+  provider               PaymentProvider
+  event                  String
+  data                   Json
+  signature              String?
+  verified               Boolean   @default(false)
+  processed              Boolean   @default(false)
+  processingError        String?   @map("processing_error")
+  retryCount             Int       @default(0) @map("retry_count")
+  
+  // Timestamps
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  processedAt            DateTime? @map("processed_at")
+  nextRetryAt            DateTime? @map("next_retry_at")
+  
+  // Relations
+  payment                Payment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  
+  @@map("webhooks")
+  @@index([paymentId])
+  @@index([provider])
+  @@index([event])
+  @@index([processed])
+  @@index([createdAt])
+}
+
+model PaymentMethod {
+  id                     String    @id @default(cuid())
+  code                   String    @unique
+  name                   String
+  description            String?
+  enabled                Boolean   @default(true)
+  minAmount              Float?    @map("min_amount")
+  maxAmount              Float?    @map("max_amount")
+  feePercentage          Float?    @map("fee_percentage")
+  feeFixed               Float?    @map("fee_fixed")
+  configuration          Json?
+  
+  // Timestamps
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  
+  @@map("payment_methods")
+  @@index([code])
+  @@index([enabled])
+}
+
+model PaymentTransaction {
+  id                     String    @id @default(cuid())
+  paymentId              String    @map("payment_id")
+  transactionType        TransactionType @map("transaction_type")
+  amount                 Float
+  currency               String    @default("UZS")
+  status                 TransactionStatus @default(PENDING)
+  gatewayTransactionId   String?   @map("gateway_transaction_id")
+  gatewayResponse        Json?     @map("gateway_response")
+  failureReason          String?   @map("failure_reason")
+  metadata               Json?
+  
+  // Timestamps
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  completedAt            DateTime? @map("completed_at")
+  failedAt               DateTime? @map("failed_at")
+  
+  @@map("payment_transactions")
+  @@index([paymentId])
+  @@index([transactionType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PaymentAudit {
+  id                     String    @id @default(cuid())
+  paymentId              String    @map("payment_id")
+  action                 String
+  oldStatus              String?   @map("old_status")
+  newStatus              String?   @map("new_status")
+  performedBy            String?   @map("performed_by")
+  ipAddress              String?   @map("ip_address")
+  userAgent              String?   @map("user_agent")
+  changes                Json?
+  
+  // Timestamps
+  createdAt              DateTime  @default(now()) @map("created_at")
+  
+  @@map("payment_audits")
+  @@index([paymentId])
   @@index([action])
   @@index([createdAt])
-  @@map("payment_logs")
 }
 
 // Enums
+enum PaymentMethod {
+  CLICK
+  PAYME
+  CASH
+  CARD
+  BANK_TRANSFER
+}
+
 enum PaymentStatus {
   PENDING
   PROCESSING
   COMPLETED
   FAILED
   CANCELLED
-  EXPIRED
   REFUNDED
   PARTIALLY_REFUNDED
-}
-
-// PaymentMethod enum removed - using PaymentMethodType instead
-
-enum PaymentProvider {
-  STRIPE
-  PAYPAL
-  BRAINTREE
-  SQUARE
-  ADYEN
-  RAZORPAY
-  MERCADOPAGO
-  CUSTOM
-}
-
-enum PaymentMethodType {
-  CARD
-  BANK_ACCOUNT
-  DIGITAL_WALLET
-  CRYPTOCURRENCY
 }
 
 enum RefundStatus {
@@ -222,11 +191,23 @@ enum RefundStatus {
   CANCELLED
 }
 
-enum SubscriptionStatus {
-  ACTIVE
-  PAST_DUE
-  CANCELED
-  UNPAID
-  TRIALING
-  PAUSED
+enum PaymentProvider {
+  CLICK
+  PAYME
+  INTERNAL
+}
+
+enum TransactionType {
+  PAYMENT
+  REFUND
+  CHARGEBACK
+  ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
 }

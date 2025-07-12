@@ -12,7 +12,7 @@ const mockRedisClient = {
 
 // Mock the Redis module and its createClient function
 jest.mock('redis', () => ({
-  createClient: jest.fn(() => mockRedisClient)
+  createClient: jest.fn(() => mockRedisClient),
 }));
 
 // Export the mock Redis client for use in tests
@@ -21,5 +21,5 @@ export const mockRedis = mockRedisClient;
 // Mock the redis.ts module
 jest.mock('../config/redis', () => ({
   getRedisClient: jest.fn(() => mockRedisClient),
-  connectRedis: jest.fn().mockResolvedValue(undefined),
+  connectRedis: jest.fn().mockImplementation(() => Promise.resolve()),
 }));

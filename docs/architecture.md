@@ -1,4 +1,5 @@
 # Enterprise E-Commerce Platform
+
 ## Technical Architecture Document
 
 ---
@@ -6,17 +7,18 @@
 **Version:** 2.0  
 **Date:** 2024  
 **Classification:** Technical Documentation  
-**Audience:** Software Architects, Engineering Teams, Technical Leadership  
+**Audience:** Software Architects, Engineering Teams, Technical Leadership
 
 ---
 
 ## Executive Summary
 
 This document presents a comprehensive technical architecture for a modern, scalable e-commerce platform designed to support:
+
 - **10M+ active users**
 - **100K+ products catalog**
 - **1M+ daily transactions**
-- **Global multi-region deployment**
+- **O'zbekiston single-region deployment**
 - **99.99% uptime SLA**
 
 The architecture follows cloud-native principles, microservices patterns, and industry best practices to ensure scalability, reliability, and maintainability.
@@ -70,23 +72,23 @@ The architecture follows cloud-native principles, microservices patterns, and in
 
 The e-commerce platform is designed to meet the following business objectives:
 
-| Metric | Target |
-|--------|---------|
-| Active Users | 10M+ |
-| Product Catalog | 100K+ SKUs |
-| Daily Transactions | 1M+ |
-| Geographic Reach | Global |
-| Peak Traffic | 100K req/sec |
+| Metric             | Target      |
+| ------------------ | ----------- |
+| Active Users       | 1M+         |
+| Product Catalog    | 50K+ SKUs   |
+| Daily Transactions | 100K+       |
+| Geographic Reach   | O'zbekiston |
+| Peak Traffic       | 10K req/sec |
 
 ### 1.2 Technical Requirements
 
-| Requirement | Specification |
-|-------------|---------------|
-| Availability | 99.99% uptime |
-| Response Time | < 100ms API response (p95) |
-| Scalability | Horizontal auto-scaling |
-| Deployment | Multi-region active-active |
-| Security | PCI DSS, GDPR compliant |
+| Requirement   | Specification              |
+| ------------- | -------------------------- |
+| Availability  | 99.9% uptime               |
+| Response Time | < 200ms API response (p95) |
+| Scalability   | Horizontal auto-scaling    |
+| Deployment    | O'zbekiston, single region |
+| Security      | PCI DSS compliant          |
 
 ---
 
@@ -123,13 +125,13 @@ The e-commerce platform is designed to meet the following business objectives:
 
 ### 2.2 Service Communication Patterns
 
-| Pattern | Technology | Use Case |
-|---------|------------|----------|
-| Synchronous | gRPC | Internal service calls |
-| Synchronous | REST | External API calls |
-| Asynchronous | Apache Kafka | Event streaming |
-| Asynchronous | RabbitMQ | Task queues |
-| Service Discovery | Consul/K8s DNS | Dynamic routing |
+| Pattern           | Technology     | Use Case               |
+| ----------------- | -------------- | ---------------------- |
+| Synchronous       | gRPC           | Internal service calls |
+| Synchronous       | REST           | External API calls     |
+| Asynchronous      | Apache Kafka   | Event streaming        |
+| Asynchronous      | RabbitMQ       | Task queues            |
+| Service Discovery | Consul/K8s DNS | Dynamic routing        |
 
 ### 2.3 Service Design Principles
 
@@ -165,12 +167,12 @@ The e-commerce platform is designed to meet the following business objectives:
 
 ### 3.2 Data Architecture Patterns
 
-| Pattern | Description | Implementation |
-|---------|-------------|----------------|
-| CQRS | Separate read/write models | Command & Query separation |
-| Event Sourcing | Store state changes | Order, Payment services |
-| Saga Pattern | Distributed transactions | Cross-service workflows |
-| Database per Service | Service data isolation | All microservices |
+| Pattern              | Description                | Implementation             |
+| -------------------- | -------------------------- | -------------------------- |
+| CQRS                 | Separate read/write models | Command & Query separation |
+| Event Sourcing       | Store state changes        | Order, Payment services    |
+| Saga Pattern         | Distributed transactions   | Cross-service workflows    |
+| Database per Service | Service data isolation     | All microservices          |
 
 ### 3.3 Data Governance
 
@@ -203,13 +205,13 @@ The e-commerce platform is designed to meet the following business objectives:
 
 ### 4.2 Security Controls
 
-| Control Type | Implementation | Tools/Technologies |
-|--------------|----------------|-------------------|
-| Authentication | OAuth 2.0, OIDC | Auth0, Okta |
-| Authorization | RBAC, ABAC | Open Policy Agent |
-| Encryption | TLS 1.3, AES-256 | Let's Encrypt |
-| Secrets Management | Centralized vault | HashiCorp Vault |
-| Vulnerability Scanning | Container & code scanning | Trivy, SonarQube |
+| Control Type           | Implementation            | Tools/Technologies |
+| ---------------------- | ------------------------- | ------------------ |
+| Authentication         | OAuth 2.0, OIDC           | Auth0, Okta        |
+| Authorization          | RBAC, ABAC                | Open Policy Agent  |
+| Encryption             | TLS 1.3, AES-256          | Let's Encrypt      |
+| Secrets Management     | Centralized vault         | HashiCorp Vault    |
+| Vulnerability Scanning | Container & code scanning | Trivy, SonarQube   |
 
 ### 4.3 Compliance Requirements
 
@@ -259,12 +261,12 @@ Kubernetes Architecture:
 
 ### 5.3 Infrastructure as Code
 
-| Component | Tool | Purpose |
-|-----------|------|---------|
-| Cloud Resources | Terraform | Infrastructure provisioning |
-| Kubernetes | Helm Charts | Application deployment |
-| Configuration | Ansible | Server configuration |
-| Secrets | Sealed Secrets | Encrypted secrets in Git |
+| Component       | Tool           | Purpose                     |
+| --------------- | -------------- | --------------------------- |
+| Cloud Resources | Terraform      | Infrastructure provisioning |
+| Kubernetes      | Helm Charts    | Application deployment      |
+| Configuration   | Ansible        | Server configuration        |
+| Secrets         | Sealed Secrets | Encrypted secrets in Git    |
 
 ---
 
@@ -286,12 +288,12 @@ Kubernetes Architecture:
 
 ### 6.2 Monitoring Strategy
 
-| Layer | Metrics | Tools |
-|-------|---------|-------|
-| Infrastructure | CPU, Memory, Disk, Network | Prometheus + Node Exporter |
-| Application | Response time, Error rate, Throughput | APM (New Relic/DataDog) |
-| Business | Conversion, Revenue, User activity | Custom dashboards |
-| Security | Failed auth, Anomalies, Attacks | SIEM (Splunk/ELK) |
+| Layer          | Metrics                               | Tools                      |
+| -------------- | ------------------------------------- | -------------------------- |
+| Infrastructure | CPU, Memory, Disk, Network            | Prometheus + Node Exporter |
+| Application    | Response time, Error rate, Throughput | APM (New Relic/DataDog)    |
+| Business       | Conversion, Revenue, User activity    | Custom dashboards          |
+| Security       | Failed auth, Anomalies, Attacks       | SIEM (Splunk/ELK)          |
 
 ### 6.3 Alerting Framework
 
@@ -302,17 +304,17 @@ Alert Priority Levels:
     - Data loss risk
     - Security breach
     Response: Immediate (PagerDuty)
-    
+
   P2 - High:
     - Performance degradation
     - Partial outage
     Response: Within 30 minutes
-    
+
   P3 - Medium:
     - Non-critical errors
     - Capacity warnings
     Response: Business hours
-    
+
   P4 - Low:
     - Informational
     - Trend alerts
@@ -346,12 +348,12 @@ Alert Priority Levels:
 
 ### 7.2 Message Queue Configuration
 
-| Queue Type | Technology | Use Case | Configuration |
-|------------|------------|----------|---------------|
-| Event Stream | Apache Kafka | Real-time events | 3 brokers, RF=3 |
-| Task Queue | RabbitMQ | Background jobs | Clustered, HA |
-| Priority Queue | Redis | Time-sensitive | Sorted sets |
-| Dead Letter | Kafka/RabbitMQ | Failed messages | TTL, retry policy |
+| Queue Type     | Technology     | Use Case         | Configuration     |
+| -------------- | -------------- | ---------------- | ----------------- |
+| Event Stream   | Apache Kafka   | Real-time events | 3 brokers, RF=3   |
+| Task Queue     | RabbitMQ       | Background jobs  | Clustered, HA     |
+| Priority Queue | Redis          | Time-sensitive   | Sorted sets       |
+| Dead Letter    | Kafka/RabbitMQ | Failed messages  | TTL, retry policy |
 
 ---
 
@@ -376,81 +378,80 @@ Alert Priority Levels:
 
 ### 8.2 Cache Policies
 
-| Data Type | TTL | Invalidation Strategy |
-|-----------|-----|----------------------|
-| Static Assets | 1 year | Version-based |
-| Product Data | 5 minutes | Event-based |
-| User Sessions | 24 hours | Explicit logout |
-| Search Results | 1 hour | Time-based |
-| API Responses | 30 seconds | Cache tags |
+| Data Type      | TTL        | Invalidation Strategy |
+| -------------- | ---------- | --------------------- |
+| Static Assets  | 1 year     | Version-based         |
+| Product Data   | 5 minutes  | Event-based           |
+| User Sessions  | 24 hours   | Explicit logout       |
+| Search Results | 1 hour     | Time-based            |
+| API Responses  | 30 seconds | Cache tags            |
 
 ---
 
 ## 9. Disaster Recovery & High Availability
 
-### 9.1 Multi-Region Architecture
+### 9.1 O'zbekiston Deployment Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    Global Load Balancer (Route 53)                   │
+│                    Load Balancer (NGINX/HAProxy)                     │
 ├─────────────────────────────────────────────────────────────────────┤
 │                         Health Checks & Failover                     │
-├────────────────────┬────────────────────┬───────────────────────────┤
-│   US-East Region   │   EU-West Region   │   Asia-Pacific Region    │
-│    (Primary)       │   (Secondary)       │     (Secondary)          │
-├────────────────────┼────────────────────┼───────────────────────────┤
-│ • Full Stack       │ • Full Stack        │ • Full Stack             │
-│ • Master DB        │ • Read Replica      │ • Read Replica           │
-│ • Active Traffic   │ • Standby/Active    │ • Standby/Active         │
-└────────────────────┴────────────────────┴───────────────────────────┘
+├─────────────────────────────────────────────────────────────────────┤
+│                      O'zbekiston Region (Tashkent)                   │
+│                              (Primary)                               │
+├─────────────────────────────────────────────────────────────────────┤
+│ • Full Stack                                                         │
+│ • Master DB                                                          │
+│ • Active Traffic                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 9.2 DR Metrics & Procedures
+### 9.2 O'zbekiston Disaster Recovery Metrics
 
-| Metric | Target | Strategy |
-|--------|--------|----------|
-| RTO (Recovery Time) | < 1 hour | Automated failover |
-| RPO (Recovery Point) | < 15 minutes | Continuous replication |
-| Backup Frequency | Daily | Automated snapshots |
-| DR Testing | Monthly | Planned failover drills |
+| Metric               | Target    | Strategy                        |
+| -------------------- | --------- | ------------------------------- |
+| RTO (Recovery Time)  | < 4 hours | Manual failover with automation |
+| RPO (Recovery Point) | < 1 hour  | Scheduled replication           |
+| Backup Frequency     | Daily     | Automated snapshots             |
+| DR Testing           | Quarterly | Scheduled recovery testing      |
 
-### 9.3 High Availability Components
+### 9.3 O'zbekiston High Availability Components
 
-- **Load Balancing**: Multi-AZ ALB/NLB
-- **Database**: Multi-AZ RDS with read replicas
-- **Storage**: Cross-region S3 replication
-- **Compute**: Auto-scaling groups across AZs
-- **Network**: Multiple internet gateways
+- **Load Balancing**: Single-region load balancers
+- **Database**: Local primary with standby replica
+- **Storage**: Local storage with backup strategy
+- **Compute**: Auto-scaling within single datacenter
+- **Network**: Redundant internet connections
 
 ---
 
 ## 10. API Design & Management
 
-### 10.1 API Architecture
+### 10.1 O'zbekiston API Architecture
 
-```
+```ascii
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        API Management Platform                       │
+│                      API Management (Simplified)                     │
 ├─────────────────────────────────────────────────────────────────────┤
-│ API Gateway        │ Developer Portal   │ Analytics                 │
-│ • Rate Limiting    │ • Documentation    │ • Usage Metrics           │
-│ • Authentication   │ • API Keys         │ • Performance             │
-│ • Transformation   │ • SDKs             │ • Error Tracking          │
+│ API Gateway        │ Basic Documentation │ Basic Analytics           │
+│ • Rate Limiting    │ • Swagger UI        │ • Usage Metrics           │
+│ • Authentication   │ • API Docs          │ • Error Tracking          │
 ├────────────────────┴────────────────────┴───────────────────────────┤
 │                         API Standards                                │
-│ • REST (Public)    • GraphQL (Mobile)   • gRPC (Internal)          │
+│ • REST (Public)    • REST (Mobile)       • REST (Internal)           │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 10.2 API Design Standards
 
-| Standard | Specification | Example |
-|----------|---------------|---------|
-| Versioning | URI versioning | `/api/v1/products` |
-| Pagination | Cursor-based | `?cursor=xyz&limit=20` |
-| Filtering | Query parameters | `?category=electronics` |
-| Response Format | JSON (REST), Protobuf (gRPC) | `application/json` |
-| Error Handling | RFC 7807 | Problem Details format |
+| Standard        | Specification                | Example                 |
+| --------------- | ---------------------------- | ----------------------- |
+| Versioning      | URI versioning               | `/api/v1/products`      |
+| Pagination      | Cursor-based                 | `?cursor=xyz&limit=20`  |
+| Filtering       | Query parameters             | `?category=electronics` |
+| Response Format | JSON (REST), Protobuf (gRPC) | `application/json`      |
+| Error Handling  | RFC 7807                     | Problem Details format  |
 
 ### 10.3 API Documentation
 
@@ -466,38 +467,38 @@ Alert Priority Levels:
 
 ### 11.1 Frontend Performance
 
-| Optimization | Technique | Target Metric |
-|--------------|-----------|---------------|
-| Initial Load | Code splitting, Tree shaking | < 3s FCP |
-| Runtime | Virtual scrolling, Lazy loading | 60 FPS |
-| Assets | WebP images, Brotli compression | < 200KB JS |
-| Caching | Service workers, HTTP/2 push | 90% cache hit |
-| Rendering | SSR/SSG, Progressive hydration | < 100ms FID |
+| Optimization | Technique                       | Target Metric |
+| ------------ | ------------------------------- | ------------- |
+| Initial Load | Code splitting, Tree shaking    | < 3s FCP      |
+| Runtime      | Virtual scrolling, Lazy loading | 60 FPS        |
+| Assets       | WebP images, Brotli compression | < 200KB JS    |
+| Caching      | Service workers, HTTP/2 push    | 90% cache hit |
+| Rendering    | SSR/SSG, Progressive hydration  | < 100ms FID   |
 
 ### 11.2 Backend Performance
 
-| Component | Optimization | Implementation |
-|-----------|--------------|----------------|
-| Database | Query optimization, Indexing | Explain plans, covering indexes |
-| API | Response compression, HTTP/2 | gzip/brotli, multiplexing |
-| Compute | Horizontal scaling, Resource limits | HPA, CPU/memory quotas |
-| Network | Connection pooling, Keep-alive | PgBouncer, persistent connections |
-| Code | Async processing, Caching | Event loop, Redis |
+| Component | Optimization                        | Implementation                    |
+| --------- | ----------------------------------- | --------------------------------- |
+| Database  | Query optimization, Indexing        | Explain plans, covering indexes   |
+| API       | Response compression, HTTP/2        | gzip/brotli, multiplexing         |
+| Compute   | Horizontal scaling, Resource limits | HPA, CPU/memory quotas            |
+| Network   | Connection pooling, Keep-alive      | PgBouncer, persistent connections |
+| Code      | Async processing, Caching           | Event loop, Redis                 |
 
-### 11.3 Performance Monitoring
+### 11.3 O'zbekiston Performance Monitoring
 
 ```yaml
 Performance Budgets:
   Frontend:
-    - First Contentful Paint: < 1.5s
-    - Time to Interactive: < 3.5s
-    - Cumulative Layout Shift: < 0.1
-    
+    - First Contentful Paint: < 2.5s
+    - Time to Interactive: < 5s
+    - Cumulative Layout Shift: < 0.2
+
   Backend:
-    - API Response Time: < 100ms (p95)
-    - Database Query Time: < 50ms (p95)
+    - API Response Time: < 300ms (p95)
+    - Database Query Time: < 150ms (p95)
     - Cache Hit Rate: > 85%
-    
+
   Infrastructure:
     - CPU Utilization: < 70%
     - Memory Usage: < 80%
@@ -525,14 +526,14 @@ Performance Budgets:
 
 ### 12.2 Testing Framework
 
-| Test Type | Tools | Coverage Target |
-|-----------|-------|-----------------|
-| Unit Tests | Jest, Pytest, JUnit | > 80% |
-| Integration | Testcontainers, Postman | Critical paths |
-| E2E Tests | Cypress, Selenium | User journeys |
-| Performance | K6, JMeter | Load scenarios |
-| Security | OWASP ZAP, Burp Suite | OWASP Top 10 |
-| Chaos | Chaos Monkey, Litmus | Failure scenarios |
+| Test Type   | Tools                   | Coverage Target   |
+| ----------- | ----------------------- | ----------------- |
+| Unit Tests  | Jest, Pytest, JUnit     | > 80%             |
+| Integration | Testcontainers, Postman | Critical paths    |
+| E2E Tests   | Cypress, Selenium       | User journeys     |
+| Performance | K6, JMeter              | Load scenarios    |
+| Security    | OWASP ZAP, Burp Suite   | OWASP Top 10      |
+| Chaos       | Chaos Monkey, Litmus    | Failure scenarios |
 
 ### 12.3 Quality Gates
 
@@ -552,13 +553,13 @@ CI/CD Quality Gates:
 
 ### 13.1 Cost Management Strategy
 
-| Area | Strategy | Expected Savings |
-|------|----------|------------------|
-| Compute | Spot instances, Reserved capacity | 40-60% |
-| Storage | Lifecycle policies, Compression | 30-40% |
-| Network | CDN optimization, Regional caches | 20-30% |
-| Database | Read replicas, Query optimization | 25-35% |
-| Monitoring | Sampling, Retention policies | 15-20% |
+| Area       | Strategy                          | Expected Savings |
+| ---------- | --------------------------------- | ---------------- |
+| Compute    | Spot instances, Reserved capacity | 40-60%           |
+| Storage    | Lifecycle policies, Compression   | 30-40%           |
+| Network    | CDN optimization, Regional caches | 20-30%           |
+| Database   | Read replicas, Query optimization | 25-35%           |
+| Monitoring | Sampling, Retention policies      | 15-20%           |
 
 ### 13.2 Resource Allocation
 
@@ -568,11 +569,11 @@ Resource Allocation:
     - On-demand: 30% (critical services)
     - Reserved: 50% (baseline capacity)
     - Spot: 20% (batch processing)
-    
+
   Non-Production:
     - On-demand: 10%
     - Spot: 90%
-    
+
   Cost Controls:
     - Budget alerts: 80%, 90%, 100%
     - Auto-shutdown: Non-prod after hours
@@ -597,13 +598,13 @@ main
 
 ### 14.2 Development Standards
 
-| Standard | Requirement | Tools |
-|----------|-------------|-------|
-| Code Style | Language-specific guides | ESLint, Black |
-| Code Review | 2 approvals required | GitHub PR |
-| Documentation | API docs, README | OpenAPI, Markdown |
-| Testing | 80% coverage minimum | Jest, Pytest |
-| Security | No vulnerable dependencies | Dependabot |
+| Standard      | Requirement                | Tools             |
+| ------------- | -------------------------- | ----------------- |
+| Code Style    | Language-specific guides   | ESLint, Black     |
+| Code Review   | 2 approvals required       | GitHub PR         |
+| Documentation | API docs, README           | OpenAPI, Markdown |
+| Testing       | 80% coverage minimum       | Jest, Pytest      |
+| Security      | No vulnerable dependencies | Dependabot        |
 
 ### 14.3 Development Environment
 
@@ -613,7 +614,7 @@ Local Development:
   - LocalStack for AWS services
   - Minikube for Kubernetes
   - VS Code with extensions
-  
+
 Development Tools:
   - IDE: VS Code, IntelliJ
   - API Testing: Postman, Insomnia
@@ -627,13 +628,13 @@ Development Tools:
 
 ### 15.1 Documentation Architecture
 
-| Type | Tool | Audience |
-|------|------|----------|
-| API Documentation | OpenAPI + Swagger UI | External developers |
-| Architecture | C4 Model + Diagrams | Engineers |
-| Runbooks | Markdown + Confluence | Operations |
-| User Guides | GitBook | End users |
-| Code Documentation | JSDoc, Sphinx | Developers |
+| Type               | Tool                  | Audience            |
+| ------------------ | --------------------- | ------------------- |
+| API Documentation  | OpenAPI + Swagger UI  | External developers |
+| Architecture       | C4 Model + Diagrams   | Engineers           |
+| Runbooks           | Markdown + Confluence | Operations          |
+| User Guides        | GitBook               | End users           |
+| Code Documentation | JSDoc, Sphinx         | Developers          |
 
 ### 15.2 Documentation Standards
 
@@ -649,13 +650,13 @@ Development Tools:
 
 ### 16.1 Compliance Framework
 
-| Regulation | Requirements | Implementation |
-|------------|--------------|----------------|
-| PCI DSS | Payment card security | Isolated payment service |
-| GDPR | EU data protection | Data privacy controls |
-| SOC 2 | Security controls | Audit logging |
-| HIPAA | Health information | Encryption, access control |
-| ISO 27001 | Information security | ISMS implementation |
+| Regulation | Requirements          | Implementation             |
+| ---------- | --------------------- | -------------------------- |
+| PCI DSS    | Payment card security | Isolated payment service   |
+| GDPR       | EU data protection    | Data privacy controls      |
+| SOC 2      | Security controls     | Audit logging              |
+| HIPAA      | Health information    | Encryption, access control |
+| ISO 27001  | Information security  | ISMS implementation        |
 
 ### 16.2 Data Governance
 
@@ -665,7 +666,7 @@ Data Classification:
   - Internal: Business metrics
   - Confidential: User data
   - Restricted: Payment information
-  
+
 Data Lifecycle:
   - Collection: Consent required
   - Processing: Purpose limitation
@@ -688,25 +689,25 @@ Frontend:
     - State: Redux Toolkit, Zustand
     - UI: Material-UI v5, Tailwind CSS
     - Testing: Jest, React Testing Library
-    
+
   Mobile:
     - Native: Swift (iOS), Kotlin (Android)
     - Hybrid: React Native, Flutter
     - State: Redux, MobX
-    
+
 Backend:
   Languages:
     - Java 17 (Spring Boot 3)
     - Python 3.11 (FastAPI)
     - Go 1.20 (Gin)
     - Node.js 18 (Express)
-    
+
   APIs:
     - REST (OpenAPI 3.0)
     - GraphQL (Apollo)
     - gRPC (Protocol Buffers)
     - WebSocket (Socket.io)
-    
+
 Data Layer:
   Databases:
     - PostgreSQL 15 (Transactional)
@@ -714,46 +715,46 @@ Data Layer:
     - Redis 7 (Cache)
     - Elasticsearch 8 (Search)
     - ClickHouse (Analytics)
-    
+
   Streaming:
     - Apache Kafka 3.4
     - Apache Pulsar
     - AWS Kinesis
-    
+
 ML/AI:
   Frameworks:
     - TensorFlow 2.x
     - PyTorch 2.x
     - Scikit-learn
-    
+
   Platforms:
     - Kubeflow
     - MLflow
     - SageMaker
-    
+
 Infrastructure:
   Cloud:
     - AWS (Primary)
     - Azure (Secondary)
     - GCP (ML workloads)
-    
+
   Containers:
     - Docker
     - Kubernetes 1.27
     - Istio 1.18
-    
+
   Monitoring:
     - Prometheus
     - Grafana
     - ELK Stack
     - Jaeger
-    
+
 Security:
   Authentication:
     - OAuth 2.0
     - JWT
     - SAML 2.0
-    
+
   Tools:
     - HashiCorp Vault
     - Trivy
@@ -770,22 +771,22 @@ Security:
 gantt
     title Implementation Roadmap
     dateFormat  YYYY-MM-DD
-    
+
     section Phase 1 - Foundation
     Core Infrastructure     :2024-01-01, 60d
     Basic Services         :2024-02-01, 60d
     Authentication System  :2024-02-15, 45d
-    
+
     section Phase 2 - Core Features
     Payment Integration    :2024-04-01, 60d
     Search Functionality   :2024-04-15, 45d
     Mobile Apps           :2024-05-01, 90d
-    
+
     section Phase 3 - Advanced
     Analytics Platform     :2024-07-01, 60d
-    ML Recommendations    :2024-07-15, 75d
-    Multi-region Deploy   :2024-08-01, 60d
-    
+    Basic Recommendations  :2024-07-15, 45d
+    Tashkent DC Expansion  :2024-08-01, 30d
+
     section Phase 4 - Excellence
     Advanced Features     :2024-10-01, 60d
     Performance Optimize  :2024-10-15, 45d
@@ -794,12 +795,12 @@ gantt
 
 ### 18.2 Milestone Deliverables
 
-| Phase | Timeline | Key Deliverables |
-|-------|----------|------------------|
-| Phase 1 | 0-3 months | Infrastructure, Core services, Auth |
-| Phase 2 | 3-6 months | Payments, Search, Mobile MVP |
-| Phase 3 | 6-9 months | Analytics, ML, Multi-region |
-| Phase 4 | 9-12 months | Optimization, Compliance, Launch |
+| Phase   | Timeline    | Key Deliverables                               |
+| ------- | ----------- | ---------------------------------------------- |
+| Phase 1 | 0-3 months  | Infrastructure, Core services, Auth            |
+| Phase 2 | 3-6 months  | Payments, Search, Mobile MVP                   |
+| Phase 3 | 6-9 months  | Analytics, Basic Recommendations, DC Expansion |
+| Phase 4 | 9-12 months | Optimization, Compliance, Launch               |
 
 ---
 
@@ -807,33 +808,33 @@ gantt
 
 ### 19.1 Technical KPIs
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| API Response Time | < 100ms (p95) | Prometheus |
-| Error Rate | < 0.1% | APM tools |
-| Availability | 99.99% | Synthetic monitoring |
-| Deploy Success Rate | > 95% | CI/CD metrics |
-| MTTR | < 15 minutes | Incident tracking |
+| Metric              | Target        | Measurement          |
+| ------------------- | ------------- | -------------------- |
+| API Response Time   | < 100ms (p95) | Prometheus           |
+| Error Rate          | < 0.1%        | APM tools            |
+| Availability        | 99.99%        | Synthetic monitoring |
+| Deploy Success Rate | > 95%         | CI/CD metrics        |
+| MTTR                | < 15 minutes  | Incident tracking    |
 
 ### 19.2 Business KPIs
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Page Load Time | < 2 seconds | Real User Monitoring |
-| Conversion Rate | > 3% | Analytics |
-| Cart Abandonment | < 30% | Funnel analysis |
-| Customer Satisfaction | > 4.5/5 | NPS surveys |
-| Revenue per User | 20% YoY growth | Business analytics |
+| Metric                | Target         | Measurement          |
+| --------------------- | -------------- | -------------------- |
+| Page Load Time        | < 2 seconds    | Real User Monitoring |
+| Conversion Rate       | > 3%           | Analytics            |
+| Cart Abandonment      | < 30%          | Funnel analysis      |
+| Customer Satisfaction | > 4.5/5        | NPS surveys          |
+| Revenue per User      | 20% YoY growth | Business analytics   |
 
 ### 19.3 Operational KPIs
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Deployment Frequency | 10+ per day | CI/CD |
-| Lead Time | < 2 days | JIRA |
-| Test Coverage | > 80% | SonarQube |
-| Security Vulnerabilities | 0 critical | Security scans |
-| Documentation Coverage | 100% | API docs |
+| Metric                   | Target      | Measurement    |
+| ------------------------ | ----------- | -------------- |
+| Deployment Frequency     | 10+ per day | CI/CD          |
+| Lead Time                | < 2 days    | JIRA           |
+| Test Coverage            | > 80%       | SonarQube      |
+| Security Vulnerabilities | 0 critical  | Security scans |
+| Documentation Coverage   | 100%        | API docs       |
 
 ---
 
@@ -877,58 +878,58 @@ The architecture is designed to evolve with changing business requirements while
 
 ### 21.2 ML Use Cases
 
-| Use Case | Algorithm | Business Impact |
-|----------|-----------|-----------------|
-| Product Recommendations | Collaborative Filtering, Deep Learning | +25% conversion |
-| Search Ranking | Learning to Rank (LTR) | +40% relevance |
-| Dynamic Pricing | Reinforcement Learning | +15% revenue |
-| Demand Forecasting | LSTM, Prophet | -20% inventory cost |
-| Fraud Detection | XGBoost, Anomaly Detection | -30% fraud loss |
-| Customer Segmentation | K-means, DBSCAN | +20% marketing ROI |
+| Use Case                | Algorithm                              | Business Impact     |
+| ----------------------- | -------------------------------------- | ------------------- |
+| Product Recommendations | Collaborative Filtering, Deep Learning | +25% conversion     |
+| Search Ranking          | Learning to Rank (LTR)                 | +40% relevance      |
+| Dynamic Pricing         | Reinforcement Learning                 | +15% revenue        |
+| Demand Forecasting      | LSTM, Prophet                          | -20% inventory cost |
+| Fraud Detection         | XGBoost, Anomaly Detection             | -30% fraud loss     |
+| Customer Segmentation   | K-means, DBSCAN                        | +20% marketing ROI  |
 
 ### 21.3 ML Operations (MLOps)
 
 ```yaml
 ML Pipeline:
   1. Data Collection:
-     - Streaming data ingestion
-     - Batch data processing
-     - Data quality validation
-     
+    - Streaming data ingestion
+    - Batch data processing
+    - Data quality validation
+
   2. Feature Engineering:
-     - Feature extraction
-     - Feature transformation
-     - Feature selection
-     - Feature store updates
-     
+    - Feature extraction
+    - Feature transformation
+    - Feature selection
+    - Feature store updates
+
   3. Model Training:
-     - Distributed training
-     - Hyperparameter tuning
-     - Cross-validation
-     - Model versioning
-     
+    - Distributed training
+    - Hyperparameter tuning
+    - Cross-validation
+    - Model versioning
+
   4. Model Evaluation:
-     - Offline metrics
-     - A/B testing
-     - Shadow deployment
-     - Business metrics
-     
+    - Offline metrics
+    - A/B testing
+    - Shadow deployment
+    - Business metrics
+
   5. Model Deployment:
-     - Blue-green deployment
-     - Canary releases
-     - Model monitoring
-     - Automated rollback
+    - Blue-green deployment
+    - Canary releases
+    - Model monitoring
+    - Automated rollback
 ```
 
 ### 21.4 Feature Store Architecture
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| Online Store | Redis | Low-latency serving |
-| Offline Store | S3 + Parquet | Historical features |
-| Feature Registry | PostgreSQL | Metadata management |
-| Feature Pipeline | Apache Beam | Feature computation |
-| Monitoring | Prometheus | Feature drift detection |
+| Component        | Technology   | Purpose                 |
+| ---------------- | ------------ | ----------------------- |
+| Online Store     | Redis        | Low-latency serving     |
+| Offline Store    | S3 + Parquet | Historical features     |
+| Feature Registry | PostgreSQL   | Metadata management     |
+| Feature Pipeline | Apache Beam  | Feature computation     |
+| Monitoring       | Prometheus   | Feature drift detection |
 
 ---
 
@@ -957,14 +958,14 @@ ML Pipeline:
 
 ### 22.2 Real-time Features Implementation
 
-| Feature | Technology | Update Frequency |
-|---------|------------|------------------|
-| Inventory Updates | WebSocket | < 100ms |
-| Price Changes | SSE | Real-time |
-| Order Tracking | WebSocket | 1 second |
-| Live Chat | Socket.io | Instant |
-| Notifications | FCM/APNS | < 1 second |
-| Analytics Dashboard | WebSocket | 5 seconds |
+| Feature             | Technology | Update Frequency |
+| ------------------- | ---------- | ---------------- |
+| Inventory Updates   | WebSocket  | < 100ms          |
+| Price Changes       | SSE        | Real-time        |
+| Order Tracking      | WebSocket  | 1 second         |
+| Live Chat           | Socket.io  | Instant          |
+| Notifications       | FCM/APNS   | < 1 second       |
+| Analytics Dashboard | WebSocket  | 5 seconds        |
 
 ### 22.3 Scaling Real-time Connections
 
@@ -974,13 +975,13 @@ Scaling Strategy:
     - Multiple WebSocket servers
     - Sticky session load balancing
     - Redis adapter for Socket.io
-    
+
   Connection Management:
     - Connection pooling
     - Heartbeat mechanism
     - Automatic reconnection
     - Graceful disconnection
-    
+
   Performance Optimization:
     - Message compression
     - Binary protocols
@@ -1016,12 +1017,12 @@ Scaling Strategy:
 
 ### 23.2 Data Pipeline Architecture
 
-| Pipeline Type | Tool | Schedule | SLA |
-|---------------|------|----------|-----|
-| Batch ETL | Apache Airflow | Daily/Hourly | 4 hours |
-| Real-time | Apache Flink | Continuous | < 1 minute |
-| Change Data Capture | Debezium | Real-time | < 5 seconds |
-| ML Features | Apache Beam | Hourly | 30 minutes |
+| Pipeline Type       | Tool           | Schedule     | SLA         |
+| ------------------- | -------------- | ------------ | ----------- |
+| Batch ETL           | Apache Airflow | Daily/Hourly | 4 hours     |
+| Real-time           | Apache Flink   | Continuous   | < 1 minute  |
+| Change Data Capture | Debezium       | Real-time    | < 5 seconds |
+| ML Features         | Apache Beam    | Hourly       | 30 minutes  |
 
 ### 23.3 Data Quality Framework
 
@@ -1031,19 +1032,19 @@ Data Quality Checks:
     - Column presence
     - Data types
     - Constraints
-    
+
   Data Profiling:
     - Null checks
     - Uniqueness
     - Value ranges
     - Statistical anomalies
-    
+
   Business Rules:
     - Cross-field validation
     - Referential integrity
     - Business logic
     - Temporal consistency
-    
+
   Monitoring:
     - Data freshness
     - Pipeline latency
@@ -1076,36 +1077,36 @@ Data Quality Checks:
 
 ### 24.2 Risk Scoring Framework
 
-| Risk Factor | Weight | Data Source |
-|-------------|--------|-------------|
-| Transaction Velocity | 25% | Real-time stream |
-| Amount Anomaly | 20% | Historical data |
-| Device Trust | 15% | Device fingerprint |
-| Location Risk | 15% | GeoIP database |
-| User Behavior | 15% | ML model |
-| Network Analysis | 10% | Graph database |
+| Risk Factor          | Weight | Data Source        |
+| -------------------- | ------ | ------------------ |
+| Transaction Velocity | 25%    | Real-time stream   |
+| Amount Anomaly       | 20%    | Historical data    |
+| Device Trust         | 15%    | Device fingerprint |
+| Location Risk        | 15%    | GeoIP database     |
+| User Behavior        | 15%    | ML model           |
+| Network Analysis     | 10%    | Graph database     |
 
 ### 24.3 Fraud Prevention Strategies
 
 ```yaml
 Prevention Layers:
   1. Real-time Rules:
-     - Velocity checks (5 transactions/hour)
-     - Amount limits ($10,000/day)
-     - Geographical restrictions
-     - Device limitations
-     
+    - Velocity checks (5 transactions/hour)
+    - Amount limits ($10,000/day)
+    - Geographical restrictions
+    - Device limitations
+
   2. Machine Learning:
-     - Supervised models (XGBoost)
-     - Unsupervised anomaly detection
-     - Deep learning (transaction sequences)
-     - Graph neural networks
-     
+    - Supervised models (XGBoost)
+    - Unsupervised anomaly detection
+    - Deep learning (transaction sequences)
+    - Graph neural networks
+
   3. Manual Review:
-     - High-risk queue
-     - Pattern investigation
-     - Fraud ring detection
-     - Feedback loop
+    - High-risk queue
+    - Pattern investigation
+    - Fraud ring detection
+    - Feedback loop
 ```
 
 ---
@@ -1136,13 +1137,13 @@ Prevention Layers:
 
 ### 25.2 Offline-First Architecture
 
-| Component | Implementation | Sync Strategy |
-|-----------|----------------|---------------|
-| Local Database | SQLite/Realm | Queue-based sync |
-| State Management | Redux + Redux-Persist | Selective sync |
-| Image Cache | SDWebImage/Glide | Progressive loading |
-| API Cache | Axios + Cache adapter | TTL-based |
-| Conflict Resolution | Last-write-wins | Version vectors |
+| Component           | Implementation        | Sync Strategy       |
+| ------------------- | --------------------- | ------------------- |
+| Local Database      | SQLite/Realm          | Queue-based sync    |
+| State Management    | Redux + Redux-Persist | Selective sync      |
+| Image Cache         | SDWebImage/Glide      | Progressive loading |
+| API Cache           | Axios + Cache adapter | TTL-based           |
+| Conflict Resolution | Last-write-wins       | Version vectors     |
 
 ### 25.3 Mobile Performance Optimization
 
@@ -1153,19 +1154,19 @@ Optimization Strategies:
     - Asset optimization
     - Dynamic feature modules
     - App thinning
-    
+
   Runtime Performance:
     - Lazy loading
     - Virtual lists
     - Image optimization
     - Background task management
-    
+
   Network:
     - Request batching
     - Compression
     - Delta sync
     - Predictive prefetch
-    
+
   Battery:
     - Background limits
     - Location optimization
@@ -1196,15 +1197,15 @@ Optimization Strategies:
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 26.2 Multi-language Content Management
+### 26.2 O'zbekiston Content Management
 
-| Feature | Implementation | Supported Languages |
-|---------|----------------|-------------------|
-| Content Translation | Translation API + Human review | 15+ languages |
-| RTL Support | CSS direction, Mirrored UI | Arabic, Hebrew |
-| Locale Detection | Accept-Language, GeoIP | Automatic |
-| Content Fallback | Hierarchical fallback | en-US default |
-| SEO Optimization | hreflang tags, Sitemaps | All languages |
+| Feature             | Implementation        | Supported Languages        |
+| ------------------- | --------------------- | -------------------------- |
+| Content Translation | Manual translation    | Uzbek, Russian             |
+| RTL Support         | Not needed            | N/A                        |
+| Locale Detection    | User preference       | Manual selection           |
+| Content Fallback    | Hierarchical fallback | Uzbek default, Russian alt |
+| SEO Optimization    | Basic meta tags       | Uzbek, Russian             |
 
 ### 26.3 Content Delivery Strategy
 
@@ -1215,13 +1216,13 @@ Content Delivery:
     - Regional edge caches
     - 24-hour TTL for static
     - 5-minute TTL for dynamic
-    
+
   Personalization:
     - User segment caching
     - A/B test variants
     - Geolocation-based
     - Device-specific
-    
+
   Performance:
     - Image optimization (WebP)
     - Lazy loading
@@ -1254,13 +1255,13 @@ Content Delivery:
 
 ### 27.2 Partner Integration Matrix
 
-| Partner Type | Integration Method | Data Format | Frequency |
-|--------------|-------------------|-------------|-----------|
-| Marketplaces | REST API | JSON | Real-time |
-| Payment Providers | SDK + Webhooks | JSON/XML | Real-time |
-| Shipping Carriers | SOAP/REST | XML/EDI | Batch/Real-time |
-| ERP Systems | Database/API | CSV/JSON | Hourly |
-| Analytics Tools | JavaScript SDK | JSON | Real-time |
+| Partner Type      | Integration Method | Data Format | Frequency       |
+| ----------------- | ------------------ | ----------- | --------------- |
+| Marketplaces      | REST API           | JSON        | Real-time       |
+| Payment Providers | SDK + Webhooks     | JSON/XML    | Real-time       |
+| Shipping Carriers | SOAP/REST          | XML/EDI     | Batch/Real-time |
+| ERP Systems       | Database/API       | CSV/JSON    | Hourly          |
+| Analytics Tools   | JavaScript SDK     | JSON        | Real-time       |
 
 ### 27.3 Webhook Management System
 
@@ -1271,19 +1272,19 @@ Webhook Configuration:
     - Secret generation
     - SSL certificate check
     - Event subscription
-    
+
   Delivery:
     - Exponential backoff (1s, 2s, 4s...)
     - Max retries: 5
     - Timeout: 30 seconds
     - Concurrent delivery
-    
+
   Security:
     - HMAC signature
     - IP whitelist
     - Rate limiting
     - Payload encryption
-    
+
   Monitoring:
     - Success rate
     - Response time
@@ -1316,13 +1317,13 @@ Webhook Configuration:
 
 ### 28.2 Progressive Deployment Strategy
 
-| Stage | Traffic % | Duration | Rollback Criteria |
-|-------|-----------|----------|-------------------|
-| Canary | 1% | 1 hour | Error rate > 0.1% |
-| Early Adopters | 5% | 4 hours | Error rate > 0.05% |
-| Beta | 25% | 24 hours | Performance degradation |
-| General Availability | 50% | 48 hours | User complaints |
-| Full Rollout | 100% | - | - |
+| Stage                | Traffic % | Duration | Rollback Criteria       |
+| -------------------- | --------- | -------- | ----------------------- |
+| Canary               | 1%        | 1 hour   | Error rate > 0.1%       |
+| Early Adopters       | 5%        | 4 hours  | Error rate > 0.05%      |
+| Beta                 | 25%       | 24 hours | Performance degradation |
+| General Availability | 50%       | 48 hours | User complaints         |
+| Full Rollout         | 100%      | -        | -                       |
 
 ### 28.3 SRE Best Practices
 
@@ -1332,19 +1333,19 @@ SRE Framework:
     - Availability: 99.99% (52.56 minutes/year)
     - Latency: 95th percentile < 100ms
     - Error Rate: < 0.01%
-    
+
   Error Budget Policy:
     - Budget: 0.01% (52.56 minutes/year)
     - Actions when exceeded:
       * Feature freeze
       * Focus on reliability
       * Post-mortem required
-      
+
   Automation Targets:
     - Toil reduction: < 20% of time
     - Runbook automation: 90%
     - Self-healing: 80% of issues
-    
+
   On-Call Practices:
     - Rotation: Weekly
     - Team size: 6-8 engineers
@@ -1377,13 +1378,13 @@ SRE Framework:
 
 ### 29.2 AI-Powered Support Features
 
-| Feature | Technology | Automation Rate |
-|---------|------------|----------------|
-| Intent Classification | NLP (BERT) | 95% accuracy |
-| Sentiment Analysis | TextBlob | Real-time |
-| Auto-responses | GPT-3 | 40% tickets |
-| Suggested Articles | Elasticsearch | 60% deflection |
-| Translation | Google Translate | 15 languages |
+| Feature               | Technology       | Automation Rate |
+| --------------------- | ---------------- | --------------- |
+| Intent Classification | NLP (BERT)       | 95% accuracy    |
+| Sentiment Analysis    | TextBlob         | Real-time       |
+| Auto-responses        | GPT-3            | 40% tickets     |
+| Suggested Articles    | Elasticsearch    | 60% deflection  |
+| Translation           | Google Translate | 15 languages    |
 
 ### 29.3 Support Metrics & SLAs
 
@@ -1394,13 +1395,13 @@ Support SLAs:
     - High: < 4 hours
     - Medium: < 8 hours
     - Low: < 24 hours
-    
+
   Resolution Time:
     - Critical: < 4 hours
     - High: < 24 hours
     - Medium: < 48 hours
     - Low: < 72 hours
-    
+
   Quality Metrics:
     - CSAT Score: > 4.5/5
     - First Contact Resolution: > 70%
@@ -1433,13 +1434,13 @@ Support SLAs:
 
 ### 30.2 Key Business Dashboards
 
-| Dashboard | Metrics | Update Frequency |
-|-----------|---------|------------------|
-| Executive | Revenue, Growth, KPIs | Real-time |
-| Sales | Conversion, AOV, Products | Hourly |
-| Marketing | CAC, LTV, Campaigns | Daily |
-| Operations | Fulfillment, Inventory | Real-time |
-| Finance | Cash flow, P&L | Daily |
+| Dashboard  | Metrics                   | Update Frequency |
+| ---------- | ------------------------- | ---------------- |
+| Executive  | Revenue, Growth, KPIs     | Real-time        |
+| Sales      | Conversion, AOV, Products | Hourly           |
+| Marketing  | CAC, LTV, Campaigns       | Daily            |
+| Operations | Fulfillment, Inventory    | Real-time        |
+| Finance    | Cash flow, P&L            | Daily            |
 
 ### 30.3 Advanced Analytics Features
 
@@ -1450,19 +1451,19 @@ Analytics Capabilities:
     - Demand prediction
     - Churn probability
     - LTV calculation
-    
+
   Prescriptive Analytics:
     - Price optimization
     - Inventory recommendations
     - Marketing mix modeling
     - Resource allocation
-    
+
   Real-time Analytics:
     - Live dashboards
     - Anomaly alerts
     - Trend detection
     - Performance monitoring
-    
+
   Self-Service:
     - No-code analysis
     - Custom reports
@@ -1495,13 +1496,13 @@ Analytics Capabilities:
 
 ### 31.2 API Security Layers
 
-| Layer | Protection | Implementation |
-|-------|------------|----------------|
-| Rate Limiting | DDoS, Abuse | Token bucket algorithm |
-| Authentication | Identity verification | OAuth 2.0, mTLS |
-| Authorization | Access control | OPA, RBAC/ABAC |
-| Validation | Input sanitization | JSON Schema |
-| Encryption | Data protection | TLS 1.3, E2E |
+| Layer          | Protection            | Implementation         |
+| -------------- | --------------------- | ---------------------- |
+| Rate Limiting  | DDoS, Abuse           | Token bucket algorithm |
+| Authentication | Identity verification | OAuth 2.0, mTLS        |
+| Authorization  | Access control        | OPA, RBAC/ABAC         |
+| Validation     | Input sanitization    | JSON Schema            |
+| Encryption     | Data protection       | TLS 1.3, E2E           |
 
 ### 31.3 Security Operations Center (SOC)
 
@@ -1512,19 +1513,19 @@ SOC Components:
     - Real-time correlation
     - Threat intelligence feeds
     - Automated response
-    
+
   Threat Detection:
     - Network IDS/IPS
     - Endpoint detection (EDR)
     - User behavior analytics
     - Deception technology
-    
+
   Incident Response:
     - 24/7 monitoring
     - Automated playbooks
     - Forensics toolkit
     - Legal compliance
-    
+
   Metrics:
     - MTTD: < 5 minutes
     - MTTR: < 30 minutes
@@ -1557,34 +1558,31 @@ SOC Components:
 
 ### 32.2 Edge Computing Use Cases
 
-| Use Case | Implementation | Performance Impact |
-|----------|----------------|-------------------|
-| Image Optimization | On-the-fly resizing | 60% bandwidth saving |
-| Geo-routing | Location-based redirect | 200ms latency reduction |
-| Authentication | Edge token validation | 90% origin offload |
-| Personalization | Edge-side includes | 150ms faster |
-| Security | Bot filtering | 95% bad traffic blocked |
+| Use Case           | Implementation          | Performance Impact      |
+| ------------------ | ----------------------- | ----------------------- |
+| Image Optimization | On-the-fly resizing     | 60% bandwidth saving    |
+| Geo-routing        | Location-based redirect | 200ms latency reduction |
+| Authentication     | Edge token validation   | 90% origin offload      |
+| Personalization    | Edge-side includes      | 150ms faster            |
+| Security           | Bot filtering           | 95% bad traffic blocked |
 
-### 32.3 Multi-Region Compliance
+### 32.3 O'zbekiston Compliance
 
 ```yaml
 Regional Compliance:
   Data Residency:
-    EU (GDPR):
-      - Data centers: Frankfurt, Paris
-      - Data retention: User consent
-      - Right to deletion: Automated
-      
-    US (CCPA):
-      - Data centers: Virginia, Oregon
+    O'zbekiston:
+      - Data centers: Tashkent
+      - Data retention: Per local laws
+      - Compliance: O'zbekiston data protection laws
       - Privacy controls: Opt-out
       - Data portability: API
-      
+
     Asia (PDPA):
       - Data centers: Singapore, Tokyo
       - Consent management: Explicit
       - Cross-border: Restricted
-      
+
   Implementation:
     - Geo-fencing
     - Data classification
@@ -1596,34 +1594,34 @@ Regional Compliance:
 
 ## 33. Database Optimization Strategies
 
-### 33.1 Advanced Sharding Architecture
+### 33.1 O'zbekiston Database Architecture
 
-```
+```ascii
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    Database Sharding Strategy                        │
+│                    Local Database Strategy                           │
 ├─────────────────────────────────────────────────────────────────────┤
-│ Shard Router       │ Shard Manager     │ Shard Storage             │
+│ Database Server     │ Reliability        │ Storage                  │
 ├────────────────────┼───────────────────┼──────────────────────────┤
-│ • Vitess          │ • Shard mapping   │ • 16 shards              │
-│ • Query routing   │ • Rebalancing     │ • 3 replicas each        │
-│ • Read/Write split│ • Health checks   │ • Cross-AZ               │
-│ • Cache layer     │ • Auto-failover   │ • SSD storage            │
+│ • PostgreSQL       │ • Primary/Standby │ • Local storage          │
+│ • Query cache      │ • Daily backups   │ • 1 standby replica      │
+│ • Read/Write split │ • Health checks   │ • Tashkent DC            │
+│ • Connection pool  │ • Auto-failover   │ • SSD storage            │
 ├────────────────────┴───────────────────┴──────────────────────────┤
-│                      Sharding Strategies                             │
-│ • Hash-based (User ID)      • Range-based (Time)                   │
-│ • Geographic (Region)       • Composite (User + Time)              │
+│                      Local Optimization                              │
+│ • Indexing strategies     • Regular maintenance                     │
+│ • SQL optimization        • Resource monitoring                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 33.2 Query Optimization Techniques
 
-| Technique | Implementation | Performance Gain |
-|-----------|----------------|------------------|
-| Index Optimization | Covering indexes | 10x faster |
-| Query Rewriting | Materialized views | 5x faster |
-| Partitioning | Time-based partitions | 3x faster |
-| Caching | Query result cache | 100x faster |
-| Read Replicas | Geographic distribution | 50% latency reduction |
+| Technique          | Implementation          | Performance Gain      |
+| ------------------ | ----------------------- | --------------------- |
+| Index Optimization | Covering indexes        | 10x faster            |
+| Query Rewriting    | Materialized views      | 5x faster             |
+| Partitioning       | Time-based partitions   | 3x faster             |
+| Caching            | Query result cache      | 100x faster           |
+| Read Replicas      | Geographic distribution | 50% latency reduction |
 
 ### 33.3 Database Performance Monitoring
 
@@ -1634,13 +1632,13 @@ Performance Metrics:
     - Query plan analysis: Daily
     - Index usage: > 95%
     - Lock wait time: < 10ms
-    
+
   Resource Utilization:
     - CPU usage: < 70%
     - Memory usage: < 80%
     - Disk I/O: < 85%
     - Connection pool: < 90%
-    
+
   Replication Health:
     - Lag threshold: < 1 second
     - Sync status: Real-time
@@ -1673,13 +1671,13 @@ Performance Metrics:
 
 ### 34.2 Incident Management Excellence
 
-| Phase | Activities | Tools | SLA |
-|-------|------------|-------|-----|
-| Detection | Monitoring, Alerts | Prometheus, PagerDuty | < 1 minute |
-| Response | Triage, Communication | Slack, StatusPage | < 5 minutes |
-| Mitigation | Runbooks, Rollback | Ansible, Jenkins | < 15 minutes |
-| Resolution | Root cause, Fix | Debugging tools | < 1 hour |
-| Learning | Post-mortem, Actions | Confluence | < 48 hours |
+| Phase      | Activities            | Tools                 | SLA          |
+| ---------- | --------------------- | --------------------- | ------------ |
+| Detection  | Monitoring, Alerts    | Prometheus, PagerDuty | < 1 minute   |
+| Response   | Triage, Communication | Slack, StatusPage     | < 5 minutes  |
+| Mitigation | Runbooks, Rollback    | Ansible, Jenkins      | < 15 minutes |
+| Resolution | Root cause, Fix       | Debugging tools       | < 1 hour     |
+| Learning   | Post-mortem, Actions  | Confluence            | < 48 hours   |
 
 ### 34.3 Continuous Improvement Process
 
@@ -1690,19 +1688,19 @@ Improvement Framework:
     - Customer feedback (NPS)
     - Operational metrics (daily)
     - Cost analysis (monthly)
-    
+
   Analyze:
     - Trend identification
     - Root cause analysis
     - Bottleneck detection
     - Opportunity assessment
-    
+
   Improve:
     - Automation initiatives
     - Process optimization
     - Tool enhancement
     - Training programs
-    
+
   Validate:
     - A/B testing
     - Pilot programs
@@ -1744,46 +1742,46 @@ Frontend Ecosystem:
     - TypeScript 5
     - GraphQL (Apollo Client)
     - Micro-frontends
-    
+
   Mobile:
     - React Native (Cross-platform)
     - Swift UI (iOS)
     - Jetpack Compose (Android)
     - Progressive Web App
-    
+
 Backend Ecosystem:
   Services:
     - Java 17 (Spring Boot 3)
     - Python 3.11 (FastAPI)
     - Go 1.20 (Performance-critical)
     - Node.js 18 (Real-time)
-    
+
   APIs:
     - REST (OpenAPI 3.1)
     - GraphQL (Federation)
     - gRPC (Internal)
     - WebSocket (Real-time)
-    
+
 Data Platform:
   Operational:
     - PostgreSQL 15 (OLTP)
     - MongoDB 6 (Documents)
     - Redis 7 (Cache)
     - Elasticsearch 8 (Search)
-    
+
   Analytics:
     - Snowflake (Data Warehouse)
     - ClickHouse (Real-time)
     - Apache Spark (Processing)
     - Delta Lake (Storage)
-    
+
 Infrastructure:
   Cloud Platform:
     - Multi-cloud (AWS, Azure, GCP)
     - Kubernetes 1.27
     - Service Mesh (Istio)
     - GitOps (ArgoCD)
-    
+
   Observability:
     - Metrics (Prometheus/Grafana)
     - Logging (ELK Stack)
@@ -1793,20 +1791,20 @@ Infrastructure:
 
 ### 35.3 Success Metrics Achievement
 
-| Category | Metric | Target | Current | Status |
-|----------|--------|--------|---------|--------|
-| **Technical** | API Latency | < 100ms | 45ms | ✅ |
-| | Availability | 99.99% | 99.995% | ✅ |
-| | Error Rate | < 0.1% | 0.02% | ✅ |
-| | Deploy Frequency | 10+/day | 50+/day | ✅ |
-| **Business** | Page Load | < 2s | 1.2s | ✅ |
-| | Conversion | > 3% | 5.2% | ✅ |
-| | Cart Recovery | > 40% | 52% | ✅ |
-| | NPS Score | > 70 | 78 | ✅ |
-| **Operational** | MTTR | < 15min | 8min | ✅ |
-| | Test Coverage | > 80% | 92% | ✅ |
-| | Automation | > 80% | 95% | ✅ |
-| | Toil | < 20% | 12% | ✅ |
+| Category        | Metric           | Target  | Current | Status |
+| --------------- | ---------------- | ------- | ------- | ------ |
+| **Technical**   | API Latency      | < 100ms | 45ms    | ✅     |
+|                 | Availability     | 99.99%  | 99.995% | ✅     |
+|                 | Error Rate       | < 0.1%  | 0.02%   | ✅     |
+|                 | Deploy Frequency | 10+/day | 50+/day | ✅     |
+| **Business**    | Page Load        | < 2s    | 1.2s    | ✅     |
+|                 | Conversion       | > 3%    | 5.2%    | ✅     |
+|                 | Cart Recovery    | > 40%   | 52%     | ✅     |
+|                 | NPS Score        | > 70    | 78      | ✅     |
+| **Operational** | MTTR             | < 15min | 8min    | ✅     |
+|                 | Test Coverage    | > 80%   | 92%     | ✅     |
+|                 | Automation       | > 80%   | 95%     | ✅     |
+|                 | Toil             | < 20%   | 12%     | ✅     |
 
 ---
 
@@ -1816,19 +1814,19 @@ This comprehensive technical architecture document represents a **state-of-the-a
 
 ### 🎯 **Key Achievements**
 
-1. **Extreme Scale**: Supporting 10M+ users, 1M+ daily transactions
-2. **Global Reach**: Multi-region, multi-cloud deployment
-3. **High Performance**: Sub-100ms API response times
-4. **Reliability**: 99.99% uptime with automated recovery
+1. **O'zbekiston Scale**: Supporting 1M+ users, 100K+ daily transactions
+2. **Local Deployment**: Single-region deployment in Tashkent
+3. **Adequate Performance**: Sub-300ms API response times
+4. **Reliability**: 99.9% uptime with recovery processes
 5. **Security**: Zero Trust architecture with multiple defense layers
 6. **Innovation**: AI/ML-driven features and automation
 
 ### 🚀 **Architectural Highlights**
 
-- **Cloud-Native**: Fully containerized with Kubernetes orchestration
-- **Microservices**: 15+ loosely coupled, independently deployable services
-- **Event-Driven**: Real-time processing with Apache Kafka
-- **Data-Driven**: Advanced analytics and ML capabilities
+- **Container-Based**: Containerized with simplified orchestration
+- **Microservices**: Core services focused on O'zbekiston market needs
+- **Message Queues**: Asynchronous processing with RabbitMQ
+- **Business Intelligence**: Basic analytics for market insights
 - **DevOps Excellence**: Full CI/CD automation with GitOps
 - **Cost-Optimized**: Multi-tier resource management
 
@@ -1843,6 +1841,7 @@ This comprehensive technical architecture document represents a **state-of-the-a
 ### 🔮 **Future-Ready**
 
 The architecture is designed to evolve with:
+
 - Emerging technologies (Web3, AR/VR)
 - Changing regulations (Privacy, AI governance)
 - Business expansion (New markets, products)

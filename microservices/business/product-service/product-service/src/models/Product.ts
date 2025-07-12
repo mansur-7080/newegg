@@ -1,73 +1,63 @@
-import mongoose, { Document, Schema, Model } from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 
-// Product interfaces
 export interface IProduct extends Document {
-  _id: string;
   name: string;
   description: string;
-  shortDescription?: string;
-  price: number;
-  originalPrice?: number;
-  discount?: number;
-  category: string;
-  subcategory?: string;
-  brand: string;
+  shortDescription: string;
   sku: string;
+  categoryId: mongoose.Types.ObjectId;
+  brand: string;
+  price: number;
+  compareAtPrice?: number;
+  cost?: number;
+  currency: string;
   images: string[];
-  specifications: Record<string, any>;
-  inStock: boolean;
-  quantity: number;
-  minQuantity: number;
-  weight?: number;
-  dimensions?: {
+  thumbnail: string;
+  tags: string[];
+  attributes: {
+    [key: string]: string | number | boolean;
+  };
+  variants: {
+    id: string;
+    name: string;
+    sku: string;
+    price: number;
+    comparePrice?: number;
+    stock: number;
+    attributes: {
+      [key: string]: string | number | boolean;
+    };
+  }[];
+  stock: number;
+  weight: number;
+  dimensions: {
     length: number;
     width: number;
     height: number;
   };
-  tags: string[];
-  rating: {
+  isActive: boolean;
+  isFeatured: boolean;
+  isDigital: boolean;
+  requiresShipping: boolean;
+  taxRate: number;
+  seo?: {
+    title?: string;
+    description?: string;
+    keywords?: string[];
+  };
+  ratings: {
     average: number;
     count: number;
   };
-  reviews: mongoose.Types.ObjectId[];
-  isActive: boolean;
-  isFeatured: boolean;
-  seoTitle?: string;
-  seoDescription?: string;
-  seoKeywords?: string[];
+  sales: {
+    total: number;
+    lastMonth: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface ICategory extends Document {
-  _id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  parentCategory?: mongoose.Types.ObjectId;
-  image?: string;
-  isActive: boolean;
-  sortOrder: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface IReview extends Document {
-  _id: string;
-  productId: mongoose.Types.ObjectId;
-  userId: string;
-  rating: number;
-  title: string;
-  comment: string;
-  verified: boolean;
-  helpful: number;
-  notHelpful: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Product Schema
-const productSchema = new Schema<IProduct>(
+const ProductSchema = new Schema<IProduct>(
   {
     name: {
       type: String,
@@ -78,39 +68,12 @@ const productSchema = new Schema<IProduct>(
     description: {
       type: String,
       required: true,
-      maxlength: 2000,
+      maxlength: 5000,
     },
     shortDescription: {
       type: String,
-      maxlength: 300,
-    },
-    price: {
-      type: Number,
       required: true,
-      min: 0,
-    },
-    originalPrice: {
-      type: Number,
-      min: 0,
-    },
-    discount: {
-      type: Number,
-      min: 0,
-      max: 100,
-    },
-    category: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    subcategory: {
-      type: String,
-      trim: true,
-    },
-    brand: {
-      type: String,
-      required: true,
-      trim: true,
+      maxlength: 500,
     },
     sku: {
       type: String,
@@ -118,41 +81,44 @@ const productSchema = new Schema<IProduct>(
       unique: true,
       trim: true,
     },
-    images: [
-      {
-        type: String,
-        validate: {
-          validator: (v: string) => /^https?:\/\/.+/.test(v),
-          message: 'Image must be a valid URL',
-        },
-      },
-    ],
-    specifications: {
-      type: Map,
-      of: Schema.Types.Mixed,
+    categoryId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Category',
+      required: true,
     },
-    inStock: {
-      type: Boolean,
-      default: true,
+    brand: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    quantity: {
+    price: {
       type: Number,
       required: true,
       min: 0,
     },
-    minQuantity: {
-      type: Number,
-      default: 5,
-      min: 0,
-    },
-    weight: {
+    compareAtPrice: {
       type: Number,
       min: 0,
     },
-    dimensions: {
-      length: { type: Number, min: 0 },
-      width: { type: Number, min: 0 },
-      height: { type: Number, min: 0 },
+    cost: {
+      type: Number,
+      min: 0,
+    },
+    currency: {
+      type: String,
+      required: true,
+      default: 'USD',
+      enum: ['USD', 'EUR', 'UZS'],
+    },
+    images: [
+      {
+        type: String,
+        required: true,
+      },
+    ],
+    thumbnail: {
+      type: String,
+      required: true,
     },
     tags: [
       {
@@ -160,7 +126,118 @@ const productSchema = new Schema<IProduct>(
         trim: true,
       },
     ],
-    rating: {
+    attributes: {
+      type: Map,
+      of: Schema.Types.Mixed,
+      default: {},
+    },
+    variants: [
+      {
+        id: {
+          type: String,
+          required: true,
+        },
+        name: {
+          type: String,
+          required: true,
+        },
+        sku: {
+          type: String,
+          required: true,
+        },
+        price: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+        comparePrice: {
+          type: Number,
+          min: 0,
+        },
+        stock: {
+          type: Number,
+          required: true,
+          min: 0,
+          default: 0,
+        },
+        attributes: {
+          type: Map,
+          of: Schema.Types.Mixed,
+          default: {},
+        },
+      },
+    ],
+    stock: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    weight: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    dimensions: {
+      length: {
+        type: Number,
+        required: true,
+        min: 0,
+        default: 0,
+      },
+      width: {
+        type: Number,
+        required: true,
+        min: 0,
+        default: 0,
+      },
+      height: {
+        type: Number,
+        required: true,
+        min: 0,
+        default: 0,
+      },
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    isDigital: {
+      type: Boolean,
+      default: false,
+    },
+    requiresShipping: {
+      type: Boolean,
+      default: true,
+    },
+    taxRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    seo: {
+      title: {
+        type: String,
+        maxlength: 60,
+      },
+      description: {
+        type: String,
+        maxlength: 160,
+      },
+      keywords: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+    },
+    ratings: {
       average: {
         type: Number,
         default: 0,
@@ -173,34 +250,18 @@ const productSchema = new Schema<IProduct>(
         min: 0,
       },
     },
-    reviews: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'Review',
+    sales: {
+      total: {
+        type: Number,
+        default: 0,
+        min: 0,
       },
-    ],
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    isFeatured: {
-      type: Boolean,
-      default: false,
-    },
-    seoTitle: {
-      type: String,
-      maxlength: 60,
-    },
-    seoDescription: {
-      type: String,
-      maxlength: 160,
-    },
-    seoKeywords: [
-      {
-        type: String,
-        trim: true,
+      lastMonth: {
+        type: Number,
+        default: 0,
+        min: 0,
       },
-    ],
+    },
   },
   {
     timestamps: true,
@@ -209,140 +270,68 @@ const productSchema = new Schema<IProduct>(
   }
 );
 
-// Category Schema
-const categorySchema = new Schema<ICategory>(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 100,
-    },
-    slug: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    description: {
-      type: String,
-      maxlength: 500,
-    },
-    parentCategory: {
-      type: Schema.Types.ObjectId,
-      ref: 'Category',
-    },
-    image: {
-      type: String,
-      validate: {
-        validator: (v: string) => !v || /^https?:\/\/.+/.test(v),
-        message: 'Image must be a valid URL',
-      },
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    sortOrder: {
-      type: Number,
-      default: 0,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
-
-// Review Schema
-const reviewSchema = new Schema<IReview>(
-  {
-    productId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true,
-    },
-    userId: {
-      type: String,
-      required: true,
-    },
-    rating: {
-      type: Number,
-      required: true,
-      min: 1,
-      max: 5,
-    },
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 100,
-    },
-    comment: {
-      type: String,
-      required: true,
-      maxlength: 1000,
-    },
-    verified: {
-      type: Boolean,
-      default: false,
-    },
-    helpful: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    notHelpful: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
-
 // Indexes for performance
-productSchema.index({ name: 'text', description: 'text', tags: 'text' });
-productSchema.index({ category: 1, inStock: 1 });
-productSchema.index({ price: 1 });
-productSchema.index({ 'rating.average': -1 });
-productSchema.index({ createdAt: -1 });
-// Index for SKU already defined in the schema, so we don't need to redefine it here
-// productSchema.index({ sku: 1 }, { unique: true });
+ProductSchema.index({ name: 'text', description: 'text', tags: 'text' });
+ProductSchema.index({ categoryId: 1 });
+ProductSchema.index({ brand: 1 });
+ProductSchema.index({ isActive: 1 });
+ProductSchema.index({ isFeatured: 1 });
+ProductSchema.index({ price: 1 });
+ProductSchema.index({ 'ratings.average': -1 });
+ProductSchema.index({ 'sales.total': -1 });
+ProductSchema.index({ createdAt: -1 });
 
-// Index for slug already defined in the schema, so we don't need to redefine it here
-// categorySchema.index({ slug: 1 }, { unique: true });
-categorySchema.index({ parentCategory: 1 });
-
-reviewSchema.index({ productId: 1, createdAt: -1 });
-reviewSchema.index({ userId: 1 });
-
-// Virtual fields
-productSchema.virtual('discountedPrice').get(function () {
-  if (this.discount && this.discount > 0) {
-    return this.price * (1 - this.discount / 100);
-  }
-  return this.price;
-});
-
-productSchema.virtual('isOnSale').get(function () {
-  return this.discount && this.discount > 0;
+// Virtual for category
+ProductSchema.virtual('category', {
+  ref: 'Category',
+  localField: 'categoryId',
+  foreignField: '_id',
+  justOne: true,
 });
 
 // Pre-save middleware
-productSchema.pre('save', function (next) {
-  if (this.quantity <= this.minQuantity) {
-    this.inStock = false;
+ProductSchema.pre('save', function (next) {
+  // Auto-generate SKU if not provided
+  if (!this.sku) {
+    this.sku = `SKU-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
+
+  // Set default SEO title if not provided
+  if (!this.seo?.title) {
+    this.seo = this.seo || {};
+    this.seo.title = this.name;
+  }
+
   next();
 });
 
-// Models
-export const Product: Model<IProduct> =
-  mongoose.models.Product || mongoose.model<IProduct>('Product', productSchema);
-export const Category: Model<ICategory> =
-  mongoose.models.Category || mongoose.model<ICategory>('Category', categorySchema);
-export const Review: Model<IReview> =
-  mongoose.models.Review || mongoose.model<IReview>('Review', reviewSchema);
+// Instance methods
+ProductSchema.methods.updateStock = function (quantity: number) {
+  this.stock = Math.max(0, this.stock - quantity);
+  return this.save();
+};
+
+ProductSchema.methods.updateRating = function (newRating: number) {
+  const totalRating = this.ratings.average * this.ratings.count + newRating;
+  this.ratings.count += 1;
+  this.ratings.average = totalRating / this.ratings.count;
+  return this.save();
+};
+
+// Static methods
+ProductSchema.statics.findByCategory = function (categoryId: string) {
+  return this.find({ categoryId, isActive: true });
+};
+
+ProductSchema.statics.findFeatured = function () {
+  return this.find({ isFeatured: true, isActive: true });
+};
+
+ProductSchema.statics.search = function (query: string) {
+  return this.find({
+    $text: { $search: query },
+    isActive: true,
+  });
+};
+
+export const Product = mongoose.model<IProduct>('Product', ProductSchema);

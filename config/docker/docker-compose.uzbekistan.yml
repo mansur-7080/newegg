@@ -1,0 +1,546 @@
+version: '3.8'
+
+networks:
+  ultramarket-uzbekistan:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+
+services:
+  # ==========================================
+  # DATABASES
+  # ==========================================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ultramarket-postgres-uz
+    environment:
+      POSTGRES_DB: ultramarket_uzbekistan
+      POSTGRES_USER: ultramarket_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ultramarket_secure_2024}
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=uz_UZ.UTF-8'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../scripts/database-migration/uzbekistan-migration.sql:/docker-entrypoint-initdb.d/01-uzbekistan-migration.sql
+    ports:
+      - '5432:5432'
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ultramarket_user -d ultramarket_uzbekistan']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:7.0
+    container_name: ultramarket-mongo-uz
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ultramarket_user
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-ultramarket_mongo_2024}
+      MONGO_INITDB_DATABASE: ultramarket_uzbekistan
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - '27017:27017'
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: ultramarket-redis-uz
+    command: redis-server --requirepass ${REDIS_PASSWORD:-ultramarket_redis_2024}
+    volumes:
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ultramarket-elasticsearch-uz
+    environment:
+      - discovery.type=single-node
+      - 'ES_JAVA_OPTS=-Xms512m -Xmx1g'
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-ultramarket_elastic_2024}
+      - xpack.security.enabled=true
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - '9200:9200'
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ==========================================
+  # CORE SERVICES
+  # ==========================================
+
+  api-gateway:
+    build:
+      context: ../../microservices/core/api-gateway/api-gateway
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket-api-gateway-uz
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - TIMEZONE=Asia/Tashkent
+      - DEFAULT_CURRENCY=UZS
+      - DEFAULT_LANGUAGE=uz
+    ports:
+      - '3000:3000'
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  auth-service:
+    build:
+      context: ../../microservices/core/auth-service
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket-auth-uz
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_URL=postgresql://ultramarket_user:${POSTGRES_PASSWORD:-ultramarket_secure_2024}@postgres:5432/ultramarket_uzbekistan
+      - JWT_SECRET=${JWT_SECRET:-ultramarket_jwt_uzbekistan_2024}
+      - TIMEZONE=Asia/Tashkent
+    ports:
+      - '3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  user-service:
+    build:
+      context: ../../microservices/core/user-service/user-service
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket-user-uz
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - DATABASE_URL=postgresql://ultramarket_user:${POSTGRES_PASSWORD:-ultramarket_secure_2024}@postgres:5432/ultramarket_uzbekistan
+      - TIMEZONE=Asia/Tashkent
+      - PHONE_VALIDATION=uzbek
+    ports:
+      - '3002:3002'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3002/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================
+  # BUSINESS SERVICES
+  # ==========================================
+
+  product-service:
+    build:
+      context: ../../microservices/business/product-service/product-service
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket-product-uz
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - MONGODB_URI=mongodb://ultramarket_user:${MONGO_PASSWORD:-ultramarket_mongo_2024}@mongodb:27017/ultramarket_uzbekistan?authSource=admin
+      - ELASTICSEARCH_URL=http://elastic:${ELASTIC_PASSWORD:-ultramarket_elastic_2024}@elasticsearch:9200
+      - DEFAULT_CURRENCY=UZS
+      - TAX_RATE=0.12
+    ports:
+      - '3003:3003'
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3003/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  cart-service:
+    build:
+      context: ../../microservices/business/cart-service/cart-service
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket-cart-uz
+    environment:
+      - NODE_ENV=development
+      - PORT=3004
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-ultramarket_redis_2024}@redis:6379
+      - DEFAULT_CURRENCY=UZS
+      - TAX_RATE=0.12
+    ports:
+      - '3004:3004'
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3004/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  order-service:
+    build:
+      context: ../../microservices/business/order-service/order-service
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket-order-uz
+    environment:
+      - NODE_ENV=development
+      - PORT=3005
+      - DATABASE_URL=postgresql://ultramarket_user:${POSTGRES_PASSWORD:-ultramarket_secure_2024}@postgres:5432/ultramarket_uzbekistan
+      - DEFAULT_CURRENCY=UZS
+      - TIMEZONE=Asia/Tashkent
+      - UZBEK_PAYMENT_METHODS=true
+    ports:
+      - '3005:3005'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3005/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  payment-service:
+    build:
+      context: ../../microservices/business/payment-service/payment-service
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket-payment-uz
+    environment:
+      - NODE_ENV=development
+      - PORT=3012
+      - DATABASE_URL=postgresql://ultramarket_user:${POSTGRES_PASSWORD:-ultramarket_secure_2024}@postgres:5432/ultramarket_uzbekistan
+      - CLICK_MERCHANT_ID=${CLICK_MERCHANT_ID:-your_click_merchant_id}
+      - CLICK_SECRET_KEY=${CLICK_SECRET_KEY:-your_click_secret_key}
+      - PAYME_MERCHANT_ID=${PAYME_MERCHANT_ID:-your_payme_merchant_id}
+      - PAYME_SECRET_KEY=${PAYME_SECRET_KEY:-your_payme_secret_key}
+      - DEFAULT_CURRENCY=UZS
+    ports:
+      - '3012:3012'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3012/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  shipping-service:
+    build:
+      context: ../../microservices/business/shipping-service/shipping-service
+    container_name: ultramarket-shipping-uz
+    environment:
+      - NODE_ENV=development
+      - PORT=3011
+      - EXPRESS24_API_KEY=${EXPRESS24_API_KEY:-your_express24_api_key}
+      - UZPOST_API_KEY=${UZPOST_API_KEY:-your_uzpost_api_key}
+      - DEFAULT_CURRENCY=UZS
+      - TIMEZONE=Asia/Tashkent
+    ports:
+      - '3011:3011'
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3011/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================
+  # PLATFORM SERVICES
+  # ==========================================
+
+  notification-service:
+    build:
+      context: ../../microservices/platform/notification-service/notification-service
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket-notification-uz
+    environment:
+      - NODE_ENV=development
+      - PORT=3006
+      - ESKIZ_EMAIL=${ESKIZ_EMAIL:-your_eskiz_email}
+      - ESKIZ_PASSWORD=${ESKIZ_PASSWORD:-your_eskiz_password}
+      - DEFAULT_LANGUAGE=uz
+      - TIMEZONE=Asia/Tashkent
+    ports:
+      - '3006:3006'
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3006/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  search-service:
+    build:
+      context: ../../microservices/platform/search-service/search-service
+    container_name: ultramarket-search-uz
+    environment:
+      - NODE_ENV=development
+      - PORT=3007
+      - ELASTICSEARCH_URL=http://elastic:${ELASTIC_PASSWORD:-ultramarket_elastic_2024}@elasticsearch:9200
+      - DEFAULT_LANGUAGE=uz
+      - SUPPORTED_LANGUAGES=uz,ru,en
+    ports:
+      - '3007:3007'
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3007/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================
+  # UZBEKISTAN SPECIFIC SERVICES
+  # ==========================================
+
+  review-service:
+    image: node:18-alpine
+    container_name: ultramarket-review-uz
+    working_dir: /app
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+      - PORT=3010
+      - DATABASE_URL=postgresql://ultramarket_user:${POSTGRES_PASSWORD:-ultramarket_secure_2024}@postgres:5432/ultramarket_uzbekistan
+      - DEFAULT_LANGUAGE=uz
+    volumes:
+      - ../../microservices/business/review-service:/app
+    ports:
+      - '3010:3010'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+
+  inventory-service:
+    image: node:18-alpine
+    container_name: ultramarket-inventory-uz
+    working_dir: /app
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+      - PORT=3013
+      - DATABASE_URL=postgresql://ultramarket_user:${POSTGRES_PASSWORD:-ultramarket_secure_2024}@postgres:5432/ultramarket_uzbekistan
+    volumes:
+      - ../../microservices/business/inventory-service:/app
+    ports:
+      - '3013:3013'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+
+  analytics-service:
+    image: node:18-alpine
+    container_name: ultramarket-analytics-uz
+    working_dir: /app
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+      - PORT=3015
+      - DATABASE_URL=postgresql://ultramarket_user:${POSTGRES_PASSWORD:-ultramarket_secure_2024}@postgres:5432/ultramarket_uzbekistan
+      - TIMEZONE=Asia/Tashkent
+      - DEFAULT_CURRENCY=UZS
+    volumes:
+      - ../../microservices/analytics/analytics-service:/app
+    ports:
+      - '3015:3015'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+
+  # ==========================================
+  # FRONTEND APPLICATIONS
+  # ==========================================
+
+  web-app:
+    build:
+      context: ../../frontend/web-app
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket-web-uz
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:3000
+      - REACT_APP_DEFAULT_CURRENCY=UZS
+      - REACT_APP_DEFAULT_LANGUAGE=uz
+      - REACT_APP_TIMEZONE=Asia/Tashkent
+      - REACT_APP_UZBEK_FEATURES=true
+    ports:
+      - '3100:3000'
+    depends_on:
+      - api-gateway
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    volumes:
+      - ../../frontend/web-app/src:/app/src
+
+  admin-panel:
+    build:
+      context: ../../frontend/admin-panel
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket-admin-uz
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:3000
+      - REACT_APP_DEFAULT_CURRENCY=UZS
+      - REACT_APP_DEFAULT_LANGUAGE=uz
+      - REACT_APP_TIMEZONE=Asia/Tashkent
+    ports:
+      - '3101:3000'
+    depends_on:
+      - api-gateway
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+    volumes:
+      - ../../frontend/admin-panel/src:/app/src
+
+  # ==========================================
+  # MONITORING & UTILITIES
+  # ==========================================
+
+  nginx:
+    image: nginx:alpine
+    container_name: ultramarket-nginx-uz
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/uzbekistan.conf:/etc/nginx/conf.d/default.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - api-gateway
+      - web-app
+      - admin-panel
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ultramarket-pgadmin-uz
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@ultramarket.uz
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-ultramarket_pgadmin_2024}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - '5050:80'
+    depends_on:
+      - postgres
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped
+
+  # ==========================================
+  # BACKUP & MAINTENANCE
+  # ==========================================
+
+  backup-service:
+    image: postgres:15-alpine
+    container_name: ultramarket-backup-uz
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=ultramarket_uzbekistan
+      - POSTGRES_USER=ultramarket_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ultramarket_secure_2024}
+      - BACKUP_SCHEDULE=0 2 * * * # Daily at 2 AM Tashkent time
+    volumes:
+      - ./backups:/backups
+      - ../../scripts/backup:/scripts
+    command: |
+      sh -c '
+        while true; do
+          echo "Running daily backup at $$(date)"
+          pg_dump -h postgres -U ultramarket_user -d ultramarket_uzbekistan > /backups/ultramarket_$$(date +%Y%m%d_%H%M%S).sql
+          # Keep only last 7 days of backups
+          find /backups -name "ultramarket_*.sql" -mtime +7 -delete
+          sleep 86400  # Wait 24 hours
+        done
+      '
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ultramarket-uzbekistan
+    restart: unless-stopped

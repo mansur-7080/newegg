@@ -129,7 +129,7 @@ export function xssProtection(req: Request, res: Response, next: NextFunction): 
       timestamp: new Date(),
     });
 
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: 'Potential XSS attack detected',
       error: {
@@ -138,6 +138,7 @@ export function xssProtection(req: Request, res: Response, next: NextFunction): 
         timestamp: new Date().toISOString(),
       },
     });
+    return;
   }
 
   // Check query parameters
@@ -155,7 +156,7 @@ export function xssProtection(req: Request, res: Response, next: NextFunction): 
       timestamp: new Date(),
     });
 
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: 'Potential XSS attack detected',
       error: {
@@ -164,6 +165,7 @@ export function xssProtection(req: Request, res: Response, next: NextFunction): 
         timestamp: new Date().toISOString(),
       },
     });
+    return;
   }
 
   next();
@@ -213,7 +215,7 @@ export function sqlInjectionProtection(req: Request, res: Response, next: NextFu
       timestamp: new Date(),
     });
 
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: 'Potential SQL injection detected',
       error: {
@@ -222,6 +224,7 @@ export function sqlInjectionProtection(req: Request, res: Response, next: NextFu
         timestamp: new Date().toISOString(),
       },
     });
+    return;
   }
 
   // Check query parameters
@@ -239,7 +242,7 @@ export function sqlInjectionProtection(req: Request, res: Response, next: NextFu
       timestamp: new Date(),
     });
 
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: 'Potential SQL injection detected',
       error: {
@@ -248,6 +251,7 @@ export function sqlInjectionProtection(req: Request, res: Response, next: NextFu
         timestamp: new Date().toISOString(),
       },
     });
+    return;
   }
 
   next();
@@ -274,7 +278,7 @@ export function requestSizeLimit(
         timestamp: new Date(),
       });
 
-      return res.status(413).json({
+      res.status(413).json({
         success: false,
         message: 'Request entity too large',
         error: {
@@ -283,6 +287,7 @@ export function requestSizeLimit(
           timestamp: new Date().toISOString(),
         },
       });
+      return;
     }
 
     next();
@@ -310,7 +315,7 @@ export function ipWhitelist(
         timestamp: new Date(),
       });
 
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied',
         error: {
@@ -319,6 +324,7 @@ export function ipWhitelist(
           timestamp: new Date().toISOString(),
         },
       });
+      return;
     }
 
     next();

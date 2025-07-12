@@ -30,7 +30,7 @@ export const baseSwaggerConfig: Options = {
         - 💳 Multiple payment methods
         - 🚚 Advanced shipping options
         - 📱 Mobile-first design
-        - 🌐 Multi-language support
+        - 🌐 Uzbek and Russian language support
 
         ## Architecture
         - **API Gateway**: Kong-based routing and load balancing

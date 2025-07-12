@@ -116,9 +116,19 @@ export function diffInDays(date1: Date, date2: Date): number {
 // Currency utility functions
 export function formatCurrency(
   amount: number,
-  currency: string = 'USD',
-  locale: string = 'en-US'
+  currency: string = 'UZS',
+  locale: string = 'uz-UZ'
 ): string {
+  if (currency === 'UZS') {
+    return (
+      new Intl.NumberFormat('uz-UZ', {
+        style: 'decimal',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(amount) + " so'm"
+    );
+  }
+
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,

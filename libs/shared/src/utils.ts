@@ -37,15 +37,11 @@ export const generateId = (prefix?: string): string => {
 
 // Sleep function for delays
 export const sleep = (ms: number): Promise<void> => {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
 // Retry function for operations
-export const retry = async <T>(
-  fn: () => Promise<T>,
-  retries = 3,
-  delay = 1000
-): Promise<T> => {
+export const retry = async <T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
   try {
     return await fn();
   } catch (error) {
@@ -70,7 +66,7 @@ export const filterObject = <T extends Record<string, any>>(
 
 // Remove undefined values from object
 export const removeUndefined = <T extends Record<string, any>>(obj: T): Partial<T> => {
-  return filterObject(obj, value => value !== undefined);
+  return filterObject(obj, (value) => value !== undefined);
 };
 
 // Deep clone object
@@ -79,11 +75,17 @@ export const deepClone = <T>(obj: T): T => {
 };
 
 // Format currency
-export const formatCurrency = (
-  amount: number,
-  currency = 'USD',
-  locale = 'en-US'
-): string => {
+export const formatCurrency = (amount: number, currency = 'UZS', locale = 'uz-UZ'): string => {
+  if (currency === 'UZS') {
+    return (
+      new Intl.NumberFormat('uz-UZ', {
+        style: 'decimal',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(amount) + " so'm"
+    );
+  }
+
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
@@ -121,7 +123,7 @@ export const calculatePercentage = (value: number, total: number): number => {
 // Parse sort string
 export const parseSort = (sortString?: string): { field: string; order: 'asc' | 'desc' } | null => {
   if (!sortString) return null;
-  
+
   const [field, order = 'asc'] = sortString.split(':');
   return {
     field,
@@ -144,7 +146,7 @@ export const debounce = <T extends (...args: any[]) => any>(
   wait: number
 ): ((...args: Parameters<T>) => void) => {
   let timeout: NodeJS.Timeout;
-  
+
   return (...args: Parameters<T>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
@@ -157,7 +159,7 @@ export const throttle = <T extends (...args: any[]) => any>(
   limit: number
 ): ((...args: Parameters<T>) => void) => {
   let inThrottle: boolean;
-  
+
   return (...args: Parameters<T>) => {
     if (!inThrottle) {
       func(...args);
@@ -165,4 +167,4 @@ export const throttle = <T extends (...args: any[]) => any>(
       setTimeout(() => (inThrottle = false), limit);
     }
   };
-}; 
+};

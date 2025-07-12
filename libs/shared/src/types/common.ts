@@ -274,8 +274,10 @@ export interface PaymentMethod {
 export enum PaymentType {
   CARD = 'card',
   BANK_TRANSFER = 'bank_transfer',
-  PAYPAL = 'paypal',
-  STRIPE = 'stripe',
+  CLICK = 'click',
+  PAYME = 'payme',
+  UZCARD = 'uzcard',
+  HUMO = 'humo',
   CASH_ON_DELIVERY = 'cash_on_delivery',
 }
 

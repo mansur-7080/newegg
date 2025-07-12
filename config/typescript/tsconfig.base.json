@@ -1,60 +1,88 @@
 {
   "compilerOptions": {
+    // Target and Module
     "target": "ES2022",
     "module": "commonjs",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "moduleResolution": "node",
+
+    // JavaScript Support
     "allowJs": true,
     "checkJs": false,
+
+    // Declaration Files
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+
+    // Output
     "outDir": "./dist",
     "rootDir": "./",
-    "composite": true,
     "removeComments": false,
     "noEmit": false,
-    "importHelpers": true,
-    "downlevelIteration": true,
-    "isolatedModules": true,
+
+    // Interop Constraints
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "preserveSymlinks": true,
-    "allowUmdGlobalAccess": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "strictFunctionTypes": false,
-    "strictBindCallApply": false,
-    "strictPropertyInitialization": false,
-    "noImplicitThis": false,
-    "useUnknownInCatchVariables": false,
-    "alwaysStrict": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "exactOptionalPropertyTypes": false,
-    "noImplicitReturns": false,
-    "noFallthroughCasesInSwitch": false,
-    "noUncheckedIndexedAccess": false,
-    "noImplicitOverride": false,
+    "isolatedModules": true,
+    "preserveSymlinks": true,
+    "resolveJsonModule": true,
+
+    // Type Checking - Professional strict mode
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true,
+
+    // Additional Checks
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": false,
-    "moduleResolution": "node",
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+
+    // Module Resolution
     "baseUrl": "./",
     "paths": {
       "@ultramarket/shared": ["./libs/shared/src"],
       "@ultramarket/shared/*": ["./libs/shared/src/*"],
+      "@ultramarket/types": ["./libs/types/src"],
+      "@ultramarket/types/*": ["./libs/types/src/*"],
+      "@ultramarket/utils": ["./libs/utils/src"],
+      "@ultramarket/utils/*": ["./libs/utils/src/*"],
+      "@ultramarket/constants": ["./libs/constants/src"],
+      "@ultramarket/constants/*": ["./libs/constants/src/*"],
+      "@ultramarket/ui-components": ["./libs/ui-components/src"],
+      "@ultramarket/ui-components/*": ["./libs/ui-components/src/*"],
       "@/*": ["./src/*"]
     },
     "rootDirs": ["./libs", "./microservices", "./frontend", "./src"],
     "typeRoots": ["./node_modules/@types", "./types"],
-    "types": ["node"],
-    "allowUnreachableCode": false,
-    "allowUnusedLabels": false,
-    "resolveJsonModule": true,
+    "types": ["node", "jest"],
+
+    // Advanced Options
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "skipLibCheck": true,
-    "skipDefaultLibCheck": true
+    "importHelpers": true,
+    "downlevelIteration": true,
+
+    // Composite Projects
+    "composite": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
   "include": [
     "libs/**/*",
@@ -62,7 +90,7 @@
     "frontend/**/*",
     "src/**/*",
     "tests/**/*",
-    "scripts/**/*",
+    "scripts/**/*.ts",
     "*.ts",
     "*.js",
     "*.json"
@@ -74,11 +102,19 @@
     "coverage",
     "**/*.min.js",
     "**/*.bundle.js",
+    "**/*.test.js",
+    "**/*.spec.js",
     "prisma/migrations",
-    "**/*.d.ts"
+    "infrastructure/**/*",
+    "docs/**/*",
+    "public/**/*"
   ],
   "ts-node": {
     "esm": true,
-    "experimentalSpecifierResolution": "node"
-  }
+    "experimentalSpecifierResolution": "node",
+    "transpileOnly": true,
+    "files": true
+  },
+  "compileOnSave": false,
+  "buildOnSave": false
 }

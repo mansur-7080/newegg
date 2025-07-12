@@ -1,0 +1,233 @@
+version: '3.8'
+
+services:
+  # Core Services
+  auth-service:
+    build:
+      context: ../../microservices/core/auth-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3002:3002'
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+    depends_on:
+      - postgres
+      - redis
+
+  user-service:
+    build:
+      context: ../../microservices/core/user-service/user-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3001:3001'
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+    depends_on:
+      - postgres
+
+  api-gateway:
+    build:
+      context: ../../microservices/core/api-gateway/api-gateway
+      dockerfile: Dockerfile.dev
+    ports:
+      - '8000:8000'
+    environment:
+      - NODE_ENV=development
+      - PORT=8000
+      - AUTH_SERVICE_URL=http://auth-service:3002
+      - USER_SERVICE_URL=http://user-service:3001
+      - PRODUCT_SERVICE_URL=http://product-service:3003
+      - CART_SERVICE_URL=http://cart-service:3004
+      - ORDER_SERVICE_URL=http://order-service:3005
+    depends_on:
+      - auth-service
+      - user-service
+
+  # Business Services
+  product-service:
+    build:
+      context: ../../microservices/business/product-service/product-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3003:3003'
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+    depends_on:
+      - mongodb
+
+  cart-service:
+    build:
+      context: ../../microservices/business/cart-service/cart-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3004:3004'
+    environment:
+      - NODE_ENV=development
+      - PORT=3004
+    depends_on:
+      - redis
+
+  order-service:
+    build:
+      context: ../../microservices/business/order-service/order-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3005:3005'
+    environment:
+      - NODE_ENV=development
+      - PORT=3005
+    depends_on:
+      - postgres
+
+  review-service:
+    build:
+      context: ../../microservices/business/review-service/review-service
+    ports:
+      - '3010:3010'
+    environment:
+      - NODE_ENV=development
+      - PORT=3010
+
+  shipping-service:
+    build:
+      context: ../../microservices/business/shipping-service/shipping-service
+    ports:
+      - '3011:3011'
+    environment:
+      - NODE_ENV=development
+      - PORT=3011
+
+  payment-service:
+    build:
+      context: ../../microservices/business/payment-service/payment-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3012:3012'
+    environment:
+      - NODE_ENV=development
+      - PORT=3012
+
+  inventory-service:
+    build:
+      context: ../../microservices/business/inventory-service/inventory-service
+    ports:
+      - '3013:3013'
+    environment:
+      - NODE_ENV=development
+      - PORT=3013
+
+  # Platform Services
+  search-service:
+    build:
+      context: ../../microservices/platform/search-service/search-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3007:3007'
+    environment:
+      - NODE_ENV=development
+      - PORT=3007
+
+  notification-service:
+    build:
+      context: ../../microservices/platform/notification-service/notification-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3006:3006'
+    environment:
+      - NODE_ENV=development
+      - PORT=3006
+
+  content-service:
+    build:
+      context: ../../microservices/platform/content-service/content-service
+    ports:
+      - '3014:3014'
+    environment:
+      - NODE_ENV=development
+      - PORT=3014
+
+  file-service:
+    build:
+      context: ../../microservices/platform/file-service
+    ports:
+      - '3018:3018'
+    environment:
+      - NODE_ENV=development
+      - PORT=3018
+
+  # Analytics Services
+  analytics-service:
+    build:
+      context: ../../microservices/analytics/analytics-service
+    ports:
+      - '3015:3015'
+    environment:
+      - NODE_ENV=development
+      - PORT=3015
+
+  # ML-AI Services
+  recommendation-service:
+    build:
+      context: ../../microservices/ml-ai/recommendation-service/recommendation-service
+    ports:
+      - '3016:3016'
+    environment:
+      - NODE_ENV=development
+      - PORT=3016
+
+  fraud-detection-service:
+    build:
+      context: ../../microservices/ml-ai/fraud-detection-service
+    ports:
+      - '3017:3017'
+    environment:
+      - NODE_ENV=development
+      - PORT=3017
+
+  # Admin Services
+  admin-service:
+    build:
+      context: ../../microservices/admin/admin-service/admin-service
+    ports:
+      - '3019:3019'
+    environment:
+      - NODE_ENV=development
+      - PORT=3019
+
+  # Databases and Infrastructure
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ultramarket
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mongodb:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongo
+      MONGO_INITDB_ROOT_PASSWORD: mongo123
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass redis123
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  mongodb_data:
+  redis_data:

@@ -113,7 +113,10 @@ export enum PaymentStatus {
 export enum PaymentMethod {
   CREDIT_CARD = 'credit_card',
   DEBIT_CARD = 'debit_card',
-  PAYPAL = 'paypal',
+  CLICK = 'click',
+  PAYME = 'payme',
+  UZCARD = 'uzcard',
+  HUMO = 'humo',
   BANK_TRANSFER = 'bank_transfer',
 }
 

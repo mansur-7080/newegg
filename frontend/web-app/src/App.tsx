@@ -21,6 +21,17 @@ const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const RegisterPage = React.lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 const OrderHistoryPage = React.lazy(() => import('./pages/OrderHistoryPage'));
+const PCBuilderPage = React.lazy(() => import('./pages/pc-builder/index'));
+const NASBuilderPage = React.lazy(() => import('./pages/NASBuilderPage'));
+const MemoryFinderPage = React.lazy(() => import('./pages/MemoryFinderPage'));
+const PCCompatibilityBuilder = React.lazy(() => import('./pages/PC-Compatibility-Builder'));
+const AutoPartsCompatibility = React.lazy(() => import('./pages/AutoPartsCompatibility'));
+const CompareProductsPage = React.lazy(() => import('./pages/CompareProductsPage'));
+const WishlistPage = React.lazy(() => import('./pages/WishlistPage'));
+const ShoppingToolsPage = React.lazy(() => import('./pages/ShoppingToolsPage'));
+const GamingZonePage = React.lazy(() => import('./pages/GamingZonePage'));
+const AIProductDetailExample = React.lazy(() => import('./pages/AIProductDetailExample'));
+const TechHomePage = React.lazy(() => import('./pages/TechHomePage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
 // Store
@@ -35,7 +46,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
       retry: 3,
       refetchOnWindowFocus: false,
     },
@@ -44,7 +55,7 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <ErrorBoundary FallbackComponent={ErrorFallback}>
+    <ErrorBoundary FallbackComponent={ErrorFallback as any}>
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
           <HelmetProvider>
@@ -60,18 +71,29 @@ function App() {
                       <Route path="/cart" element={<CartPage />} />
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/register" element={<RegisterPage />} />
-                      
+                      <Route path="/pc-builder" element={<PCBuilderPage />} />
+                      <Route path="/nas-builder" element={<NASBuilderPage />} />
+                      <Route path="/memory-finder" element={<MemoryFinderPage />} />
+                      <Route path="/tech" element={<TechHomePage />} />
+                      <Route path="/pc-compatibility" element={<PCCompatibilityBuilder />} />
+                      <Route path="/auto-parts" element={<AutoPartsCompatibility />} />
+                      <Route path="/compare" element={<CompareProductsPage />} />
+                      <Route path="/wishlist" element={<WishlistPage />} />
+                      <Route path="/shopping-tools" element={<ShoppingToolsPage />} />
+                      <Route path="/gaming-zone" element={<GamingZonePage />} />
+                      <Route path="/ai-recommendations" element={<AIProductDetailExample />} />
+
                       {/* Protected Routes */}
                       <Route path="/checkout" element={<CheckoutPage />} />
                       <Route path="/profile" element={<ProfilePage />} />
                       <Route path="/orders" element={<OrderHistoryPage />} />
-                      
+
                       {/* 404 Route */}
                       <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                   </Suspense>
                 </Layout>
-                
+
                 {/* Global Components */}
                 <Toaster
                   position="top-right"
@@ -100,11 +122,9 @@ function App() {
               </div>
             </Router>
           </HelmetProvider>
-          
+
           {/* React Query DevTools (only in development) */}
-          {process.env.NODE_ENV === 'development' && (
-            <ReactQueryDevtools initialIsOpen={false} />
-          )}
+          {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
         </QueryClientProvider>
       </Provider>
     </ErrorBoundary>

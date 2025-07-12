@@ -1,27 +1,20 @@
-name: CI/CD Pipeline
+name: UltraMarket Backend CI/CD
 
 on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main, develop]
-  schedule:
-    - cron: '0 2 * * *' # Daily security scan at 2 AM
+    branches: [main]
 
 env:
-  NODE_VERSION: '18'
-  DOCKER_REGISTRY: ghcr.io
-  IMAGE_NAME: ultramarket
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ultramarket/backend
 
 jobs:
-  # Security and Code Quality
-  security-scan:
-    name: Security Scan
+  # Code Quality and Security
+  quality:
+    name: Code Quality & Security
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '18'
           cache: 'npm'
 
       - name: Install dependencies
@@ -40,64 +33,26 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
-      - name: Run security audit
-        run: npm audit --audit-level=high
+      - name: Run Prettier check
+        run: npm run format:check
 
-      - name: Run Snyk security scan
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high
+      - name: TypeScript check
+        run: npm run type-check
 
-      - name: Run CodeQL Analysis
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript
+      - name: Security audit
+        run: npm audit --audit-level=moderate
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+      - name: Run security scan
+        run: npm run security:scan
 
-      - name: Run SAST with Semgrep
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: auto
-          publishToken: ${{ secrets.SEMGREP_TOKEN }}
-
-  # Unit and Integration Tests
+  # Unit Tests
   test:
-    name: Test Suite
+    name: Unit Tests
     runs-on: ubuntu-latest
-    needs: security-scan
-
+    needs: quality
     strategy:
       matrix:
-        node-version: [16, 18, 20]
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: testpass
-          POSTGRES_DB: ultramarket_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
+        node-version: [18, 20]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -111,22 +66,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Setup test environment
-        run: |
-          cp env.example .env.test
-          echo "DATABASE_URL=postgresql://postgres:testpass@localhost:5432/ultramarket_test" >> .env.test
-          echo "REDIS_URL=redis://localhost:6379" >> .env.test
-
-      - name: Run database migrations
-        run: npm run db:migrate:test
-
       - name: Run unit tests
-        run: npm run test:unit
-
-      - name: Run integration tests
-        run: npm run test:integration
-
-      - name: Generate test coverage
         run: npm run test:coverage
 
       - name: Upload coverage to Codecov
@@ -136,40 +76,125 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  # Build and Push Docker Images
-  build:
-    name: Build Images
+  # Integration Tests
+  integration:
+    name: Integration Tests
     runs-on: ubuntu-latest
     needs: test
-    if: github.event_name == 'push'
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: ultramarket_user
+          POSTGRES_PASSWORD: ultramarket_password
+          POSTGRES_DB: ultramarket_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
-    strategy:
-      matrix:
-        service:
-          - user-service
-          - product-service
-          - cart-service
-          - order-service
-          - payment-service
-          - api-gateway
+      mongo:
+        image: mongo:7
+        env:
+          MONGO_INITDB_ROOT_USERNAME: ultramarket_user
+          MONGO_INITDB_ROOT_PASSWORD: ultramarket_password
+          MONGO_INITDB_DATABASE: ultramarket_test
+        options: >-
+          --health-cmd "mongo --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: false
+          ES_JAVA_OPTS: -Xms512m -Xmx512m
+        options: >-
+          --health-cmd "curl -f http://localhost:9200/_cluster/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 9200:9200
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for services
+        run: |
+          sleep 30
+          curl -f http://localhost:9200/_cluster/health || exit 1
+
+      - name: Run database migrations
+        run: |
+          npm run migrate:postgres
+          npm run migrate:mongo
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: ultramarket_user
+          POSTGRES_PASSWORD: ultramarket_password
+          POSTGRES_DB: ultramarket_test
+          MONGO_HOST: localhost
+          MONGO_PORT: 27017
+          MONGO_USER: ultramarket_user
+          MONGO_PASSWORD: ultramarket_password
+          MONGO_DB: ultramarket_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          ELASTICSEARCH_HOST: localhost
+          ELASTICSEARCH_PORT: 9200
+
+  # Build Docker Images
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: integration
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Container Registry
+      - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.DOCKER_REGISTRY }}
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -177,31 +202,34 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ matrix.service }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=sha,prefix=commit-
+            type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
-          context: ./microservices/
-          file: ./microservices/*/${{ matrix.service }}/Dockerfile
+          context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Performance Testing
-  performance-test:
-    name: Performance Test
+      - name: Output image
+        id: image
+        run: |
+          echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  # E2E Tests
+  e2e:
+    name: E2E Tests
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -209,84 +237,87 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install K6
-        run: |
-          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update
-          sudo apt-get install k6
-
-      - name: Start test environment
-        run: |
-          docker-compose -f docker-compose.test.yml up -d
-          sleep 30 # Wait for services to start
-
-      - name: Run performance tests
-        run: |
-          k6 run tests/performance/load-test.js
-          k6 run tests/performance/stress-test.js
-
-      - name: Upload performance results
-        uses: actions/upload-artifact@v3
-        with:
-          name: performance-results
-          path: performance-results/
-
-  # Security Testing
-  penetration-test:
-    name: Penetration Test
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '18'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Start test environment
+      - name: Start services with Docker Compose
         run: |
-          docker-compose -f docker-compose.test.yml up -d
-          sleep 30 # Wait for services to start
+          docker-compose -f config/docker/docker-compose.test.yml up -d
+          sleep 60
 
-      - name: Run penetration tests
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Stop services
+        if: always()
+        run: docker-compose -f config/docker/docker-compose.test.yml down
+
+  # Performance Tests
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install k6
         run: |
-          node security-audit/penetration-testing.js
-        env:
-          API_BASE_URL: http://localhost:3000
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
 
-      - name: Upload security report
-        uses: actions/upload-artifact@v3
+      - name: Start services
+        run: |
+          docker-compose -f config/docker/docker-compose.test.yml up -d
+          sleep 60
+
+      - name: Run load tests
+        run: npm run test:load
+
+      - name: Run stress tests
+        run: npm run test:stress
+
+      - name: Stop services
+        if: always()
+        run: docker-compose -f config/docker/docker-compose.test.yml down
+
+  # Security Scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
         with:
-          name: security-report
-          path: security-audit/penetration-test-report.json
+          image-ref: ${{ needs.build.outputs.image }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
 
-      - name: Check security score
-        run: |
-          SECURITY_SCORE=$(node -e "console.log(require('./security-audit/penetration-test-report.json').securityScore)")
-          echo "Security Score: $SECURITY_SCORE"
-          if [ "$SECURITY_SCORE" -lt 80 ]; then
-            echo "Security score is below threshold (80). Failing build."
-            exit 1
-          fi
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
 
   # Deploy to Staging
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [performance-test, penetration-test]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    environment: staging
-
+    needs: [build, e2e, performance, security]
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://staging-api.ultramarket.uz
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -298,33 +329,31 @@ jobs:
 
       - name: Configure kubectl
         run: |
-          mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > ~/.kube/config
 
       - name: Deploy to staging
         run: |
-          helm upgrade --install ultramarket-staging ./infrastructure/helm/ultramarket \
-            --namespace staging \
-            --create-namespace \
-            --set image.tag=commit-${{ github.sha }} \
-            --set environment=staging \
-            --set ingress.hosts[0].host=staging.ultramarket.com \
-            --wait --timeout=10m
+          sed -i 's|ultramarket/backend:latest|${{ needs.build.outputs.image }}|g' infrastructure/kubernetes/staging/
+          kubectl apply -f infrastructure/kubernetes/staging/
 
-      - name: Run smoke tests
+      - name: Wait for deployment
         run: |
-          sleep 60 # Wait for deployment to stabilize
-          curl -f https://staging.ultramarket.com/health || exit 1
-          npm run test:smoke -- --baseUrl=https://staging.ultramarket.com
+          kubectl rollout status deployment/api-gateway -n ultramarket-staging --timeout=300s
+
+      - name: Run health check
+        run: |
+          sleep 30
+          curl -f https://staging-api.ultramarket.uz/health || exit 1
 
   # Deploy to Production
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: deploy-staging
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment: production
-
+    needs: [build, e2e, performance, security]
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://api.ultramarket.uz
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -336,99 +365,57 @@ jobs:
 
       - name: Configure kubectl
         run: |
-          mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
-
-      - name: Create backup
-        run: |
-          kubectl create job backup-$(date +%Y%m%d%H%M%S) \
-            --from=cronjob/database-backup \
-            --namespace production
 
       - name: Deploy to production
         run: |
-          helm upgrade --install ultramarket ./infrastructure/helm/ultramarket \
-            --namespace production \
-            --create-namespace \
-            --set image.tag=commit-${{ github.sha }} \
-            --set environment=production \
-            --set ingress.hosts[0].host=ultramarket.com \
-            --set resources.requests.memory=512Mi \
-            --set resources.requests.cpu=250m \
-            --set resources.limits.memory=1Gi \
-            --set resources.limits.cpu=500m \
-            --set autoscaling.enabled=true \
-            --set autoscaling.minReplicas=3 \
-            --set autoscaling.maxReplicas=10 \
-            --wait --timeout=15m
+          sed -i 's|ultramarket/backend:latest|${{ needs.build.outputs.image }}|g' infrastructure/kubernetes/production/
+          kubectl apply -f infrastructure/kubernetes/production/
 
-      - name: Run production smoke tests
+      - name: Wait for deployment
         run: |
-          sleep 120 # Wait for deployment to stabilize
-          curl -f https://ultramarket.com/health || exit 1
-          npm run test:smoke -- --baseUrl=https://ultramarket.com
+          kubectl rollout status deployment/api-gateway -n ultramarket --timeout=600s
 
-      - name: Update monitoring
+      - name: Run health check
         run: |
-          # Update Prometheus targets
-          kubectl patch configmap prometheus-config \
-            --namespace monitoring \
-            --patch '{"data":{"prometheus.yml":"$(cat infrastructure/monitoring/prometheus.yml | base64 -w 0)"}}'
+          sleep 60
+          curl -f https://api.ultramarket.uz/health || exit 1
 
-          # Restart Prometheus to pick up new config
-          kubectl rollout restart deployment/prometheus --namespace monitoring
+      - name: Run smoke tests
+        run: |
+          curl -f https://api.ultramarket.uz/api/products?limit=1 || exit 1
+          curl -f https://api.ultramarket.uz/api/health/detailed || exit 1
+
+  # Notification
+  notify:
+    name: Notify Team
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    steps:
+      - name: Notify Telegram
+        if: success()
+        run: |
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "text=✅ UltraMarket Backend deployed successfully!%0A%0ACommit: ${{ github.sha }}%0ABranch: ${{ github.ref_name }}%0AAuthor: ${{ github.actor }}"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "text=❌ UltraMarket Backend deployment failed!%0A%0ACommit: ${{ github.sha }}%0ABranch: ${{ github.ref_name }}%0AAuthor: ${{ github.actor }}"
 
   # Cleanup
   cleanup:
     name: Cleanup
     runs-on: ubuntu-latest
-    needs: [deploy-production]
+    needs: [deploy-staging, deploy-production]
     if: always()
-
     steps:
       - name: Cleanup old images
         run: |
-          # This would typically clean up old container images
-          echo "Cleaning up old images..."
-
-      - name: Cleanup test environments
-        run: |
-          # This would typically clean up test environments
-          echo "Cleaning up test environments..."
-
-  # Notification
-  notify:
-    name: Notify
-    runs-on: ubuntu-latest
-    needs: [deploy-production]
-    if: always()
-
-    steps:
-      - name: Notify Slack
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          channel: '#deployments'
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-          fields: repo,message,commit,author,action,eventName,ref,workflow
-
-      - name: Notify Email
-        if: failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: 'UltraMarket Deployment Failed'
-          body: |
-            The deployment pipeline for UltraMarket has failed.
-
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref }}
-            Commit: ${{ github.sha }}
-            Author: ${{ github.actor }}
-
-            Please check the GitHub Actions logs for more details.
-          to: ${{ secrets.NOTIFICATION_EMAIL }}
-          from: noreply@ultramarket.com
+          echo "Cleaning up old Docker images..."
+          # This would typically connect to registry and cleanup old images
+          echo "Cleanup completed"

@@ -2,8 +2,9 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    cluster: 'ultramarket-production'
-    environment: 'production'
+    monitor: 'ultramarket-uzbekistan'
+    region: 'uzbekistan'
+    timezone: 'Asia/Tashkent'
 
 rule_files:
   - 'alerts.yml'
@@ -15,307 +16,305 @@ alerting:
             - alertmanager:9093
 
 scrape_configs:
-  # Prometheus itself
+  # ===========================================
+  # CORE INFRASTRUCTURE MONITORING
+  # ===========================================
+
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
-    scrape_interval: 30s
+    scrape_interval: 15s
     metrics_path: /metrics
 
-  # Node Exporter for system metrics
   - job_name: 'node-exporter'
     static_configs:
       - targets:
-          - 'node-exporter:9100'
+          - 'localhost:9100'
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
     scrape_interval: 30s
     metrics_path: /metrics
 
-  # API Gateway
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  - job_name: 'mongodb-exporter'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  - job_name: 'nginx-exporter'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # ===========================================
+  # MICROSERVICES MONITORING
+  # ===========================================
+
   - job_name: 'api-gateway'
     static_configs:
-      - targets:
-          - 'api-gateway:3000'
+      - targets: ['api-gateway:3000']
     scrape_interval: 15s
     metrics_path: /metrics
-    scrape_timeout: 10s
-
-  # User Service
-  - job_name: 'user-service'
-    static_configs:
-      - targets:
-          - 'user-service:3001'
-    scrape_interval: 15s
-    metrics_path: /metrics
-    scrape_timeout: 10s
-
-  # Auth Service
-  - job_name: 'auth-service'
-    static_configs:
-      - targets:
-          - 'auth-service:3002'
-    scrape_interval: 15s
-    metrics_path: /metrics
-    scrape_timeout: 10s
-
-  # Product Service
-  - job_name: 'product-service'
-    static_configs:
-      - targets:
-          - 'product-service:3003'
-    scrape_interval: 15s
-    metrics_path: /metrics
-    scrape_timeout: 10s
-
-  # Order Service
-  - job_name: 'order-service'
-    static_configs:
-      - targets:
-          - 'order-service:3004'
-    scrape_interval: 15s
-    metrics_path: /metrics
-    scrape_timeout: 10s
-
-  # Cart Service
-  - job_name: 'cart-service'
-    static_configs:
-      - targets:
-          - 'cart-service:3005'
-    scrape_interval: 15s
-    metrics_path: /metrics
-    scrape_timeout: 10s
-
-  # Payment Service
-  - job_name: 'payment-service'
-    static_configs:
-      - targets:
-          - 'payment-service:3006'
-    scrape_interval: 15s
-    metrics_path: /metrics
-    scrape_timeout: 10s
-
-  # Notification Service
-  - job_name: 'notification-service'
-    static_configs:
-      - targets:
-          - 'notification-service:3009'
-    scrape_interval: 15s
-    metrics_path: /metrics
-    scrape_timeout: 10s
-
-  # Search Service
-  - job_name: 'search-service'
-    static_configs:
-      - targets:
-          - 'search-service:3010'
-    scrape_interval: 15s
-    metrics_path: /metrics
-    scrape_timeout: 10s
-
-  # Redis monitoring
-  - job_name: 'redis'
-    static_configs:
-      - targets:
-          - 'redis-exporter:9121'
-    scrape_interval: 30s
-    metrics_path: /metrics
-
-  # PostgreSQL monitoring
-  - job_name: 'postgres'
-    static_configs:
-      - targets:
-          - 'postgres-exporter:9187'
-    scrape_interval: 30s
-    metrics_path: /metrics
-
-  # Kong API Gateway metrics
-  - job_name: 'kong'
-    static_configs:
-      - targets:
-          - 'kong:8001'
-    scrape_interval: 30s
-    metrics_path: /metrics
-
-  # Nginx metrics
-  - job_name: 'nginx'
-    static_configs:
-      - targets:
-          - 'nginx-exporter:9113'
-    scrape_interval: 30s
-    metrics_path: /metrics
-
-  # Docker container metrics
-  - job_name: 'cadvisor'
-    static_configs:
-      - targets:
-          - 'cadvisor:8080'
-    scrape_interval: 30s
-    metrics_path: /metrics
-
-  # Blackbox exporter for external monitoring
-  - job_name: 'blackbox'
-    metrics_path: /probe
-    params:
-      module: [http_2xx]
-    static_configs:
-      - targets:
-          - https://ultramarket.com
-          - https://api.ultramarket.com/health
-          - https://admin.ultramarket.com
     relabel_configs:
       - source_labels: [__address__]
-        target_label: __param_target
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: blackbox-exporter:9115
+        target_label: service
+        replacement: 'api-gateway'
 
-  # Application-specific metrics
-  - job_name: 'app-metrics'
+  - job_name: 'auth-service'
     static_configs:
-      - targets:
-          - 'app-metrics:3100'
+      - targets: ['auth-service:3001']
     scrape_interval: 15s
     metrics_path: /metrics
-    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'auth-service'
 
-  # Business metrics
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['user-service:3002']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'user-service'
+
+  - job_name: 'product-service'
+    static_configs:
+      - targets: ['product-service:3003']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'product-service'
+
+  - job_name: 'cart-service'
+    static_configs:
+      - targets: ['cart-service:3004']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'cart-service'
+
+  - job_name: 'order-service'
+    static_configs:
+      - targets: ['order-service:3005']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'order-service'
+
+  - job_name: 'payment-service'
+    static_configs:
+      - targets: ['payment-service:3012']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'payment-service'
+
+  - job_name: 'shipping-service'
+    static_configs:
+      - targets: ['shipping-service:3011']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'shipping-service'
+
+  - job_name: 'notification-service'
+    static_configs:
+      - targets: ['notification-service:3006']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  - job_name: 'search-service'
+    static_configs:
+      - targets: ['search-service:3007']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # ===========================================
+  # UZBEKISTAN-SPECIFIC MONITORING
+  # ===========================================
+
+  - job_name: 'uzbek-payment-systems'
+    static_configs:
+      - targets: ['payment-service:3012']
+    scrape_interval: 30s
+    metrics_path: /metrics/uzbek-payments
+    params:
+      systems: ['click', 'payme', 'uzcard', 'humo']
+
+  - job_name: 'uzbek-delivery-providers'
+    static_configs:
+      - targets: ['shipping-service:3011']
+    scrape_interval: 60s
+    metrics_path: /metrics/uzbek-shipping
+    params:
+      providers: ['express24', 'uzpost', 'yandex', 'local']
+
+  - job_name: 'uzbek-regions-performance'
+    static_configs:
+      - targets: ['analytics-service:3015']
+    scrape_interval: 300s # 5 minutes
+    metrics_path: /metrics/regions
+    params:
+      regions: ['TSH', 'SAM', 'BUX', 'AND', 'FAR', 'NAM']
+
+  # ===========================================
+  # BUSINESS METRICS MONITORING
+  # ===========================================
+
   - job_name: 'business-metrics'
     static_configs:
-      - targets:
-          - 'business-metrics:3200'
+      - targets: ['analytics-service:3015']
     scrape_interval: 60s
-    metrics_path: /metrics
-    scrape_timeout: 30s
+    metrics_path: /metrics/business
+    params:
+      currency: ['UZS']
+      timezone: ['Asia/Tashkent']
 
-  # Frontend monitoring (if applicable)
-  - job_name: 'frontend-metrics'
+  - job_name: 'uzs-conversion-rates'
     static_configs:
-      - targets:
-          - 'frontend:3000'
+      - targets: ['api-gateway:3000']
+    scrape_interval: 3600s # 1 hour
+    metrics_path: /metrics/currency
+    params:
+      base: ['UZS']
+      targets: ['USD', 'EUR', 'RUB']
+
+  # ===========================================
+  # FRONTEND MONITORING
+  # ===========================================
+
+  - job_name: 'web-app-metrics'
+    static_configs:
+      - targets: ['web-app:3100']
     scrape_interval: 30s
     metrics_path: /metrics
-    scrape_timeout: 10s
 
-# Recording rules for performance optimization
-recording_rules:
-  # HTTP request rate
-  - record: ultramarket:http_requests_per_second
-    expr: sum(rate(http_requests_total[5m])) by (job, method, status)
-    labels:
-      team: platform
+  - job_name: 'admin-panel-metrics'
+    static_configs:
+      - targets: ['admin-panel:3101']
+    scrape_interval: 30s
+    metrics_path: /metrics
 
-  # Error rate
-  - record: ultramarket:error_rate
-    expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))
-    labels:
-      team: platform
+  # ===========================================
+  # EXTERNAL SERVICES MONITORING
+  # ===========================================
 
-  # Response time percentiles
-  - record: ultramarket:response_time_p95
-    expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))
-    labels:
-      team: platform
+  - job_name: 'click-api-health'
+    static_configs:
+      - targets: ['api.click.uz:443']
+    scrape_interval: 300s
+    metrics_path: /health
+    scheme: https
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: external_service
+        replacement: 'click-uz'
 
-  - record: ultramarket:response_time_p99
-    expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))
-    labels:
-      team: platform
+  - job_name: 'payme-api-health'
+    static_configs:
+      - targets: ['checkout.paycom.uz:443']
+    scrape_interval: 300s
+    metrics_path: /health
+    scheme: https
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: external_service
+        replacement: 'payme-uz'
 
-  # Database connection pool
-  - record: ultramarket:db_connections_usage
-    expr: sum(db_connections_active) / sum(db_connections_max) * 100
-    labels:
-      team: platform
+  - job_name: 'express24-api-health'
+    static_configs:
+      - targets: ['api.express24.uz:443']
+    scrape_interval: 300s
+    scheme: https
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: external_service
+        replacement: 'express24'
 
-  # Cache hit rate
-  - record: ultramarket:cache_hit_rate
-    expr: sum(rate(cache_hits_total[5m])) / sum(rate(cache_requests_total[5m])) * 100
-    labels:
-      team: platform
+  # ===========================================
+  # SECURITY MONITORING
+  # ===========================================
 
-  # Memory usage
-  - record: ultramarket:memory_usage_percent
-    expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
-    labels:
-      team: platform
+  - job_name: 'fail2ban-exporter'
+    static_configs:
+      - targets: ['fail2ban-exporter:9191']
+    scrape_interval: 60s
+    metrics_path: /metrics
 
-  # CPU usage
-  - record: ultramarket:cpu_usage_percent
-    expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
-    labels:
-      team: platform
+  - job_name: 'ssl-exporter'
+    static_configs:
+      - targets: ['ssl-exporter:9219']
+    scrape_interval: 3600s # 1 hour
+    params:
+      target:
+        - 'https://ultramarket.uz'
+        - 'https://api.ultramarket.uz'
+        - 'https://admin.ultramarket.uz'
 
-  # Disk usage
-  - record: ultramarket:disk_usage_percent
-    expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100
-    labels:
-      team: platform
+  # ===========================================
+  # CUSTOM UZBEKISTAN METRICS
+  # ===========================================
 
-  # Network I/O
-  - record: ultramarket:network_receive_bytes_per_second
-    expr: sum(rate(node_network_receive_bytes_total[5m])) by (instance)
-    labels:
-      team: platform
+  - job_name: 'uzbek-business-hours'
+    static_configs:
+      - targets: ['api-gateway:3000']
+    scrape_interval: 300s
+    metrics_path: /metrics/business-hours
+    params:
+      timezone: ['Asia/Tashkent']
+      hours: ['09:00-22:00']
 
-  - record: ultramarket:network_transmit_bytes_per_second
-    expr: sum(rate(node_network_transmit_bytes_total[5m])) by (instance)
-    labels:
-      team: platform
+  - job_name: 'uzbek-language-usage'
+    static_configs:
+      - targets: ['analytics-service:3015']
+    scrape_interval: 600s # 10 minutes
+    metrics_path: /metrics/languages
+    params:
+      languages: ['uz', 'ru', 'en']
 
-  # Business metrics
-  - record: ultramarket:orders_per_minute
-    expr: sum(rate(orders_total[1m])) * 60
-    labels:
-      team: business
+  - job_name: 'uzbek-phone-validation'
+    static_configs:
+      - targets: ['user-service:3002']
+    scrape_interval: 60s
+    metrics_path: /metrics/phone-validation
+    params:
+      operators: ['ucell', 'beeline', 'uzmobile']
 
-  - record: ultramarket:revenue_per_hour
-    expr: sum(rate(order_value_total[1h])) * 3600
-    labels:
-      team: business
+# ===========================================
+# REMOTE WRITE CONFIGURATION
+# ===========================================
 
-  - record: ultramarket:active_users
-    expr: sum(active_users_gauge)
-    labels:
-      team: business
-
-  - record: ultramarket:conversion_rate
-    expr: sum(rate(orders_total[1h])) / sum(rate(sessions_total[1h])) * 100
-    labels:
-      team: business
-
-# Storage configuration
-storage:
-  tsdb:
-    path: /prometheus/data
-    retention.time: 30d
-    retention.size: 50GB
-    wal-compression: true
-
-# Remote write configuration (for long-term storage)
 remote_write:
-  - url: 'https://prometheus-remote-write.ultramarket.com/api/v1/write'
+  - url: 'http://victoriametrics:8428/api/v1/write'
     queue_config:
-      max_samples_per_send: 1000
-      max_shards: 200
-      capacity: 2500
+      max_samples_per_send: 10000
+      batch_send_deadline: 5s
     write_relabel_configs:
       - source_labels: [__name__]
-        regex: 'ultramarket:.*'
-        action: keep
-
-# Remote read configuration
-remote_read:
-  - url: 'https://prometheus-remote-read.ultramarket.com/api/v1/read'
-    read_recent: true
-
-# Web configuration
-web:
-  enable-lifecycle: true
-  enable-admin-api: true
-  external-url: 'https://prometheus.ultramarket.com'
-  route-prefix: '/'
-  max-connections: 512
-  read-timeout: 30s
-  console:
-    libraries: /etc/prometheus/console_libraries
-    templates: /etc/prometheus/consoles
+        regex: 'uzbek_.*|ultramarket_.*'
+        target_label: __name__
+        replacement: '${1}'

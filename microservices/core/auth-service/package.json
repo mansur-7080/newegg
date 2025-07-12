@@ -17,8 +17,9 @@
     "generate": "prisma generate"
   },
   "dependencies": {
-    "@ultramarket/shared": "file:../../../libs/shared",
     "@prisma/client": "^5.22.0",
+    "@types/ua-parser-js": "^0.7.39",
+    "@ultramarket/shared": "file:../../../libs/shared",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
@@ -28,6 +29,7 @@
     "express-validator": "^7.2.1",
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
+    "ua-parser-js": "^2.0.4",
     "winston": "^3.17.0"
   },
   "devDependencies": {

@@ -5,271 +5,307 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../logging/logger';
+import { ErrorCode, HttpStatusCode } from '../types/api-responses';
 
-// Node.js types are already available
+export interface ErrorWithCode extends Error {
+  code?: string;
+  statusCode?: number;
+  details?: unknown;
+  isOperational?: boolean;
+}
 
-// Professional error classes
+export interface ValidationError {
+  field: string;
+  message: string;
+  value?: unknown;
+  code?: string;
+}
+
 export class AppError extends Error {
   public readonly statusCode: number;
-  public readonly isOperational: boolean;
   public readonly code: string;
-  public details?: any;
+  public readonly isOperational: boolean;
+  public readonly details?: unknown;
 
   constructor(
     message: string,
-    statusCode: number = 500,
-    code: string = 'INTERNAL_ERROR',
-    isOperational: boolean = true,
-    details?: any
+    statusCode: number = HttpStatusCode.INTERNAL_SERVER_ERROR,
+    code: string = ErrorCode.INTERNAL_ERROR,
+    details?: unknown,
+    isOperational: boolean = true
   ) {
     super(message);
+    this.name = 'AppError';
     this.statusCode = statusCode;
-    this.isOperational = isOperational;
     this.code = code;
+    this.isOperational = isOperational;
     this.details = details;
 
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
-export class ValidationError extends AppError {
-  constructor(message: string, details?: any) {
-    super(message, 400, 'VALIDATION_ERROR', true, details);
-  }
-}
+export class ValidationAppError extends AppError {
+  public readonly validationErrors: ValidationError[];
 
-export class AuthenticationError extends AppError {
-  constructor(message: string = 'Authentication required') {
-    super(message, 401, 'AUTHENTICATION_ERROR', true);
-  }
-}
-
-export class AuthorizationError extends AppError {
-  constructor(message: string = 'Insufficient permissions') {
-    super(message, 403, 'AUTHORIZATION_ERROR', true);
+  constructor(message: string, validationErrors: ValidationError[]) {
+    super(message, HttpStatusCode.BAD_REQUEST, ErrorCode.VALIDATION_ERROR);
+    this.name = 'ValidationAppError';
+    this.validationErrors = validationErrors;
   }
 }
 
 export class NotFoundError extends AppError {
   constructor(resource: string = 'Resource') {
-    super(`${resource} not found`, 404, 'NOT_FOUND_ERROR', true);
+    super(`${resource} not found`, HttpStatusCode.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND);
+    this.name = 'NotFoundError';
+  }
+}
+
+export class UnauthorizedError extends AppError {
+  constructor(message: string = 'Unauthorized') {
+    super(message, HttpStatusCode.UNAUTHORIZED, ErrorCode.INVALID_CREDENTIALS);
+    this.name = 'UnauthorizedError';
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message: string = 'Forbidden') {
+    super(message, HttpStatusCode.FORBIDDEN, ErrorCode.INSUFFICIENT_PERMISSIONS);
+    this.name = 'ForbiddenError';
   }
 }
 
 export class ConflictError extends AppError {
-  constructor(message: string = 'Resource conflict') {
-    super(message, 409, 'CONFLICT_ERROR', true);
+  constructor(message: string = 'Resource already exists') {
+    super(message, HttpStatusCode.CONFLICT, ErrorCode.RESOURCE_ALREADY_EXISTS);
+    this.name = 'ConflictError';
   }
 }
 
 export class RateLimitError extends AppError {
   constructor(message: string = 'Rate limit exceeded') {
-    super(message, 429, 'RATE_LIMIT_ERROR', true);
+    super(message, HttpStatusCode.TOO_MANY_REQUESTS, ErrorCode.RATE_LIMIT_EXCEEDED);
+    this.name = 'RateLimitError';
   }
 }
 
-// Professional API response interface
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-    timestamp: string;
-    requestId?: string;
-  };
-  meta?: {
-    timestamp: string;
-    requestId: string;
-    pagination?: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
-  };
-}
-
-// Professional error response formatter
-export function formatErrorResponse(error: AppError | Error, requestId?: string): ApiResponse {
-  const timestamp = new Date().toISOString();
-
-  if (error instanceof AppError) {
-    return {
-      success: false,
-      error: {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        timestamp,
-        requestId,
-      },
-    };
-  }
-
-  // Handle unknown errors
-  return {
-    success: false,
-    error: {
-      code: 'INTERNAL_ERROR',
-      message: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message,
-      details: process.env.NODE_ENV === 'production' ? undefined : error.stack,
-      timestamp,
-      requestId,
-    },
-  };
-}
-
-// Professional error logging
-export function logError(error: AppError | Error, req: Request, operation?: string): void {
-  const errorData = {
-    message: error.message,
-    stack: error.stack,
-    url: req.url,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-    requestId: req.headers['x-request-id'] as string,
-    operation,
-    service: process.env.APP_NAME || 'unknown',
-    timestamp: new Date().toISOString(),
-  };
-
-  if (error instanceof AppError) {
-    errorData['statusCode'] = error.statusCode;
-    errorData['code'] = error.code;
-    errorData['details'] = error.details;
-  }
-
-  logger.error('Request error occurred', errorData);
-}
-
-// Professional error handling middleware
+// Error handler middleware
 export function errorHandler(
-  error: AppError | Error,
+  error: ErrorWithCode,
   req: Request,
   res: Response,
   next: NextFunction
 ): void {
-  // Log the error
-  logError(error, req);
+  // If response already sent, delegate to default Express error handler
+  if (res.headersSent) {
+    next(error);
+    return;
+  }
 
-  // Format the response
-  const requestId = req.headers['x-request-id'] as string;
-  const response = formatErrorResponse(error, requestId);
-
-  // Set appropriate status code
-  const statusCode = error instanceof AppError ? error.statusCode : 500;
-  res.status(statusCode).json(response);
-}
-
-// Professional async error wrapper
-export function asyncHandler<T extends Request, U extends Response>(
-  fn: (req: T, res: U, next: NextFunction) => Promise<any>
-) {
-  return (req: T, res: U, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-}
-
-// Professional request ID middleware
-export function requestIdMiddleware(req: Request, res: Response, next: NextFunction): void {
+  // Generate request ID if not present
   const requestId =
     (req.headers['x-request-id'] as string) ||
     `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-  req.headers['x-request-id'] = requestId;
-  res.setHeader('X-Request-ID', requestId);
+  // Determine error details
+  let statusCode = HttpStatusCode.INTERNAL_SERVER_ERROR;
+  let errorCode: ErrorCode = ErrorCode.INTERNAL_ERROR;
+  let message = 'Internal server error';
+  let details: unknown = undefined;
 
-  next();
-}
-
-// Professional not found handler
-export function notFoundHandler(req: Request, res: Response, next: NextFunction): void {
-  const error = new NotFoundError('Endpoint');
-  next(error);
-}
-
-// Professional validation error handler
-export function handleValidationError(error: any): ValidationError {
-  const details =
-    error.details?.map((detail: any) => ({
-      field: detail.path.join('.'),
-      message: detail.message,
-      value: detail.context?.value,
-    })) || [];
-
-  return new ValidationError('Validation failed', details);
-}
-
-// Professional database error handler
-export function handleDatabaseError(error: any): AppError {
-  // Handle Prisma errors
-  if (error.code) {
+  if (error instanceof AppError) {
+    statusCode = error.statusCode;
+    errorCode = error.code as ErrorCode;
+    message = error.message;
+    details = error.details;
+  } else if (error.statusCode) {
+    statusCode = error.statusCode;
+    message = error.message;
+  } else if (error.code) {
+    // Handle specific error codes
     switch (error.code) {
-      case 'P2002':
-        return new ConflictError('Resource already exists');
-      case 'P2025':
-        return new NotFoundError('Record');
-      case 'P2003':
-        return new ValidationError('Foreign key constraint failed');
+      case 'ENOTFOUND':
+        statusCode = HttpStatusCode.SERVICE_UNAVAILABLE;
+        errorCode = ErrorCode.EXTERNAL_SERVICE_ERROR;
+        message = 'External service unavailable';
+        break;
+      case 'ECONNREFUSED':
+        statusCode = HttpStatusCode.SERVICE_UNAVAILABLE;
+        errorCode = ErrorCode.DATABASE_ERROR;
+        message = 'Database connection refused';
+        break;
+      case 'ECONNRESET':
+        statusCode = HttpStatusCode.SERVICE_UNAVAILABLE;
+        errorCode = ErrorCode.EXTERNAL_SERVICE_ERROR;
+        message = 'Connection reset by peer';
+        break;
+      case 'ETIMEDOUT':
+        statusCode = HttpStatusCode.GATEWAY_TIMEOUT;
+        errorCode = ErrorCode.EXTERNAL_SERVICE_ERROR;
+        message = 'Request timeout';
+        break;
       default:
-        return new AppError('Database operation failed', 500, 'DATABASE_ERROR');
+        message = error.message || 'Internal server error';
     }
   }
 
-  // Handle other database errors
-  if (error.message?.includes('duplicate key')) {
+  // Log error
+  logger.error('Request error', {
+    requestId,
+    method: req.method,
+    url: req.url,
+    statusCode,
+    errorCode,
+    message: error.message,
+    stack: error.stack,
+    userAgent: req.get('User-Agent'),
+    ip: req.ip,
+    body: req.body,
+    params: req.params,
+    query: req.query,
+  });
+
+  // Send error response
+  res.status(statusCode).json({
+    success: false,
+    message,
+    error: {
+      code: errorCode,
+      message,
+      details,
+      timestamp: new Date().toISOString(),
+      path: req.path,
+      method: req.method,
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
+    },
+    requestId,
+    timestamp: new Date().toISOString(),
+    version: process.env.APP_VERSION || '1.0.0',
+  });
+}
+
+// Async error handler wrapper
+export function asyncHandler<T extends Request, U extends Response>(
+  fn: (req: T, res: U, next: NextFunction) => Promise<void>
+) {
+  return (req: T, res: U, next: NextFunction): void => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
+
+// 404 handler
+export function notFoundHandler(req: Request, res: Response): void {
+  const requestId =
+    (req.headers['x-request-id'] as string) ||
+    `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  logger.warn('Route not found', {
+    requestId,
+    method: req.method,
+    url: req.url,
+    userAgent: req.get('User-Agent'),
+    ip: req.ip,
+  });
+
+  res.status(HttpStatusCode.NOT_FOUND).json({
+    success: false,
+    message: 'Route not found',
+    error: {
+      code: ErrorCode.RESOURCE_NOT_FOUND,
+      message: `Route ${req.method} ${req.path} not found`,
+      timestamp: new Date().toISOString(),
+      path: req.path,
+      method: req.method,
+    },
+    requestId,
+    timestamp: new Date().toISOString(),
+    version: process.env.APP_VERSION || '1.0.0',
+  });
+}
+
+// Validation error handler
+export function handleValidationError(errors: ValidationError[]): ValidationAppError {
+  const message = `Validation failed: ${errors.map((e) => e.message).join(', ')}`;
+  return new ValidationAppError(message, errors);
+}
+
+// Database error handler
+export function handleDatabaseError(error: Error): AppError {
+  if (error.message.includes('duplicate key')) {
     return new ConflictError('Resource already exists');
   }
 
-  if (error.message?.includes('not found')) {
-    return new NotFoundError('Record');
+  if (error.message.includes('foreign key')) {
+    return new AppError(
+      'Invalid reference',
+      HttpStatusCode.BAD_REQUEST,
+      ErrorCode.VALIDATION_ERROR
+    );
   }
 
-  return new AppError('Database operation failed', 500, 'DATABASE_ERROR');
-}
-
-// Professional rate limiting error handler
-export function handleRateLimitError(req: Request): RateLimitError {
-  const retryAfter = req.headers['retry-after'] as string;
-  const error = new RateLimitError('Too many requests');
-
-  if (retryAfter) {
-    error.details = { retryAfter };
+  if (error.message.includes('not null')) {
+    return new AppError(
+      'Required field missing',
+      HttpStatusCode.BAD_REQUEST,
+      ErrorCode.VALIDATION_ERROR
+    );
   }
 
-  return error;
+  return new AppError(
+    'Database error',
+    HttpStatusCode.INTERNAL_SERVER_ERROR,
+    ErrorCode.DATABASE_ERROR
+  );
 }
 
-// Professional error monitoring
-export function setupErrorMonitoring(): void {
-  // Handle uncaught exceptions
+// Unhandled promise rejection handler
+export function handleUnhandledRejection(): void {
+  process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+    logger.error('Unhandled Rejection', {
+      reason: reason instanceof Error ? reason.message : String(reason),
+      stack: reason instanceof Error ? reason.stack : undefined,
+      promise: promise.toString(),
+    });
+
+    // Exit process in production
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+  });
+}
+
+// Uncaught exception handler
+export function handleUncaughtException(): void {
   process.on('uncaughtException', (error: Error) => {
     logger.error('Uncaught Exception', {
-      error: error.message,
+      message: error.message,
       stack: error.stack,
-      service: process.env.APP_NAME || 'unknown',
-      timestamp: new Date().toISOString(),
     });
 
-    // Graceful shutdown
-    process.exit(1);
-  });
-
-  // Handle unhandled promise rejections
-  process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-    logger.error('Unhandled Rejection', {
-      reason: reason instanceof Error ? reason.message : reason,
-      stack: reason instanceof Error ? reason.stack : undefined,
-      service: process.env.APP_NAME || 'unknown',
-      timestamp: new Date().toISOString(),
-    });
-
-    // Graceful shutdown
+    // Exit process
     process.exit(1);
   });
 }
 
-// All classes and functions are already exported above
+// Initialize error handlers
+export function initializeErrorHandlers(): void {
+  handleUnhandledRejection();
+  handleUncaughtException();
+}
+
+export default {
+  errorHandler,
+  notFoundHandler,
+  asyncHandler,
+  AppError,
+  ValidationAppError,
+  NotFoundError,
+  UnauthorizedError,
+  ForbiddenError,
+  ConflictError,
+  RateLimitError,
+  handleValidationError,
+  handleDatabaseError,
+  initializeErrorHandlers,
+};

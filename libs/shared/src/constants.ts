@@ -47,25 +47,25 @@ export const KAFKA_TOPICS = {
   USER_CREATED: 'user.created',
   USER_UPDATED: 'user.updated',
   USER_DELETED: 'user.deleted',
-  
+
   PRODUCT_CREATED: 'product.created',
   PRODUCT_UPDATED: 'product.updated',
   PRODUCT_DELETED: 'product.deleted',
   PRODUCT_STOCK_UPDATED: 'product.stock.updated',
-  
+
   ORDER_CREATED: 'order.created',
   ORDER_UPDATED: 'order.updated',
   ORDER_CANCELLED: 'order.cancelled',
   ORDER_COMPLETED: 'order.completed',
-  
+
   PAYMENT_INITIATED: 'payment.initiated',
   PAYMENT_COMPLETED: 'payment.completed',
   PAYMENT_FAILED: 'payment.failed',
   PAYMENT_REFUNDED: 'payment.refunded',
-  
+
   CART_UPDATED: 'cart.updated',
   CART_CLEARED: 'cart.cleared',
-  
+
   EMAIL_SEND: 'email.send',
   SMS_SEND: 'sms.send',
   NOTIFICATION_PUSH: 'notification.push',
@@ -76,15 +76,15 @@ export const REDIS_KEYS = {
   USER_SESSION: (userId: string) => `session:${userId}`,
   USER_PROFILE: (userId: string) => `user:${userId}`,
   USER_CART: (userId: string) => `cart:${userId}`,
-  
+
   PRODUCT: (productId: string) => `product:${productId}`,
   PRODUCT_STOCK: (productId: string) => `stock:${productId}`,
   PRODUCT_VIEWS: (productId: string) => `views:${productId}`,
-  
+
   ORDER: (orderId: string) => `order:${orderId}`,
-  
+
   RATE_LIMIT: (ip: string) => `rate_limit:${ip}`,
-  
+
   OTP: (phone: string) => `otp:${phone}`,
   EMAIL_VERIFICATION: (token: string) => `email_verify:${token}`,
   PASSWORD_RESET: (token: string) => `password_reset:${token}`,
@@ -101,14 +101,14 @@ export const FILE_UPLOAD = {
 
 // Price and currency
 export const CURRENCY = {
-  DEFAULT: 'USD',
-  SUPPORTED: ['USD', 'EUR', 'GBP', 'CAD', 'AUD'],
+  DEFAULT: 'UZS',
+  SUPPORTED: ['UZS', 'USD', 'RUB', 'EUR'],
 } as const;
 
 // Order constraints
 export const ORDER_CONSTRAINTS = {
-  MIN_ORDER_AMOUNT: 10.00,
-  MAX_ORDER_AMOUNT: 50000.00,
+  MIN_ORDER_AMOUNT: 10.0,
+  MAX_ORDER_AMOUNT: 50000.0,
   MAX_ITEMS_PER_ORDER: 100,
 } as const;
 
@@ -144,4 +144,4 @@ export const HTTP_STATUS = {
   INTERNAL_SERVER_ERROR: 500,
   BAD_GATEWAY: 502,
   SERVICE_UNAVAILABLE: 503,
-} as const; 
+} as const;

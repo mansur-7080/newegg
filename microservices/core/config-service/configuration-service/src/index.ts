@@ -88,16 +88,34 @@ class ConfigurationService {
     );
 
     // Business settings
-    this.setConfig('business.tax.rate', 0.18, 'number', 'business', 'Tax rate', false);
+    this.setConfig('business.tax.rate', 0.12, 'number', 'business', "O'zbekiston NDS (12%)", false);
     this.setConfig(
       'business.shipping.free_threshold',
-      100,
+      300000,
       'number',
       'business',
-      'Free shipping threshold',
+      'Bepul yetkazib berish chegarasi (UZS)',
       true
     );
-    this.setConfig('business.currency', 'USD', 'string', 'business', 'Default currency', true);
+    this.setConfig('business.currency', 'UZS', 'string', 'business', 'Asosiy valyuta', true);
+    this.setConfig('business.country', 'UZ', 'string', 'business', 'Davlat kodi', false);
+    this.setConfig(
+      'business.timezone',
+      'Asia/Tashkent',
+      'string',
+      'business',
+      'Vaqt zonasi',
+      false
+    );
+    this.setConfig('business.language', 'uz', 'string', 'business', 'Asosiy til', true);
+    this.setConfig(
+      'business.supported_languages',
+      ['uz', 'ru', 'en'],
+      'object',
+      'business',
+      "Qo'llab-quvvatlanadigan tillar",
+      true
+    );
 
     // Security settings
     this.setConfig(

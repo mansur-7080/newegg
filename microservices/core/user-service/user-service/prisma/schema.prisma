@@ -40,13 +40,22 @@ model Address {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   type        AddressType
-  street1     String
-  street2     String?
-  city        String
-  state       String
-  postalCode  String
-  country     String
+  
+  // O'zbekiston manzil maydonlari
+  region      String              // Viloyat
+  district    String              // Tuman
+  city        String?             // Shahar (ixtiyoriy)
+  mahalla     String?             // Mahalla (ixtiyoriy)
+  street      String              // Ko'cha nomi
+  house       String              // Uy raqami
+  apartment   String?             // Xonadon raqami (ixtiyoriy)
+  postalCode  String?             // Pochta indeksi (ixtiyoriy)
+  landmark    String?             // Mo'ljal
+  instructions String?            // Yetkazib berish ko'rsatmalari
+  
+  country     String    @default("UZ")
   isDefault   Boolean   @default(false)
+  isActive    Boolean   @default(true)
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
