@@ -35,8 +35,12 @@ router.delete('/account', userController.deleteAccount);
 router.post('/logout', userController.logout);
 
 // Admin routes
-router.get('/admin/users', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), async (_req, res) => {
-  res.json({ message: 'Admin users list - not implemented yet' });
-});
+router.get('/admin/users', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), userController.getAdminUsers);
+router.get('/admin/users/:id', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), userController.getAdminUserById);
+router.put('/admin/users/:id', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), userController.updateAdminUser);
+router.delete('/admin/users/:id', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), userController.deleteAdminUser);
+router.post('/admin/users/:id/activate', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), userController.activateUser);
+router.post('/admin/users/:id/deactivate', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), userController.deactivateUser);
+router.get('/admin/statistics', authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), userController.getAdminStatistics);
 
 export default router;

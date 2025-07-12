@@ -286,6 +286,77 @@ export class UserService {
     await cache.del(`reset_password:${token}`);
     return true;
   }
+
+  // Admin functions
+  async getAdminUsers(options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: UserRole;
+    isActive?: boolean;
+  }) {
+    return userRepository.findMany(options);
+  }
+
+  async getAdminUserById(userId: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    return user;
+  }
+
+  async updateAdminUser(userId: string, updateData: any) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    const updatedUser = await userRepository.update(userId, updateData);
+    const { passwordHash, ...userWithoutPassword } = updatedUser;
+    return userWithoutPassword;
+  }
+
+  async deleteAdminUser(userId: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    await userRepository.delete(userId);
+  }
+
+  async activateUser(userId: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    await userRepository.update(userId, { isActive: true });
+  }
+
+  async deactivateUser(userId: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    await userRepository.update(userId, { isActive: false });
+  }
+
+  async getAdminStatistics() {
+    const totalUsers = await userRepository.count();
+    const activeUsers = await userRepository.count({ isActive: true });
+    const verifiedUsers = await userRepository.count({ isEmailVerified: true });
+
+    return {
+      totalUsers,
+      activeUsers,
+      verifiedUsers,
+      inactiveUsers: totalUsers - activeUsers,
+      unverifiedUsers: totalUsers - verifiedUsers,
+    };
+  }
 }
 
 export const userService = new UserService();

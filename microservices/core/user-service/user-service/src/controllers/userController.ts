@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '@ultramarket/common';
 import * as userService from '../services/userService';
 import { HTTP_STATUS } from '@ultramarket/common';
+import { UserRole } from '@ultramarket/common';
 
 export class UserController {
   async register(req: Request, res: Response, next: NextFunction) {
@@ -158,6 +159,118 @@ export class UserController {
       res.status(HTTP_STATUS.OK).json({
         success: true,
         message: 'Password reset successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Admin functions
+  async getAdminUsers(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { page = 1, limit = 10, search, role, isActive } = req.query;
+      
+      const users = await userService.getAdminUsers({
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        search: search as string,
+        role: role as UserRole,
+        isActive: isActive === 'true'
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: users,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAdminUserById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      
+      const user = await userService.getAdminUserById(id);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateAdminUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      const user = await userService.updateAdminUser(id, updateData);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'User updated successfully',
+        data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteAdminUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      
+      await userService.deleteAdminUser(id);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'User deleted successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async activateUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      
+      await userService.activateUser(id);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'User activated successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deactivateUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      
+      await userService.deactivateUser(id);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'User deactivated successfully',
+      });
+    } catch (next: NextFunction) {
+      next(error);
+    }
+  }
+
+  async getAdminStatistics(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const statistics = await userService.getAdminStatistics();
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: statistics,
       });
     } catch (error) {
       next(error);

@@ -4,7 +4,7 @@ import { logger } from '@ultramarket/common';
 import { createError } from '@ultramarket/common';
 import { PaymentModel } from '../models/Payment';
 import { EventEmitter } from 'events';
-import { PayPalService } from './paypalService';
+import { UzbekistanPaymentService } from './uzbekistanPaymentService';
 
 export interface PaymentRequest {
   amount: number;
@@ -50,7 +50,7 @@ export interface RefundRequest {
 export class PaymentService extends EventEmitter {
   private stripe: Stripe;
   private webhookSecret: string;
-  private paypalService: PayPalService;
+  private uzbekistanPaymentService: UzbekistanPaymentService;
 
   constructor() {
     super();
@@ -58,7 +58,7 @@ export class PaymentService extends EventEmitter {
       apiVersion: '2023-10-16',
     });
     this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-    this.paypalService = new PayPalService();
+    this.uzbekistanPaymentService = new UzbekistanPaymentService();
   }
 
   /**
@@ -88,8 +88,13 @@ export class PaymentService extends EventEmitter {
           response = await this.processCardPayment(payment.id, request);
           break;
 
-        case PaymentMethod.PAYPAL:
-          response = await this.processPayPalPayment(payment.id, request);
+        case PaymentMethod.CLICK:
+        case PaymentMethod.PAYME:
+        case PaymentMethod.APELSIN:
+        case PaymentMethod.UZUM:
+        case PaymentMethod.PAYNET:
+        case PaymentMethod.BANK_TRANSFER:
+          response = await this.processUzbekistanPayment(payment.id, request);
           break;
 
         case PaymentMethod.APPLE_PAY:
@@ -200,37 +205,38 @@ export class PaymentService extends EventEmitter {
   }
 
   /**
-   * Process PayPal payment
+   * Process Uzbekistan payment methods
    */
-  private async processPayPalPayment(
+  private async processUzbekistanPayment(
     paymentId: string,
     request: PaymentRequest
   ): Promise<PaymentResponse> {
     try {
-      const paypalOrder = await this.paypalService.createOrder({
+      const uzbekistanRequest = {
         amount: request.amount,
         currency: request.currency,
-        description: request.description,
+        method: request.method.toLowerCase() as 'click' | 'payme' | 'apelsin' | 'uzum' | 'paynet' | 'bank_transfer',
         orderId: request.orderId,
-        returnUrl: `${process.env.FRONTEND_URL}/payment/success?paymentId=${paymentId}`,
-        cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel?paymentId=${paymentId}`,
-      });
+        userId: request.userId,
+        description: request.description,
+        phoneNumber: request.customer?.phone,
+      };
+
+      const response = await this.uzbekistanPaymentService.processPayment(uzbekistanRequest);
 
       return {
         id: paymentId,
-        status: PaymentStatus.PENDING,
-        amount: request.amount,
-        currency: request.currency,
+        status: this.mapUzbekistanStatus(response.status),
+        amount: response.amount,
+        currency: response.currency,
         method: request.method,
-        redirectUrl: paypalOrder.approvalUrl,
-        metadata: {
-          ...request.metadata,
-          paypalOrderId: paypalOrder.orderId,
-        },
+        redirectUrl: response.redirectUrl,
+        transactionId: response.transactionId,
+        metadata: response.metadata,
       };
     } catch (error) {
-      logger.error('PayPal payment processing failed:', error);
-      throw createError(400, 'PayPal payment processing failed');
+      logger.error('Uzbekistan payment processing failed:', error);
+      throw createError(400, 'Uzbekistan payment processing failed');
     }
   }
 
@@ -322,17 +328,23 @@ export class PaymentService extends EventEmitter {
         const paymentIntent = await this.stripe.paymentIntents.confirm(payment.transactionId!);
         status = this.mapStripeStatus(paymentIntent.status);
         transactionId = paymentIntent.id;
-      } else if (payment.method === PaymentMethod.PAYPAL) {
-        // Capture PayPal payment
-        const paypalOrderId = data.paypalOrderId;
-        if (!paypalOrderId) {
-          throw createError(400, 'PayPal order ID is required');
-        }
+              } else if (payment.method === PaymentMethod.CLICK || 
+                   payment.method === PaymentMethod.PAYME || 
+                   payment.method === PaymentMethod.APELSIN) {
+          // Confirm Uzbekistan payment
+          const transactionData = data.transactionData;
+          if (!transactionData) {
+            throw createError(400, 'Transaction data is required');
+          }
 
-        const capture = await this.paypalService.captureOrder(paypalOrderId);
-        status = capture.status === 'COMPLETED' ? PaymentStatus.COMPLETED : PaymentStatus.FAILED;
-        transactionId = capture.id;
-      }
+          const confirmation = await this.uzbekistanPaymentService.confirmPayment(
+            payment.id,
+            payment.method.toLowerCase(),
+            transactionData
+          );
+          status = this.mapUzbekistanStatus(confirmation.status);
+          transactionId = confirmation.transactionId;
+        }
 
       // Update payment status
       payment.status = status;
@@ -545,6 +557,22 @@ export class PaymentService extends EventEmitter {
         return PaymentStatus.CANCELLED;
       default:
         return PaymentStatus.FAILED;
+    }
+  }
+
+  /**
+   * Map Uzbekistan payment status to our status
+   */
+  private mapUzbekistanStatus(status: string): PaymentStatus {
+    switch (status) {
+      case 'pending':
+        return PaymentStatus.PENDING;
+      case 'completed':
+        return PaymentStatus.COMPLETED;
+      case 'failed':
+        return PaymentStatus.FAILED;
+      default:
+        return PaymentStatus.PENDING;
     }
   }
 
