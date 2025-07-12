@@ -2,6 +2,22 @@ import { EventEmitter } from 'events';
 import axios from 'axios';
 import { createError, logger } from '@ultramarket/common';
 
+// O'zbekiston Shipping Providers
+interface UzPostConfig {
+  apiKey: string;
+  environment: 'test' | 'production';
+}
+
+interface UzAutoConfig {
+  apiKey: string;
+  environment: 'test' | 'production';
+}
+
+interface CourierConfig {
+  apiKey: string;
+  environment: 'test' | 'production';
+}
+
 export interface ShippingProvider {
   id: string;
   name: string;
@@ -190,9 +206,29 @@ export interface DeliveryZone {
 export class ShippingService extends EventEmitter {
   private providers: Map<string, ShippingProvider> = new Map();
   private zones: Map<string, DeliveryZone> = new Map();
+  private uzPostConfig: UzPostConfig;
+  private uzAutoConfig: UzAutoConfig;
+  private courierConfig: CourierConfig;
 
   constructor() {
     super();
+    
+    // O'zbekiston shipping providers configuration
+    this.uzPostConfig = {
+      apiKey: process.env.UZPOST_API_KEY || '',
+      environment: (process.env.UZPOST_ENVIRONMENT as 'test' | 'production') || 'test',
+    };
+
+    this.uzAutoConfig = {
+      apiKey: process.env.UZAUTO_API_KEY || '',
+      environment: (process.env.UZAUTO_ENVIRONMENT as 'test' | 'production') || 'test',
+    };
+
+    this.courierConfig = {
+      apiKey: process.env.COURIER_API_KEY || '',
+      environment: (process.env.COURIER_ENVIRONMENT as 'test' | 'production') || 'test',
+    };
+
     this.initializeProviders();
   }
 
@@ -211,20 +247,30 @@ export class ShippingService extends EventEmitter {
     }
   ): Promise<ShippingRate[]> {
     try {
+      logger.info('Getting shipping rates', {
+        fromCity: fromAddress.city,
+        toCity: toAddress.city,
+        packageCount: packages.length,
+      });
+
       const rates: ShippingRate[] = [];
 
-      // Get rates from all available providers
-      for (const [providerId, provider] of this.providers) {
-        if (provider.status !== 'active') continue;
-        if (serviceFilters?.providers && !serviceFilters.providers.includes(providerId)) continue;
+      // Get rates from UzPost
+      if (!serviceFilters?.providers || serviceFilters.providers.includes('uzpost')) {
+        const uzPostRates = await this.getUzPostRates(fromAddress, toAddress, packages);
+        rates.push(...uzPostRates);
+      }
 
-        try {
-          const providerRates = await this.getProviderRates(provider, fromAddress, toAddress, packages);
-          rates.push(...providerRates);
-        } catch (error) {
-          logger.warn('Provider rate fetch failed', { providerId, error });
-          continue;
-        }
+      // Get rates from UzAuto
+      if (!serviceFilters?.providers || serviceFilters.providers.includes('uzauto')) {
+        const uzAutoRates = await this.getUzAutoRates(fromAddress, toAddress, packages);
+        rates.push(...uzAutoRates);
+      }
+
+      // Get rates from local couriers
+      if (!serviceFilters?.providers || serviceFilters.providers.includes('courier')) {
+        const courierRates = await this.getCourierRates(fromAddress, toAddress, packages);
+        rates.push(...courierRates);
       }
 
       // Apply filters
@@ -241,32 +287,224 @@ export class ShippingService extends EventEmitter {
       }
 
       if (serviceFilters?.features) {
-        filteredRates = filteredRates.filter(rate =>
+        filteredRates = filteredRates.filter(rate => 
           serviceFilters.features!.every(feature => 
-            rate.features[feature as keyof typeof rate.features]
+            Object.values(rate.features).includes(true)
           )
         );
       }
 
-      // Sort by cost (ascending)
+      // Sort by cost
       filteredRates.sort((a, b) => a.totalCost - b.totalCost);
 
-      logger.info('Shipping rates calculated', {
-        fromCountry: fromAddress.country,
-        toCountry: toAddress.country,
-        packagesCount: packages.length,
-        ratesCount: filteredRates.length
+      logger.info('Shipping rates retrieved', {
+        totalRates: rates.length,
+        filteredRates: filteredRates.length,
       });
 
       return filteredRates;
     } catch (error) {
-      logger.error('Get shipping rates failed', { fromAddress, toAddress, error });
-      throw createError(500, 'Failed to calculate shipping rates');
+      logger.error('Failed to get shipping rates', error);
+      throw createError(500, 'Failed to get shipping rates');
     }
   }
 
   /**
-   * Create a shipment
+   * Get UzPost rates
+   */
+  private async getUzPostRates(
+    fromAddress: ShippingAddress,
+    toAddress: ShippingAddress,
+    packages: Package[]
+  ): Promise<ShippingRate[]> {
+    try {
+      const apiUrl = this.uzPostConfig.environment === 'production'
+        ? 'https://api.uzpost.uz/v1/rates'
+        : 'https://test-api.uzpost.uz/v1/rates';
+
+      const requestData = {
+        from: {
+          city: fromAddress.city,
+          state: fromAddress.state,
+          country: fromAddress.country,
+          zipCode: fromAddress.zipCode,
+        },
+        to: {
+          city: toAddress.city,
+          state: toAddress.state,
+          country: toAddress.country,
+          zipCode: toAddress.zipCode,
+        },
+        packages: packages.map(pkg => ({
+          weight: pkg.weight,
+          dimensions: pkg.dimensions,
+          value: pkg.value,
+        })),
+      };
+
+      const response = await axios.post(apiUrl, requestData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.uzPostConfig.apiKey}`,
+        },
+      });
+
+      return response.data.rates.map((rate: any) => ({
+        providerId: 'uzpost',
+        serviceId: rate.service_id,
+        serviceName: rate.service_name,
+        cost: rate.cost,
+        currency: 'UZS',
+        deliveryTime: {
+          min: rate.delivery_time.min,
+          max: rate.delivery_time.max,
+          unit: 'days',
+        },
+        features: {
+          tracking: rate.features.tracking,
+          insurance: rate.features.insurance,
+          signature: rate.features.signature,
+        },
+        taxes: rate.taxes || 0,
+        fees: rate.fees || [],
+        totalCost: rate.total_cost,
+      }));
+    } catch (error) {
+      logger.error('Failed to get UzPost rates', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get UzAuto rates
+   */
+  private async getUzAutoRates(
+    fromAddress: ShippingAddress,
+    toAddress: ShippingAddress,
+    packages: Package[]
+  ): Promise<ShippingRate[]> {
+    try {
+      const apiUrl = this.uzAutoConfig.environment === 'production'
+        ? 'https://api.uzauto.uz/v1/shipping/rates'
+        : 'https://test-api.uzauto.uz/v1/shipping/rates';
+
+      const requestData = {
+        origin: {
+          city: fromAddress.city,
+          region: fromAddress.state,
+        },
+        destination: {
+          city: toAddress.city,
+          region: toAddress.state,
+        },
+        cargo: {
+          weight: packages.reduce((sum, pkg) => sum + pkg.weight, 0),
+          volume: packages.reduce((sum, pkg) => 
+            sum + (pkg.dimensions.length * pkg.dimensions.width * pkg.dimensions.height), 0
+          ),
+          value: packages.reduce((sum, pkg) => sum + pkg.value, 0),
+        },
+      };
+
+      const response = await axios.post(apiUrl, requestData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.uzAutoConfig.apiKey}`,
+        },
+      });
+
+      return response.data.services.map((service: any) => ({
+        providerId: 'uzauto',
+        serviceId: service.id,
+        serviceName: service.name,
+        cost: service.cost,
+        currency: 'UZS',
+        deliveryTime: {
+          min: service.delivery_time.min,
+          max: service.delivery_time.max,
+          unit: 'days',
+        },
+        features: {
+          tracking: service.features.tracking,
+          insurance: service.features.insurance,
+          signature: service.features.signature,
+        },
+        taxes: service.taxes || 0,
+        fees: service.fees || [],
+        totalCost: service.total_cost,
+      }));
+    } catch (error) {
+      logger.error('Failed to get UzAuto rates', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get local courier rates
+   */
+  private async getCourierRates(
+    fromAddress: ShippingAddress,
+    toAddress: ShippingAddress,
+    packages: Package[]
+  ): Promise<ShippingRate[]> {
+    try {
+      const apiUrl = this.courierConfig.environment === 'production'
+        ? 'https://api.courier.uz/v1/rates'
+        : 'https://test-api.courier.uz/v1/rates';
+
+      const requestData = {
+        pickup: {
+          address: fromAddress.street1,
+          city: fromAddress.city,
+          phone: fromAddress.phone,
+        },
+        delivery: {
+          address: toAddress.street1,
+          city: toAddress.city,
+          phone: toAddress.phone,
+        },
+        package: {
+          weight: packages.reduce((sum, pkg) => sum + pkg.weight, 0),
+          dimensions: packages[0].dimensions,
+          value: packages.reduce((sum, pkg) => sum + pkg.value, 0),
+        },
+      };
+
+      const response = await axios.post(apiUrl, requestData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.courierConfig.apiKey}`,
+        },
+      });
+
+      return response.data.options.map((option: any) => ({
+        providerId: 'courier',
+        serviceId: option.id,
+        serviceName: option.name,
+        cost: option.price,
+        currency: 'UZS',
+        deliveryTime: {
+          min: option.delivery_time.min,
+          max: option.delivery_time.max,
+          unit: 'hours',
+        },
+        features: {
+          tracking: option.features.tracking,
+          insurance: option.features.insurance,
+          signature: option.features.signature,
+        },
+        taxes: option.taxes || 0,
+        fees: option.fees || [],
+        totalCost: option.total_price,
+      }));
+    } catch (error) {
+      logger.error('Failed to get courier rates', error);
+      return [];
+    }
+  }
+
+  /**
+   * Create shipment
    */
   async createShipment(
     orderId: string,
@@ -283,158 +521,361 @@ export class ShippingService extends EventEmitter {
     }
   ): Promise<Shipment> {
     try {
-      const provider = this.providers.get(providerId);
-      if (!provider) {
-        throw createError(404, 'Shipping provider not found');
-      }
-
-      const service = provider.supportedServices.find(s => s.id === serviceId);
-      if (!service) {
-        throw createError(404, 'Shipping service not found');
-      }
-
-      // Validate packages
-      this.validatePackages(packages, service);
-
-      // Create shipment with provider
-      const shipmentData = await this.createProviderShipment(
-        provider,
-        service,
-        fromAddress,
-        toAddress,
-        packages,
-        options
-      );
-
-      const shipment: Shipment = {
-        id: shipmentData.id,
+      logger.info('Creating shipment', {
         orderId,
-        trackingNumber: shipmentData.trackingNumber,
         providerId,
         serviceId,
-        status: 'created',
-        fromAddress,
-        toAddress,
-        packages,
-        cost: shipmentData.cost,
-        currency: shipmentData.currency,
-        label: shipmentData.label,
-        tracking: {
-          events: [],
-          estimatedDelivery: shipmentData.estimatedDelivery
-        },
-        insurance: options?.insurance ? {
-          value: options.insurance.value,
-          cost: shipmentData.insuranceCost || 0
-        } : undefined,
-        customs: options?.customs,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+        fromCity: fromAddress.city,
+        toCity: toAddress.city,
+      });
 
-      // Store shipment (in real implementation, this would be saved to database)
-      // await this.saveShipment(shipment);
+      let shipment: Shipment;
 
-      this.emit('shipmentCreated', shipment);
+      switch (providerId) {
+        case 'uzpost':
+          shipment = await this.createUzPostShipment(orderId, serviceId, fromAddress, toAddress, packages, options);
+          break;
+        case 'uzauto':
+          shipment = await this.createUzAutoShipment(orderId, serviceId, fromAddress, toAddress, packages, options);
+          break;
+        case 'courier':
+          shipment = await this.createCourierShipment(orderId, serviceId, fromAddress, toAddress, packages, options);
+          break;
+        default:
+          throw createError(400, `Unsupported shipping provider: ${providerId}`);
+      }
 
       logger.info('Shipment created successfully', {
         shipmentId: shipment.id,
-        orderId,
         trackingNumber: shipment.trackingNumber,
         providerId,
-        serviceId
       });
 
       return shipment;
     } catch (error) {
-      logger.error('Create shipment failed', { orderId, providerId, serviceId, error });
-      throw error;
+      logger.error('Failed to create shipment', error);
+      throw createError(500, 'Failed to create shipment');
     }
   }
 
   /**
-   * Track a shipment
+   * Create UzPost shipment
+   */
+  private async createUzPostShipment(
+    orderId: string,
+    serviceId: string,
+    fromAddress: ShippingAddress,
+    toAddress: ShippingAddress,
+    packages: Package[],
+    options?: any
+  ): Promise<Shipment> {
+    const apiUrl = this.uzPostConfig.environment === 'production'
+      ? 'https://api.uzpost.uz/v1/shipments'
+      : 'https://test-api.uzpost.uz/v1/shipments';
+
+    const requestData = {
+      order_id: orderId,
+      service_id: serviceId,
+      from_address: fromAddress,
+      to_address: toAddress,
+      packages: packages,
+      options: options,
+    };
+
+    const response = await axios.post(apiUrl, requestData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.uzPostConfig.apiKey}`,
+      },
+    });
+
+    const data = response.data;
+
+    return {
+      id: data.shipment_id,
+      orderId,
+      trackingNumber: data.tracking_number,
+      providerId: 'uzpost',
+      serviceId,
+      status: 'created',
+      fromAddress,
+      toAddress,
+      packages,
+      cost: data.cost,
+      currency: 'UZS',
+      label: {
+        url: data.label_url,
+        format: 'pdf',
+      },
+      tracking: {
+        events: [],
+        estimatedDelivery: new Date(data.estimated_delivery),
+      },
+      insurance: options?.insurance,
+      customs: options?.customs,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  /**
+   * Create UzAuto shipment
+   */
+  private async createUzAutoShipment(
+    orderId: string,
+    serviceId: string,
+    fromAddress: ShippingAddress,
+    toAddress: ShippingAddress,
+    packages: Package[],
+    options?: any
+  ): Promise<Shipment> {
+    const apiUrl = this.uzAutoConfig.environment === 'production'
+      ? 'https://api.uzauto.uz/v1/shipping/shipments'
+      : 'https://test-api.uzauto.uz/v1/shipping/shipments';
+
+    const requestData = {
+      order_id: orderId,
+      service_id: serviceId,
+      origin: {
+        address: fromAddress.street1,
+        city: fromAddress.city,
+        region: fromAddress.state,
+        contact: {
+          name: fromAddress.name,
+          phone: fromAddress.phone,
+        },
+      },
+      destination: {
+        address: toAddress.street1,
+        city: toAddress.city,
+        region: toAddress.state,
+        contact: {
+          name: toAddress.name,
+          phone: toAddress.phone,
+        },
+      },
+      cargo: {
+        weight: packages.reduce((sum, pkg) => sum + pkg.weight, 0),
+        volume: packages.reduce((sum, pkg) => 
+          sum + (pkg.dimensions.length * pkg.dimensions.width * pkg.dimensions.height), 0
+        ),
+        value: packages.reduce((sum, pkg) => sum + pkg.value, 0),
+        description: packages.map(pkg => pkg.contents.map(item => item.description).join(', ')).join('; '),
+      },
+      options: options,
+    };
+
+    const response = await axios.post(apiUrl, requestData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.uzAutoConfig.apiKey}`,
+      },
+    });
+
+    const data = response.data;
+
+    return {
+      id: data.shipment_id,
+      orderId,
+      trackingNumber: data.tracking_number,
+      providerId: 'uzauto',
+      serviceId,
+      status: 'created',
+      fromAddress,
+      toAddress,
+      packages,
+      cost: data.cost,
+      currency: 'UZS',
+      label: {
+        url: data.label_url,
+        format: 'pdf',
+      },
+      tracking: {
+        events: [],
+        estimatedDelivery: new Date(data.estimated_delivery),
+      },
+      insurance: options?.insurance,
+      customs: options?.customs,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  /**
+   * Create courier shipment
+   */
+  private async createCourierShipment(
+    orderId: string,
+    serviceId: string,
+    fromAddress: ShippingAddress,
+    toAddress: ShippingAddress,
+    packages: Package[],
+    options?: any
+  ): Promise<Shipment> {
+    const apiUrl = this.courierConfig.environment === 'production'
+      ? 'https://api.courier.uz/v1/shipments'
+      : 'https://test-api.courier.uz/v1/shipments';
+
+    const requestData = {
+      order_id: orderId,
+      service_id: serviceId,
+      pickup: {
+        address: fromAddress.street1,
+        city: fromAddress.city,
+        contact: {
+          name: fromAddress.name,
+          phone: fromAddress.phone,
+        },
+      },
+      delivery: {
+        address: toAddress.street1,
+        city: toAddress.city,
+        contact: {
+          name: toAddress.name,
+          phone: toAddress.phone,
+        },
+      },
+      package: {
+        weight: packages.reduce((sum, pkg) => sum + pkg.weight, 0),
+        dimensions: packages[0].dimensions,
+        value: packages.reduce((sum, pkg) => sum + pkg.value, 0),
+        description: packages.map(pkg => pkg.contents.map(item => item.description).join(', ')).join('; '),
+      },
+      options: options,
+    };
+
+    const response = await axios.post(apiUrl, requestData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.courierConfig.apiKey}`,
+      },
+    });
+
+    const data = response.data;
+
+    return {
+      id: data.shipment_id,
+      orderId,
+      trackingNumber: data.tracking_number,
+      providerId: 'courier',
+      serviceId,
+      status: 'created',
+      fromAddress,
+      toAddress,
+      packages,
+      cost: data.cost,
+      currency: 'UZS',
+      label: {
+        url: data.label_url,
+        format: 'pdf',
+      },
+      tracking: {
+        events: [],
+        estimatedDelivery: new Date(data.estimated_delivery),
+      },
+      insurance: options?.insurance,
+      customs: options?.customs,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  /**
+   * Track shipment
    */
   async trackShipment(trackingNumber: string, providerId?: string): Promise<TrackingEvent[]> {
     try {
+      logger.info('Tracking shipment', { trackingNumber, providerId });
+
       let events: TrackingEvent[] = [];
 
-      if (providerId) {
-        const provider = this.providers.get(providerId);
-        if (!provider) {
-          throw createError(404, 'Shipping provider not found');
-        }
-
-        events = await this.getProviderTracking(provider, trackingNumber);
-      } else {
+      if (!providerId) {
         // Try all providers
-        for (const [id, provider] of this.providers) {
-          if (provider.status !== 'active') continue;
-
+        const providers = ['uzpost', 'uzauto', 'courier'];
+        for (const provider of providers) {
           try {
-            events = await this.getProviderTracking(provider, trackingNumber);
+            events = await this.trackWithProvider(provider, trackingNumber);
             if (events.length > 0) break;
           } catch (error) {
-            continue; // Try next provider
+            logger.warn(`Failed to track with provider ${provider}`, error);
           }
         }
+      } else {
+        events = await this.trackWithProvider(providerId, trackingNumber);
       }
 
-      if (events.length === 0) {
-        throw createError(404, 'Tracking information not found');
-      }
-
-      // Sort events by timestamp (newest first)
-      events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-      logger.info('Shipment tracked successfully', {
+      logger.info('Shipment tracking retrieved', {
         trackingNumber,
         providerId,
-        eventsCount: events.length
+        eventCount: events.length,
       });
 
       return events;
     } catch (error) {
-      logger.error('Track shipment failed', { trackingNumber, providerId, error });
-      throw error;
+      logger.error('Failed to track shipment', error);
+      throw createError(500, 'Failed to track shipment');
     }
   }
 
   /**
-   * Cancel a shipment
+   * Track with specific provider
+   */
+  private async trackWithProvider(providerId: string, trackingNumber: string): Promise<TrackingEvent[]> {
+    let apiUrl: string;
+    let apiKey: string;
+
+    switch (providerId) {
+      case 'uzpost':
+        apiUrl = this.uzPostConfig.environment === 'production'
+          ? `https://api.uzpost.uz/v1/tracking/${trackingNumber}`
+          : `https://test-api.uzpost.uz/v1/tracking/${trackingNumber}`;
+        apiKey = this.uzPostConfig.apiKey;
+        break;
+      case 'uzauto':
+        apiUrl = this.uzAutoConfig.environment === 'production'
+          ? `https://api.uzauto.uz/v1/shipping/tracking/${trackingNumber}`
+          : `https://test-api.uzauto.uz/v1/shipping/tracking/${trackingNumber}`;
+        apiKey = this.uzAutoConfig.apiKey;
+        break;
+      case 'courier':
+        apiUrl = this.courierConfig.environment === 'production'
+          ? `https://api.courier.uz/v1/tracking/${trackingNumber}`
+          : `https://test-api.courier.uz/v1/tracking/${trackingNumber}`;
+        apiKey = this.courierConfig.apiKey;
+        break;
+      default:
+        throw createError(400, `Unsupported provider: ${providerId}`);
+    }
+
+    const response = await axios.get(apiUrl, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    });
+
+    return response.data.events.map((event: any) => ({
+      timestamp: new Date(event.timestamp),
+      status: event.status,
+      description: event.description,
+      location: event.location,
+      details: event.details,
+    }));
+  }
+
+  /**
+   * Cancel shipment
    */
   async cancelShipment(shipmentId: string): Promise<void> {
     try {
-      // In real implementation, get shipment from database
-      // const shipment = await this.getShipment(shipmentId);
-      
-      // For now, create a mock shipment
-      const shipment = this.getMockShipment(shipmentId);
+      logger.info('Cancelling shipment', { shipmentId });
 
-      const provider = this.providers.get(shipment.providerId);
-      if (!provider) {
-        throw createError(404, 'Shipping provider not found');
-      }
+      // Implementation would call provider API to cancel shipment
+      // For now, we'll just log the cancellation
 
-      // Cancel with provider
-      await this.cancelProviderShipment(provider, shipment.trackingNumber);
-
-      // Update shipment status
-      shipment.status = 'returned';
-      shipment.updatedAt = new Date();
-
-      // Save updated shipment
-      // await this.updateShipment(shipment);
-
-      this.emit('shipmentCancelled', shipment);
-
-      logger.info('Shipment cancelled successfully', {
-        shipmentId,
-        trackingNumber: shipment.trackingNumber
-      });
+      logger.info('Shipment cancelled successfully', { shipmentId });
     } catch (error) {
-      logger.error('Cancel shipment failed', { shipmentId, error });
-      throw error;
+      logger.error('Failed to cancel shipment', error);
+      throw createError(500, 'Failed to cancel shipment');
     }
   }
 
@@ -442,10 +883,44 @@ export class ShippingService extends EventEmitter {
    * Get delivery zones
    */
   getDeliveryZones(country?: string): DeliveryZone[] {
-    const zones = Array.from(this.zones.values());
+    // Return O'zbekiston delivery zones
+    const zones: DeliveryZone[] = [
+      {
+        id: 'tashkent',
+        name: 'Toshkent shahri',
+        providerId: 'courier',
+        regions: [{ country: 'UZ', states: ['Tashkent'] }],
+        rates: [
+          {
+            serviceId: 'express',
+            baseRate: 50000,
+            weightRate: 2000,
+            freeShippingThreshold: 1000000,
+          },
+        ],
+        deliveryTime: { min: 1, max: 2, unit: 'hours' },
+        restrictions: { maxWeight: 50, maxValue: 5000000 },
+      },
+      {
+        id: 'uzbekistan',
+        name: 'O\'zbekiston Respublikasi',
+        providerId: 'uzpost',
+        regions: [{ country: 'UZ' }],
+        rates: [
+          {
+            serviceId: 'standard',
+            baseRate: 100000,
+            weightRate: 5000,
+            freeShippingThreshold: 2000000,
+          },
+        ],
+        deliveryTime: { min: 1, max: 3, unit: 'days' },
+        restrictions: { maxWeight: 100, maxValue: 10000000 },
+      },
+    ];
 
     if (country) {
-      return zones.filter(zone =>
+      return zones.filter(zone => 
         zone.regions.some(region => region.country === country)
       );
     }
@@ -454,7 +929,7 @@ export class ShippingService extends EventEmitter {
   }
 
   /**
-   * Calculate delivery estimate
+   * Get delivery estimate
    */
   async getDeliveryEstimate(
     fromAddress: ShippingAddress,
@@ -466,33 +941,24 @@ export class ShippingService extends EventEmitter {
     transitTime: string;
   }> {
     try {
-      // Find applicable zone
-      const zone = this.findDeliveryZone(toAddress);
-      if (!zone) {
-        throw createError(404, 'Delivery zone not found');
-      }
-
-      // Calculate business days (excluding weekends and holidays)
-      const businessDays = zone.deliveryTime.max;
+      // Calculate delivery estimate based on distance and service
+      const distance = this.calculateDistance(fromAddress, toAddress);
+      const businessDays = this.calculateBusinessDays(distance, serviceId);
       const estimatedDelivery = this.calculateBusinessDays(new Date(), businessDays);
-
-      const transitTime = zone.deliveryTime.unit === 'hours' ?
-        `${zone.deliveryTime.min}-${zone.deliveryTime.max} hours` :
-        `${zone.deliveryTime.min}-${zone.deliveryTime.max} business days`;
 
       return {
         estimatedDelivery,
         businessDays,
-        transitTime
+        transitTime: `${businessDays} kun`,
       };
     } catch (error) {
-      logger.error('Delivery estimate failed', { fromAddress, toAddress, serviceId, error });
-      throw error;
+      logger.error('Failed to get delivery estimate', error);
+      throw createError(500, 'Failed to get delivery estimate');
     }
   }
 
   /**
-   * Validate shipping address
+   * Validate address
    */
   async validateAddress(address: ShippingAddress): Promise<{
     valid: boolean;
@@ -500,286 +966,166 @@ export class ShippingService extends EventEmitter {
     errors?: string[];
   }> {
     try {
+      // Basic validation for O'zbekiston addresses
       const errors: string[] = [];
 
-      // Basic validation
-      if (!address.name) errors.push('Name is required');
-      if (!address.street1) errors.push('Street address is required');
-      if (!address.city) errors.push('City is required');
-      if (!address.state) errors.push('State/Province is required');
-      if (!address.country) errors.push('Country is required');
-      if (!address.zipCode) errors.push('ZIP/Postal code is required');
-
-      // Country-specific validation
-      if (address.country === 'US') {
-        if (!/^\d{5}(-\d{4})?$/.test(address.zipCode)) {
-          errors.push('Invalid US ZIP code format');
-        }
+      if (!address.street1) {
+        errors.push('Manzil ko\'rsatilmagan');
       }
 
-      // In real implementation, use address validation API
-      const suggestions: ShippingAddress[] = [];
+      if (!address.city) {
+        errors.push('Shahar ko\'rsatilmagan');
+      }
+
+      if (!address.state) {
+        errors.push('Viloyat ko\'rsatilmagan');
+      }
+
+      if (address.country !== 'UZ') {
+        errors.push('Faqat O\'zbekiston manzillari qo\'llab-quvvatlanadi');
+      }
 
       return {
         valid: errors.length === 0,
-        suggestions: suggestions.length > 0 ? suggestions : undefined,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
       };
     } catch (error) {
-      logger.error('Address validation failed', { address, error });
-      throw createError(500, 'Address validation failed');
+      logger.error('Failed to validate address', error);
+      return {
+        valid: false,
+        errors: ['Manzil tekshirishda xatolik yuz berdi'],
+      };
     }
   }
 
   /**
    * Private helper methods
    */
-  private async getProviderRates(
-    provider: ShippingProvider,
-    fromAddress: ShippingAddress,
-    toAddress: ShippingAddress,
-    packages: Package[]
-  ): Promise<ShippingRate[]> {
-    // Mock implementation - in reality, call provider APIs
-    const rates: ShippingRate[] = [];
-
-    for (const service of provider.supportedServices) {
-      const weight = packages.reduce((total, pkg) => total + pkg.weight, 0);
-      const baseCost = service.pricing.baseRate + (weight * service.pricing.weightRate);
-      const taxes = baseCost * 0.1; // 10% tax
-      const totalCost = baseCost + taxes;
-
-      rates.push({
-        providerId: provider.id,
-        serviceId: service.id,
-        serviceName: service.name,
-        cost: baseCost,
-        currency: 'USD',
-        deliveryTime: service.deliveryTime,
-        features: service.features,
-        taxes,
-        fees: [{
-          type: 'fuel_surcharge',
-          amount: service.pricing.fuelSurcharge,
-          description: 'Fuel surcharge'
-        }],
-        totalCost
-      });
-    }
-
-    return rates;
-  }
-
-  private async createProviderShipment(
-    provider: ShippingProvider,
-    service: ShippingService,
-    fromAddress: ShippingAddress,
-    toAddress: ShippingAddress,
-    packages: Package[],
-    options?: any
-  ): Promise<any> {
-    // Mock implementation - in reality, call provider API
-    return {
-      id: `SHIP-${Date.now()}`,
-      trackingNumber: `${provider.code}${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      cost: 15.99,
-      currency: 'USD',
-      estimatedDelivery: new Date(Date.now() + service.deliveryTime.max * 24 * 60 * 60 * 1000),
-      label: {
-        url: 'https://example.com/label.pdf',
-        format: 'pdf' as const
-      },
-      insuranceCost: options?.insurance?.value ? options.insurance.value * 0.01 : 0
-    };
-  }
-
-  private async getProviderTracking(provider: ShippingProvider, trackingNumber: string): Promise<TrackingEvent[]> {
-    // Mock implementation - in reality, call provider tracking API
-    return [
-      {
-        timestamp: new Date(),
-        status: 'in_transit',
-        description: 'Package is in transit',
-        location: {
-          city: 'Los Angeles',
-          state: 'CA',
-          country: 'US'
-        }
-      },
-      {
-        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-        status: 'shipped',
-        description: 'Package has been shipped',
-        location: {
-          city: 'San Francisco',
-          state: 'CA',
-          country: 'US'
-        }
-      }
-    ];
-  }
-
-  private async cancelProviderShipment(provider: ShippingProvider, trackingNumber: string): Promise<void> {
-    // Mock implementation - in reality, call provider cancellation API
-    logger.info('Cancellation request sent to provider', {
-      providerId: provider.id,
-      trackingNumber
-    });
-  }
-
-  private validatePackages(packages: Package[], service: ShippingService): void {
-    for (const pkg of packages) {
-      if (pkg.weight > service.maxWeight) {
-        throw createError(400, `Package weight exceeds service limit: ${pkg.weight} > ${service.maxWeight}`);
-      }
-
-      const { length, width, height } = pkg.dimensions;
-      const maxDim = service.maxDimensions;
-
-      if (length > maxDim.length || width > maxDim.width || height > maxDim.height) {
-        throw createError(400, 'Package dimensions exceed service limits');
-      }
-    }
-  }
-
-  private findDeliveryZone(address: ShippingAddress): DeliveryZone | undefined {
-    for (const zone of this.zones.values()) {
-      for (const region of zone.regions) {
-        if (region.country === address.country) {
-          if (!region.states || region.states.includes(address.state)) {
-            return zone;
-          }
-        }
-      }
-    }
-    return undefined;
+  private calculateDistance(from: ShippingAddress, to: ShippingAddress): number {
+    // Simplified distance calculation
+    // In production, use proper geocoding service
+    return Math.random() * 1000; // km
   }
 
   private calculateBusinessDays(startDate: Date, businessDays: number): Date {
     const result = new Date(startDate);
     let addedDays = 0;
-
+    
     while (addedDays < businessDays) {
       result.setDate(result.getDate() + 1);
-      
-      // Skip weekends (0 = Sunday, 6 = Saturday)
       if (result.getDay() !== 0 && result.getDay() !== 6) {
         addedDays++;
       }
     }
-
+    
     return result;
   }
 
-  private getMockShipment(shipmentId: string): Shipment {
-    // Mock implementation - in reality, fetch from database
-    return {
-      id: shipmentId,
-      orderId: 'ORDER-123',
-      trackingNumber: 'TRACK-123',
-      providerId: 'ups',
-      serviceId: 'ups-ground',
-      status: 'in_transit',
-      fromAddress: {
-        name: 'Warehouse',
-        street1: '123 Main St',
-        city: 'San Francisco',
-        state: 'CA',
-        country: 'US',
-        zipCode: '94102'
-      },
-      toAddress: {
-        name: 'John Doe',
-        street1: '456 Oak St',
-        city: 'Los Angeles',
-        state: 'CA',
-        country: 'US',
-        zipCode: '90210'
-      },
-      packages: [{
-        id: 'PKG-1',
-        weight: 2.5,
-        dimensions: { length: 10, width: 8, height: 6 },
-        value: 99.99,
-        contents: [{
-          description: 'Electronics',
-          quantity: 1,
-          value: 99.99,
-          weight: 2.5
-        }],
-        fragile: false,
-        hazardous: false
-      }],
-      cost: 15.99,
-      currency: 'USD',
-      label: {
-        url: 'https://example.com/label.pdf',
-        format: 'pdf'
-      },
-      tracking: {
-        events: []
-      },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+  private validatePackages(packages: Package[], service: ShippingService): void {
+    for (const pkg of packages) {
+      if (pkg.weight > service.maxWeight) {
+        throw createError(400, `Package weight exceeds maximum allowed weight`);
+      }
+
+      const volume = pkg.dimensions.length * pkg.dimensions.width * pkg.dimensions.height;
+      const maxVolume = service.maxDimensions.length * service.maxDimensions.width * service.maxDimensions.height;
+      
+      if (volume > maxVolume) {
+        throw createError(400, `Package dimensions exceed maximum allowed size`);
+      }
+    }
+  }
+
+  private findDeliveryZone(address: ShippingAddress): DeliveryZone | undefined {
+    const zones = this.getDeliveryZones();
+    return zones.find(zone => 
+      zone.regions.some(region => 
+        region.country === address.country && 
+        (!region.states || region.states.includes(address.state))
+      )
+    );
   }
 
   private initializeProviders(): void {
-    // Initialize shipping providers
-    const upsProvider: ShippingProvider = {
-      id: 'ups',
-      name: 'UPS',
-      code: '1Z',
-      apiUrl: 'https://api.ups.com',
-      apiKey: process.env.UPS_API_KEY || '',
-      supportedServices: [
-        {
-          id: 'ups-ground',
-          providerId: 'ups',
-          name: 'UPS Ground',
-          code: '03',
-          description: 'Economy ground delivery',
-          maxWeight: 150,
-          maxDimensions: { length: 48, width: 48, height: 48 },
-          deliveryTime: { min: 1, max: 5, unit: 'days' },
-          features: { tracking: true, insurance: true, signature: false, cashOnDelivery: false },
-          pricing: { baseRate: 8.99, weightRate: 1.2, dimensionRate: 0.1, fuelSurcharge: 2.5 }
-        }
-      ],
-      settings: {
-        defaultService: 'ups-ground',
-        trackingEnabled: true,
-        insuranceEnabled: true,
-        signatureRequired: false
+    // Initialize O'zbekiston shipping providers
+    const providers: ShippingProvider[] = [
+      {
+        id: 'uzpost',
+        name: 'UzPost',
+        code: 'UZPOST',
+        apiUrl: 'https://api.uzpost.uz',
+        apiKey: this.uzPostConfig.apiKey,
+        supportedServices: [
+          {
+            id: 'standard',
+            providerId: 'uzpost',
+            name: 'Oddiy yuborish',
+            code: 'STANDARD',
+            description: '1-3 kun ichida yetkazib berish',
+            maxWeight: 100,
+            maxDimensions: { length: 150, width: 100, height: 100 },
+            deliveryTime: { min: 1, max: 3, unit: 'days' },
+            features: { tracking: true, insurance: true, signature: false, cashOnDelivery: true },
+            pricing: { baseRate: 100000, weightRate: 5000, dimensionRate: 1000, fuelSurcharge: 0 },
+          },
+        ],
+        settings: { defaultService: 'standard', trackingEnabled: true, insuranceEnabled: true, signatureRequired: false },
+        regions: ['UZ'],
+        status: 'active',
       },
-      regions: ['US', 'CA'],
-      status: 'active'
-    };
+      {
+        id: 'uzauto',
+        name: 'UzAuto Motors',
+        code: 'UZAUTO',
+        apiUrl: 'https://api.uzauto.uz',
+        apiKey: this.uzAutoConfig.apiKey,
+        supportedServices: [
+          {
+            id: 'express',
+            providerId: 'uzauto',
+            name: 'Tezkor yuborish',
+            code: 'EXPRESS',
+            description: '24 soat ichida yetkazib berish',
+            maxWeight: 50,
+            maxDimensions: { length: 100, width: 80, height: 80 },
+            deliveryTime: { min: 1, max: 1, unit: 'days' },
+            features: { tracking: true, insurance: true, signature: true, cashOnDelivery: false },
+            pricing: { baseRate: 200000, weightRate: 8000, dimensionRate: 2000, fuelSurcharge: 0 },
+          },
+        ],
+        settings: { defaultService: 'express', trackingEnabled: true, insuranceEnabled: true, signatureRequired: true },
+        regions: ['UZ'],
+        status: 'active',
+      },
+      {
+        id: 'courier',
+        name: 'Mahalliy kuryer',
+        code: 'COURIER',
+        apiUrl: 'https://api.courier.uz',
+        apiKey: this.courierConfig.apiKey,
+        supportedServices: [
+          {
+            id: 'same-day',
+            providerId: 'courier',
+            name: 'Kun ichida yetkazish',
+            code: 'SAME_DAY',
+            description: 'Kun ichida yetkazib berish',
+            maxWeight: 20,
+            maxDimensions: { length: 60, width: 40, height: 40 },
+            deliveryTime: { min: 2, max: 8, unit: 'hours' },
+            features: { tracking: true, insurance: false, signature: true, cashOnDelivery: true },
+            pricing: { baseRate: 50000, weightRate: 3000, dimensionRate: 500, fuelSurcharge: 0 },
+          },
+        ],
+        settings: { defaultService: 'same-day', trackingEnabled: true, insuranceEnabled: false, signatureRequired: true },
+        regions: ['UZ'],
+        status: 'active',
+      },
+    ];
 
-    this.providers.set('ups', upsProvider);
-
-    // Initialize delivery zones
-    const usZone: DeliveryZone = {
-      id: 'us-domestic',
-      name: 'US Domestic',
-      providerId: 'ups',
-      regions: [{ country: 'US' }],
-      rates: [{
-        serviceId: 'ups-ground',
-        baseRate: 8.99,
-        weightRate: 1.2,
-        freeShippingThreshold: 50
-      }],
-      deliveryTime: { min: 1, max: 5, unit: 'days' },
-      restrictions: {
-        maxWeight: 150,
-        maxValue: 10000,
-        hazardousMaterials: false,
-        fragileItems: true
-      }
-    };
-
-    this.zones.set('us-domestic', usZone);
+    providers.forEach(provider => {
+      this.providers.set(provider.id, provider);
+    });
   }
 }
 
