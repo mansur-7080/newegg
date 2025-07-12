@@ -21,7 +21,7 @@ export interface SecurityConfig {
     methods: string[];
   };
   helmet: {
-    contentSecurityPolicy: boolean;
+    contentSecurityPolicy: Parameters<typeof helmet.contentSecurityPolicy>[0];
     crossOriginEmbedderPolicy: boolean;
   };
   compression: {
@@ -81,7 +81,8 @@ export class SecurityMiddleware {
    */
   applySecurityMiddleware(app: any): void {
     // Security headers
-    app.use(helmet(this.config.helmet));
+    app.use(helmet({ crossOriginEmbedderPolicy: this.config.helmet.crossOriginEmbedderPolicy }));
+    app.use(helmet.contentSecurityPolicy(this.config.helmet.contentSecurityPolicy));
 
     // CORS configuration
     app.use(cors(this.config.cors));
@@ -124,20 +125,17 @@ export class SecurityMiddleware {
       keyGenerator: (req: Request) => {
         return req.ip || req.connection.remoteAddress || 'unknown';
       },
-      onLimitReached: (req: Request) => {
-        const clientIP = req.ip || req.connection.remoteAddress;
-        this.suspiciousIPs.add(clientIP);
-        
-        logger.warn('Rate limit exceeded', {
-          ip: clientIP,
-          userAgent: req.get('User-Agent'),
-          endpoint: req.path,
-          method: req.method,
-        });
-
-        // Block IP after multiple rate limit violations
-        this.checkForIPBlocking(clientIP);
-      },
+      // onLimitReached: (req: Request) => {
+      //   const clientIP = req.ip || req.connection.remoteAddress;
+      //   this.suspiciousIPs.add(clientIP);
+      //   logger.warn('Rate limit exceeded', {
+      //     ip: clientIP,
+      //     userAgent: req.get('User-Agent'),
+      //     endpoint: req.path,
+      //     method: req.method,
+      //   });
+      //   this.checkForIPBlocking(clientIP);
+      // },
     });
   }
 
