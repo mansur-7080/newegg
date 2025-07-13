@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@types/nodemailer": "^6.4.17",
     "@types/ua-parser-js": "^0.7.39",
     "@ultramarket/shared": "file:../../../libs/shared",
     "bcryptjs": "^2.4.3",
@@ -29,6 +30,7 @@
     "express-validator": "^7.2.1",
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.5",
     "ua-parser-js": "^2.0.4",
     "winston": "^3.17.0"
   },

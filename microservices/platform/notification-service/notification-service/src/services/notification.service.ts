@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
-import { logger } from '@ultramarket/common';
+import { logger } from '../utils/logger';
 import { PrismaClient } from '@prisma/client';
+import axios from 'axios';
 
 const prisma = new PrismaClient();
 
@@ -64,33 +65,20 @@ export class NotificationService {
     this.loadTemplates();
   }
 
-  /**
-   * Initialize email service
-   */
   private initializeEmailService(): void {
-    if (process.env.NODE_ENV === 'production') {
-      this.emailTransporter = nodemailer.createTransporter({
-        service: process.env.EMAIL_SERVICE || 'sendgrid',
-        auth: {
-          user: process.env.EMAIL_USER || '',
-          pass: process.env.EMAIL_PASS || '',
-        },
-      });
-    } else {
-      this.emailTransporter = nodemailer.createTransporter({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.ETHEREAL_USER || 'test@example.com',
-          pass: process.env.ETHEREAL_PASS || 'test123',
-        },
-      });
-    }
+    this.emailTransporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT || '587'),
+      secure: process.env.EMAIL_SECURE === 'true',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
   }
 
   /**
-   * Send notification
+   * Send notification based on type
    */
   async sendNotification(payload: NotificationPayload): Promise<void> {
     try {
@@ -101,40 +89,78 @@ export class NotificationService {
         priority: payload.priority,
       });
 
-      // Store notification in database
-      const notification = await prisma.notification.create({
-        data: {
-          userId: payload.userId,
-          type: payload.type,
-          template: payload.template,
-          data: payload.data,
-          priority: payload.priority,
-          status: 'pending',
-          scheduledAt: payload.scheduledAt,
-          metadata: payload.metadata,
-        },
-      });
-
-      // Send by specified channels or default
-      const channels = payload.channels || [payload.type];
-
-      for (const channel of channels) {
-        await this.sendByChannel(channel, payload);
+      // Check user preferences
+      const preferences = await this.getUserPreferences(payload.userId);
+      
+      // Schedule notification if needed
+      if (payload.scheduledAt && payload.scheduledAt > new Date()) {
+        await this.scheduleNotification(payload);
+        return;
       }
 
-      // Update notification status
-      await prisma.notification.update({
-        where: { id: notification.id },
-        data: { status: 'sent', sentAt: new Date() },
-      });
+      // Send notification based on type
+      switch (payload.type) {
+        case 'email':
+          if (preferences.emailEnabled) {
+            const userEmail = await this.getUserEmail(payload.userId);
+            await this.sendEmail({
+              to: userEmail,
+              subject: payload.data.subject || 'Notification',
+              template: payload.template,
+              data: payload.data,
+            });
+          }
+          break;
+
+        case 'sms':
+          if (preferences.smsEnabled) {
+            const userPhone = await this.getUserPhone(payload.userId);
+            await this.sendSMS({
+              to: userPhone,
+              message: payload.data.message || '',
+              template: payload.template,
+              data: payload.data,
+            });
+          }
+          break;
+
+        case 'push':
+          if (preferences.pushEnabled) {
+            await this.sendPush({
+              userId: payload.userId,
+              title: payload.data.title || 'Notification',
+              body: payload.data.body || '',
+              data: payload.data,
+            });
+          }
+          break;
+
+        case 'in-app':
+                     await this.sendInApp({
+             userId: payload.userId,
+             title: payload.data.title || 'Notification',
+             message: payload.data.message || '',
+             type: payload.data.type || 'info',
+             actionUrl: payload.data.actionUrl,
+             actionText: payload.data.actionText,
+             metadata: payload.metadata || {},
+           });
+          break;
+      }
+
+      // Store notification history
+      await this.storeNotificationHistory(payload);
 
       logger.info('Notification sent successfully', {
-        notificationId: notification.id,
         userId: payload.userId,
-        channels,
+        type: payload.type,
       });
     } catch (error) {
-      logger.error('Failed to send notification', error);
+      logger.error('Failed to send notification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: payload.userId,
+        type: payload.type,
+      });
       throw error;
     }
   }
@@ -144,34 +170,28 @@ export class NotificationService {
    */
   async sendEmail(notification: EmailNotification): Promise<void> {
     try {
-      const template = this.templates.get(notification.template);
-      if (!template) {
-        throw new Error(`Email template '${notification.template}' not found`);
-      }
-
-      const subject = this.renderTemplate(template.subject, notification.data);
-      const html = this.renderTemplate(template.html, notification.data);
-      const text = this.renderTemplate(template.text, notification.data);
-
+      const template = this.renderTemplate(notification.template, notification.data);
+      
       const mailOptions = {
-        from: process.env.EMAIL_FROM || 'noreply@ultramarket.com',
+        from: process.env.EMAIL_FROM || 'noreply@ultramarket.uz',
         to: notification.to,
-        subject,
-        html,
-        text,
+        subject: notification.subject,
+        html: template,
         attachments: notification.attachments,
       };
 
       const info = await this.emailTransporter.sendMail(mailOptions);
-
+      
       logger.info('Email sent successfully', {
-        messageId: info.messageId,
         to: notification.to,
-        subject,
-        template: notification.template,
+        subject: notification.subject,
+        messageId: info.messageId,
       });
     } catch (error) {
-      logger.error('Failed to send email', error);
+      logger.error('Failed to send email', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        to: notification.to,
+      });
       throw error;
     }
   }
@@ -181,21 +201,172 @@ export class NotificationService {
    */
   async sendSMS(notification: SMSNotification): Promise<void> {
     try {
-      // SMS service integration (e.g., Twilio, Nexmo)
-      // For now, we'll log the SMS
-      logger.info('SMS notification', {
-        to: notification.to,
-        message: notification.message,
-        template: notification.template,
-      });
+      // Validate phone number format
+      if (!this.isValidUzbekPhoneNumber(notification.to)) {
+        throw new Error('Invalid Uzbekistan phone number format');
+      }
 
-      // TODO: Integrate with SMS provider
-      // const smsProvider = new SMSProvider();
-      // await smsProvider.send(notification.to, notification.message);
+      // Use ESKIZ SMS service for Uzbekistan
+      const response = await this.sendSMSViaEskiz(notification);
+      
+      if (response.success) {
+        logger.info('SMS sent successfully', {
+          to: notification.to,
+          provider: 'eskiz',
+          messageId: response.messageId,
+        });
+      } else {
+        // Fallback to Play Mobile
+        const fallbackResponse = await this.sendSMSViaPlayMobile(notification);
+        
+        if (fallbackResponse.success) {
+          logger.info('SMS sent successfully via fallback', {
+            to: notification.to,
+            provider: 'playmobile',
+            messageId: fallbackResponse.messageId,
+          });
+        } else {
+          throw new Error('Failed to send SMS via all providers');
+        }
+      }
     } catch (error) {
-      logger.error('Failed to send SMS', error);
+      logger.error('Failed to send SMS', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        to: notification.to,
+      });
       throw error;
     }
+  }
+
+  /**
+   * Send SMS via ESKIZ service
+   */
+  private async sendSMSViaEskiz(notification: SMSNotification): Promise<{
+    success: boolean;
+    messageId?: string;
+    error?: string;
+  }> {
+    try {
+      const token = await this.getEskizToken();
+      
+      const response = await axios.post(
+        'https://notify.eskiz.uz/api/message/sms/send',
+        {
+          mobile_phone: notification.to,
+          message: notification.message,
+          from: process.env.ESKIZ_FROM || 'UltraMarket',
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.data.status === 'success') {
+        return {
+          success: true,
+          messageId: response.data.id,
+        };
+      } else {
+        return {
+          success: false,
+          error: response.data.message || 'Unknown error',
+        };
+      }
+    } catch (error) {
+      logger.error('ESKIZ SMS failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        to: notification.to,
+      });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Send SMS via Play Mobile service
+   */
+  private async sendSMSViaPlayMobile(notification: SMSNotification): Promise<{
+    success: boolean;
+    messageId?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await axios.post(
+        'https://api.playmobile.uz/v1/sms/send',
+        {
+          phone: notification.to,
+          text: notification.message,
+          sender: process.env.PLAYMOBILE_SENDER || 'UltraMarket',
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.PLAYMOBILE_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.data.success) {
+        return {
+          success: true,
+          messageId: response.data.id,
+        };
+      } else {
+        return {
+          success: false,
+          error: response.data.message || 'Unknown error',
+        };
+      }
+    } catch (error) {
+      logger.error('Play Mobile SMS failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        to: notification.to,
+      });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Get ESKIZ authentication token
+   */
+  private async getEskizToken(): Promise<string> {
+    try {
+      const response = await axios.post(
+        'https://notify.eskiz.uz/api/auth/login',
+        {
+          email: process.env.ESKIZ_EMAIL,
+          password: process.env.ESKIZ_PASSWORD,
+        }
+      );
+
+      if (response.data.token_type === 'Bearer') {
+        return response.data.data.token;
+      } else {
+        throw new Error('Failed to get ESKIZ token');
+      }
+    } catch (error) {
+      logger.error('Failed to get ESKIZ token', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Validate Uzbekistan phone number
+   */
+  private isValidUzbekPhoneNumber(phone: string): boolean {
+    // Uzbekistan phone number pattern: +998XXXXXXXXX
+    const pattern = /^\+998[0-9]{9}$/;
+    return pattern.test(phone);
   }
 
   /**
@@ -203,19 +374,114 @@ export class NotificationService {
    */
   async sendPush(notification: PushNotification): Promise<void> {
     try {
-      // Push notification service integration (e.g., Firebase, OneSignal)
-      logger.info('Push notification', {
+      // Get user's device tokens
+      const deviceTokens = await this.getUserDeviceTokens(notification.userId);
+      
+      if (deviceTokens.length === 0) {
+        logger.warn('No device tokens found for user', {
+          userId: notification.userId,
+        });
+        return;
+      }
+
+      // Send via Firebase Cloud Messaging
+      await this.sendPushViaFirebase(notification, deviceTokens);
+      
+      logger.info('Push notification sent successfully', {
         userId: notification.userId,
         title: notification.title,
-        body: notification.body,
+        deviceCount: deviceTokens.length,
+      });
+    } catch (error) {
+      logger.error('Failed to send push notification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: notification.userId,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Send push notification via Firebase
+   */
+  private async sendPushViaFirebase(
+    notification: PushNotification,
+    deviceTokens: string[]
+  ): Promise<void> {
+    try {
+      const fcmPayload = {
+        notification: {
+          title: notification.title,
+          body: notification.body,
+          icon: notification.icon || '/icon-192x192.png',
+        },
+        data: notification.data || {},
+        tokens: deviceTokens,
+      };
+
+      const response = await axios.post(
+        'https://fcm.googleapis.com/v1/projects/ultramarket-app/messages:send',
+        {
+          message: fcmPayload,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${await this.getFirebaseToken()}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.data.success_count > 0) {
+        logger.info('Firebase push sent successfully', {
+          successCount: response.data.success_count,
+          failureCount: response.data.failure_count,
+        });
+      } else {
+        throw new Error('All push notifications failed');
+      }
+    } catch (error) {
+      logger.error('Firebase push failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: notification.userId,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get Firebase authentication token
+   */
+  private async getFirebaseToken(): Promise<string> {
+    // In production, use Firebase Admin SDK
+    // For now, return environment variable
+    return process.env.FIREBASE_SERVER_KEY || '';
+  }
+
+  /**
+   * Get user's device tokens
+   */
+  private async getUserDeviceTokens(userId: string): Promise<string[]> {
+    try {
+      const devices = await prisma.userDevice.findMany({
+        where: {
+          userId,
+          isActive: true,
+        },
+        select: {
+          fcmToken: true,
+        },
       });
 
-      // TODO: Integrate with push notification provider
-      // const pushProvider = new PushNotificationProvider();
-      // await pushProvider.send(notification);
+             return devices
+         .filter((device: any) => device.fcmToken)
+         .map((device: any) => device.fcmToken!);
     } catch (error) {
-      logger.error('Failed to send push notification', error);
-      throw error;
+      logger.error('Failed to get user device tokens', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId,
+      });
+      return [];
     }
   }
 
@@ -235,17 +501,50 @@ export class NotificationService {
           actionText: notification.actionText,
           metadata: notification.metadata,
           isRead: false,
+          createdAt: new Date(),
         },
       });
 
-      logger.info('In-app notification created', {
+      // Send real-time notification via WebSocket
+      await this.sendRealTimeNotification(notification);
+
+      logger.info('In-app notification sent successfully', {
         userId: notification.userId,
         title: notification.title,
-        type: notification.type,
       });
     } catch (error) {
-      logger.error('Failed to send in-app notification', error);
+      logger.error('Failed to send in-app notification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: notification.userId,
+      });
       throw error;
+    }
+  }
+
+  /**
+   * Send real-time notification via WebSocket
+   */
+  private async sendRealTimeNotification(notification: InAppNotification): Promise<void> {
+    try {
+      // Send to WebSocket service
+      await axios.post(`${process.env.WEBSOCKET_SERVICE_URL}/send`, {
+        userId: notification.userId,
+        event: 'notification',
+        data: {
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          actionUrl: notification.actionUrl,
+          actionText: notification.actionText,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to send real-time notification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: notification.userId,
+      });
+      // Don't throw error, WebSocket failure shouldn't break notification
     }
   }
 
@@ -254,18 +553,25 @@ export class NotificationService {
    */
   async sendBulkNotifications(notifications: NotificationPayload[]): Promise<void> {
     try {
-      logger.info('Sending bulk notifications', {
-        count: notifications.length,
-      });
+      const promises = notifications.map(notification => 
+        this.sendNotification(notification).catch(error => {
+          logger.error('Bulk notification failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            userId: notification.userId,
+          });
+        })
+      );
 
-      const promises = notifications.map((notification) => this.sendNotification(notification));
-      await Promise.all(promises);
-
-      logger.info('Bulk notifications sent successfully', {
+      await Promise.allSettled(promises);
+      
+      logger.info('Bulk notifications processed', {
         count: notifications.length,
       });
     } catch (error) {
-      logger.error('Failed to send bulk notifications', error);
+      logger.error('Bulk notifications failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        count: notifications.length,
+      });
       throw error;
     }
   }
@@ -279,27 +585,25 @@ export class NotificationService {
         where: { userId },
       });
 
-      if (!preferences) {
-        // Create default preferences
-        return await prisma.userNotificationPreferences.create({
-          data: {
-            userId,
-            emailEnabled: true,
-            smsEnabled: true,
-            pushEnabled: true,
-            inAppEnabled: true,
-            marketingEnabled: true,
-            orderUpdates: true,
-            promotions: true,
-            securityAlerts: true,
-          },
-        });
-      }
-
-      return preferences;
+      return preferences || {
+        emailEnabled: true,
+        smsEnabled: true,
+        pushEnabled: true,
+        marketingEnabled: true,
+      };
     } catch (error) {
-      logger.error('Failed to get user preferences', error);
-      throw error;
+      logger.error('Failed to get user preferences', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId,
+      });
+      
+      // Return default preferences
+      return {
+        emailEnabled: true,
+        smsEnabled: true,
+        pushEnabled: true,
+        marketingEnabled: true,
+      };
     }
   }
 
@@ -317,9 +621,15 @@ export class NotificationService {
         },
       });
 
-      logger.info('User notification preferences updated', { userId });
+      logger.info('User preferences updated', {
+        userId,
+        preferences,
+      });
     } catch (error) {
-      logger.error('Failed to update user preferences', error);
+      logger.error('Failed to update user preferences', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId,
+      });
       throw error;
     }
   }
@@ -332,21 +642,26 @@ export class NotificationService {
     options: { limit?: number; offset?: number; type?: string }
   ): Promise<any[]> {
     try {
+      const { limit = 50, offset = 0, type } = options;
+      
       const where: any = { userId };
-      if (options.type) {
-        where.type = options.type;
+      if (type) {
+        where.type = type;
       }
 
-      const notifications = await prisma.notification.findMany({
+      const notifications = await prisma.notificationHistory.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        take: options.limit || 50,
-        skip: options.offset || 0,
+        take: limit,
+        skip: offset,
       });
 
       return notifications;
     } catch (error) {
-      logger.error('Failed to get notification history:', error);
+      logger.error('Failed to get notification history', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId,
+      });
       return [];
     }
   }
@@ -356,7 +671,7 @@ export class NotificationService {
    */
   async markAsRead(userId: string, notificationId: string): Promise<void> {
     try {
-      await prisma.notification.updateMany({
+      await prisma.inAppNotification.update({
         where: {
           id: notificationId,
           userId,
@@ -367,181 +682,188 @@ export class NotificationService {
         },
       });
 
-      logger.info('Notification marked as read', { userId, notificationId });
+      logger.info('Notification marked as read', {
+        userId,
+        notificationId,
+      });
     } catch (error) {
-      logger.error('Failed to mark notification as read', error);
+      logger.error('Failed to mark notification as read', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId,
+        notificationId,
+      });
       throw error;
     }
   }
 
   /**
-   * Private helper methods
+   * Send notification by channel
    */
   private async sendByChannel(channel: string, payload: NotificationPayload): Promise<void> {
     switch (channel) {
       case 'email':
-        await this.sendEmail({
-          to: await this.getUserEmail(payload.userId),
-          subject: '',
-          template: payload.template,
-          data: payload.data,
-        });
+        await this.sendNotification({ ...payload, type: 'email' });
         break;
-
       case 'sms':
-        await this.sendSMS({
-          to: await this.getUserPhone(payload.userId),
-          message: '',
-          template: payload.template,
-          data: payload.data,
-        });
+        await this.sendNotification({ ...payload, type: 'sms' });
         break;
-
       case 'push':
-        await this.sendPush({
-          userId: payload.userId,
-          title: payload.data.title || 'Notification',
-          body: payload.data.message || '',
-          data: payload.data,
-        });
+        await this.sendNotification({ ...payload, type: 'push' });
         break;
-
       case 'in-app':
-        await this.sendInApp({
-          userId: payload.userId,
-          title: payload.data.title || 'Notification',
-          message: payload.data.message || '',
-          type: payload.data.type || 'info',
-          metadata: payload.metadata,
-        });
+        await this.sendNotification({ ...payload, type: 'in-app' });
         break;
-
       default:
-        logger.warn('Unknown notification channel:', channel);
+        logger.warn('Unknown notification channel', { channel });
     }
   }
 
-  private createEmailTransporter(): nodemailer.Transporter {
-    if (process.env.NODE_ENV === 'production') {
-      return nodemailer.createTransporter({
-        service: process.env.EMAIL_SERVICE || 'sendgrid',
-        auth: {
-          user: process.env.EMAIL_USER || '',
-          pass: process.env.EMAIL_PASS || '',
-        },
-      });
-    } else {
-      return nodemailer.createTransporter({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.ETHEREAL_USER || 'test@example.com',
-          pass: process.env.ETHEREAL_PASS || 'test123',
-        },
-      });
-    }
-  }
+  /**
+   * Create email transporter
+   */
+     private createEmailTransporter(): nodemailer.Transporter {
+     return nodemailer.createTransport({
+       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+       port: parseInt(process.env.EMAIL_PORT || '587'),
+       secure: process.env.EMAIL_SECURE === 'true',
+       auth: {
+         user: process.env.EMAIL_USER,
+         pass: process.env.EMAIL_PASS,
+       },
+     });
+   }
 
+  /**
+   * Load notification templates
+   */
   private loadTemplates(): void {
-    // Load notification templates
-    this.templates.set('order-confirmation', {
-      subject: 'Buyurtma tasdiqlandi - {{orderNumber}}',
+    // Load email templates
+    this.templates.set('welcome', {
+      subject: 'Xush kelibsiz - UltraMarket',
       html: `
-        <h2>Buyurtmangiz uchun rahmat!</h2>
-        <p>Buyurtma {{orderNumber}} tasdiqlandi.</p>
-        <p>Jami: {{total}}</p>
+        <h2>Xush kelibsiz {{firstName}}!</h2>
+        <p>UltraMarket platformasiga muvaffaqiyatli ro'yxatdan o'tdingiz!</p>
+        <p>Endi siz platformaning barcha imkoniyatlaridan foydalanishingiz mumkin.</p>
       `,
-      text: 'Buyurtmangiz uchun rahmat! Buyurtma {{orderNumber}} tasdiqlandi. Jami: {{total}}',
-      sms: 'Buyurtma {{orderNumber}} tasdiqlandi. Jami: {{total}}',
     });
 
-    this.templates.set('order-shipped', {
-      subject: 'Buyurtmangiz yuborildi - {{orderNumber}}',
+    this.templates.set('order_confirmation', {
+      subject: 'Buyurtma tasdiqlandi - UltraMarket',
       html: `
-        <h2>Buyurtmangiz yo\'lda!</h2>
-        <p>Buyurtma {{orderNumber}} yuborildi.</p>
-        <p>Kuzatish: {{trackingNumber}}</p>
+        <h2>Buyurtma tasdiqlandi</h2>
+        <p>Salom {{firstName}}!</p>
+        <p>Buyurtma #{{orderId}} muvaffaqiyatli tasdiqlandi.</p>
+        <p>Umumiy summa: {{totalAmount}} UZS</p>
       `,
-      text: 'Buyurtma {{orderNumber}} yuborildi. Kuzatish: {{trackingNumber}}',
-      sms: 'Buyurtma {{orderNumber}} yuborildi. Kuzatish: {{trackingNumber}}',
     });
 
-    this.templates.set('password-reset', {
-      subject: 'Parolni tiklash',
+    this.templates.set('payment_completed', {
+      subject: 'To\'lov muvaffaqiyatli amalga oshirildi',
       html: `
-        <h2>Parolni tiklash so\'rovi</h2>
-        <p>Parolni tiklash uchun quyidagi havolani bosing:</p>
-        <a href="{{resetLink}}">Parolni tiklash</a>
+        <h2>To'lov muvaffaqiyatli</h2>
+        <p>Salom {{firstName}}!</p>
+        <p>Buyurtma #{{orderId}} uchun to'lov muvaffaqiyatli amalga oshirildi.</p>
+        <p>To'lov summasi: {{amount}} UZS</p>
       `,
-      text: "Parolni tiklash so'rovi. Havola: {{resetLink}}",
-      sms: 'Parolni tiklash kodi: {{resetCode}}',
     });
   }
 
+  /**
+   * Render notification template
+   */
   private renderTemplate(template: string, data: Record<string, any>): string {
-    let result = template;
-    Object.keys(data).forEach((key) => {
+    const templateData = this.templates.get(template);
+    if (!templateData) {
+      return data.message || 'Notification';
+    }
+
+    let html = templateData.html;
+    Object.keys(data).forEach(key => {
       const regex = new RegExp(`{{${key}}}`, 'g');
-      result = result.replace(regex, data[key]?.toString() || '');
+      html = html.replace(regex, data[key]);
     });
-    return result;
+
+    return html;
   }
 
+  /**
+   * Get user email address
+   */
   private async getUserEmail(userId: string): Promise<string> {
-    // Implementation would fetch from user service
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true },
     });
-    return user?.email || 'user@example.com';
+    return user?.email || '';
   }
 
+  /**
+   * Get user phone number
+   */
   private async getUserPhone(userId: string): Promise<string> {
-    // Implementation would fetch from user service
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { phoneNumber: true },
+      select: { phone: true },
     });
-    return user?.phoneNumber || '+998901234567';
+    return user?.phone || '';
   }
 
+  /**
+   * Schedule notification for later
+   */
   private async scheduleNotification(payload: NotificationPayload): Promise<void> {
-    // Implementation would store in database or queue for later processing
-    await prisma.notification.create({
-      data: {
+    try {
+      await prisma.scheduledNotification.create({
+        data: {
+          userId: payload.userId,
+          type: payload.type,
+          template: payload.template,
+          data: payload.data,
+          priority: payload.priority,
+          scheduledAt: payload.scheduledAt!,
+          status: 'pending',
+          createdAt: new Date(),
+        },
+      });
+
+      logger.info('Notification scheduled', {
         userId: payload.userId,
         type: payload.type,
-        template: payload.template,
-        data: payload.data,
-        priority: payload.priority,
-        status: 'scheduled',
         scheduledAt: payload.scheduledAt,
-        metadata: payload.metadata,
-      },
-    });
-
-    logger.info('Notification scheduled', {
-      userId: payload.userId,
-      scheduledAt: payload.scheduledAt,
-    });
+      });
+    } catch (error) {
+      logger.error('Failed to schedule notification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: payload.userId,
+      });
+      throw error;
+    }
   }
 
+  /**
+   * Store notification in history
+   */
   private async storeNotificationHistory(payload: NotificationPayload): Promise<void> {
-    // Implementation would store in database
-    await prisma.notification.create({
-      data: {
+    try {
+      await prisma.notificationHistory.create({
+        data: {
+          userId: payload.userId,
+          type: payload.type,
+          template: payload.template,
+          data: payload.data,
+          priority: payload.priority,
+          status: 'sent',
+          sentAt: new Date(),
+          createdAt: new Date(),
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to store notification history', {
+        error: error instanceof Error ? error.message : 'Unknown error',
         userId: payload.userId,
-        type: payload.type,
-        template: payload.template,
-        data: payload.data,
-        priority: payload.priority,
-        status: 'sent',
-        metadata: payload.metadata,
-      },
-    });
-
-    logger.debug('Notification history stored', { userId: payload.userId });
+      });
+      // Don't throw error, history failure shouldn't break notification
+    }
   }
 
   /**
@@ -549,10 +871,17 @@ export class NotificationService {
    */
   async healthCheck(): Promise<boolean> {
     try {
+      // Check email service
       await this.emailTransporter.verify();
+      
+      // Check database connection
+      await prisma.$queryRaw`SELECT 1`;
+      
       return true;
     } catch (error) {
-      logger.error('Notification service health check failed:', error);
+      logger.error('Health check failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       return false;
     }
   }
@@ -562,34 +891,51 @@ export class NotificationService {
    */
   async processScheduledNotifications(): Promise<void> {
     try {
-      // Get scheduled notifications that are due
-      const scheduledNotifications = await prisma.notification.findMany({
+      const scheduledNotifications = await prisma.scheduledNotification.findMany({
         where: {
-          status: 'scheduled',
+          status: 'pending',
           scheduledAt: {
             lte: new Date(),
           },
         },
+        take: 100,
       });
 
-      for (const notification of scheduledNotifications) {
-        await this.sendNotification({
-          userId: notification.userId,
-          type: notification.type as any,
-          template: notification.template,
-          data: notification.data as Record<string, any>,
-          priority: notification.priority as any,
-          metadata: notification.metadata as Record<string, any>,
-        });
+      for (const scheduled of scheduledNotifications) {
+        try {
+          await this.sendNotification({
+            userId: scheduled.userId,
+            type: scheduled.type as any,
+            template: scheduled.template,
+            data: scheduled.data as any,
+            priority: scheduled.priority as any,
+          });
+
+          await prisma.scheduledNotification.update({
+            where: { id: scheduled.id },
+            data: {
+              status: 'sent',
+              sentAt: new Date(),
+            },
+          });
+        } catch (error) {
+          await prisma.scheduledNotification.update({
+            where: { id: scheduled.id },
+            data: {
+              status: 'failed',
+              error: error instanceof Error ? error.message : 'Unknown error',
+            },
+          });
+        }
       }
 
-      logger.info('Processing scheduled notifications', {
+      logger.info('Scheduled notifications processed', {
         count: scheduledNotifications.length,
       });
     } catch (error) {
-      logger.error('Failed to process scheduled notifications', error);
+      logger.error('Failed to process scheduled notifications', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
   }
 }
-
-export const notificationService = new NotificationService();

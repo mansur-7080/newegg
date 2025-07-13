@@ -128,6 +128,7 @@
     "@nestjs/throttler": "^4.0.0",
     "@nestjs/typeorm": "^10.0.0",
     "@nestjs/websockets": "^10.0.0",
+    "@prisma/client": "^6.11.1",
     "@types/ioredis": "^4.28.10",
     "@types/joi": "^17.2.3",
     "@types/winston": "^2.4.4",
