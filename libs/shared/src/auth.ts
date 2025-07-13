@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { randomBytes, createHash } from 'crypto';
 import { JwtPayload, TokenPair, UserRole } from './types';
 import { UnauthorizedError } from './errors';
 import { JWT_EXPIRY } from './constants';
@@ -87,20 +88,35 @@ export const isSeller = (userRole: UserRole): boolean => {
 
 // Generate random tokens
 export const generateRandomToken = (length = 32): string => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let token = '';
-  for (let i = 0; i < length; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
+  // Use cryptographically secure random bytes instead of Math.random()
+  const bytes = randomBytes(Math.ceil(length * 0.75)); // Base64 encoding efficiency
+  return bytes.toString('base64')
+    .replace(/[+/]/g, '') // Remove URL-unsafe characters
+    .slice(0, length);
 };
 
 export const generateOTP = (length = 6): string => {
+  // Use cryptographically secure random for OTP generation
+  const bytes = randomBytes(length);
   let otp = '';
   for (let i = 0; i < length; i++) {
-    otp += Math.floor(Math.random() * 10).toString();
+    otp += (bytes[i] % 10).toString();
   }
   return otp;
+};
+
+export const generateSecureSessionId = (): string => {
+  // Generate cryptographically secure session ID
+  return randomBytes(32).toString('hex');
+};
+
+export const generateCSRFToken = (): string => {
+  // Generate CSRF token with timestamp
+  const timestamp = Date.now().toString();
+  const randomPart = randomBytes(16).toString('hex');
+  return createHash('sha256')
+    .update(timestamp + randomPart)
+    .digest('hex');
 };
 
 // Session management

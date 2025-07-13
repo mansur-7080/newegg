@@ -1,23 +1,40 @@
 /**
  * UltraMarket Enhanced Product Service Demo Script
  * This script demonstrates the capabilities of the enhanced product service
+ * NOTE: This file should be removed in production builds
  */
 
-console.log('===================================================');
-console.log('=== UltraMarket Enhanced Product Service Demo ====');
-console.log('===================================================');
-console.log('\nInitializing product service...');
+const winston = require('winston');
+
+// Configure logger for demo
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.simple()
+    })
+  ]
+});
+
+logger.info('===================================================');
+logger.info('=== UltraMarket Enhanced Product Service Demo ====');
+logger.info('===================================================');
+logger.info('Initializing product service...');
 
 // This is a mock demonstration of what the service can do
 class DemoProductService {
   constructor() {
-    console.log('- Connected to database');
-    console.log('- Initialized caching layer (Memory + Redis)');
-    console.log('- Service ready');
+    logger.info('- Connected to database');
+    logger.info('- Initialized caching layer (Memory + Redis)');
+    logger.info('- Service ready');
   }
 
   async getProducts() {
-    console.log('\n✓ Getting products with filtering and pagination');
+    logger.info('✓ Getting products with filtering and pagination');
     return {
       products: [
         { id: 'prod_1', name: 'Gaming Laptop XPS Pro', price: 1299.99, category: 'Laptops' },
@@ -32,95 +49,93 @@ class DemoProductService {
   }
 
   async searchProducts(query) {
-    console.log(`\n✓ Searching for products matching: "${query}"`);
+    logger.info(`✓ Searching for products matching: "${query}"`);
     return {
       products: [
-        { id: 'prod_1', name: 'Gaming Laptop XPS Pro', price: 1299.99, category: 'Laptops' },
+        { id: 'prod_1', name: 'Gaming Laptop XPS Pro', price: 1299.99, relevanceScore: 0.95 },
       ],
       total: 1,
       page: 1,
       limit: 10,
-      pages: 1,
+      searchTime: '12ms',
     };
   }
 
   async getCategories() {
-    console.log('\n✓ Getting product categories');
+    logger.info('✓ Getting product categories');
     return [
-      { id: 'cat_1', name: 'Laptops', productCount: 12 },
-      { id: 'cat_2', name: 'Peripherals', productCount: 25 },
-      { id: 'cat_3', name: 'Monitors', productCount: 8 },
+      { id: 'cat_1', name: 'Laptops', productCount: 25 },
+      { id: 'cat_2', name: 'Peripherals', productCount: 45 },
+      { id: 'cat_3', name: 'Monitors', productCount: 18 },
     ];
   }
 
   async getFeaturedProducts() {
-    console.log('\n✓ Getting featured products (cached)');
+    logger.info('✓ Getting featured products (cached)');
     return [
-      { id: 'prod_4', name: 'Premium Gaming Headset', price: 129.99, category: 'Audio' },
-      { id: 'prod_5', name: 'Mechanical RGB Keyboard', price: 89.99, category: 'Peripherals' },
+      { id: 'prod_1', name: 'Gaming Laptop XPS Pro', price: 1299.99, featured: true },
+      { id: 'prod_3', name: '4K Ultra HD Monitor', price: 349.99, featured: true },
     ];
   }
 
   async createProduct(product) {
-    console.log('\n✓ Creating new product with validation');
-    console.log('- Validating product data');
-    console.log('- Checking for duplicate SKU');
-    console.log('- Generating slug');
-    console.log('- Creating product in database');
-    console.log('- Invalidating cache');
-
+    logger.info('✓ Creating new product with validation');
+    logger.info('- Validating product data');
+    logger.info('- Checking for duplicate SKU');
+    logger.info('- Generating slug');
+    logger.info('- Creating product in database');
+    logger.info('- Invalidating cache');
     return {
-      id: 'prod_6',
-      name: product.name,
-      price: product.price,
-      createdAt: new Date(),
+      id: 'prod_new',
       ...product,
+      createdAt: new Date().toISOString(),
     };
   }
 }
 
-// Run the demo
 async function runDemo() {
-  const service = new DemoProductService();
+  try {
+    const productService = new DemoProductService();
 
-  // Demonstrate key features
-  console.log('\n==== DEMONSTRATION OF KEY FEATURES ====');
+    // Demonstrate key features
+    logger.info('==== DEMONSTRATION OF KEY FEATURES ====');
 
-  // Product listing with filtering
-  const products = await service.getProducts();
-  console.log(`- Found ${products.total} products`);
-  console.log('- Sample:', products.products[0].name);
+    const products = await productService.getProducts();
+    logger.info(`- Found ${products.total} products`);
+    logger.info('- Sample:', products.products[0].name);
 
-  // Product search
-  const searchResults = await service.searchProducts('gaming');
-  console.log(`- Found ${searchResults.total} matching products`);
+    const searchResults = await productService.searchProducts('gaming laptop');
+    logger.info(`- Found ${searchResults.total} matching products`);
 
-  // Categories
-  const categories = await service.getCategories();
-  console.log(`- Found ${categories.length} categories`);
+    const categories = await productService.getCategories();
+    logger.info(`- Found ${categories.length} categories`);
 
-  // Featured products
-  const featured = await service.getFeaturedProducts();
-  console.log(`- Found ${featured.length} featured products`);
+    const featured = await productService.getFeaturedProducts();
+    logger.info(`- Found ${featured.length} featured products`);
 
-  // Create product
-  const newProduct = await service.createProduct({
-    name: 'Ultra HD Webcam',
-    sku: 'WEB-UHD-1080',
-    price: 79.99,
-    description: 'Professional quality webcam with 1080p resolution',
-    categoryId: 'cat_2',
-  });
-  console.log(`- Created new product: ${newProduct.name} (ID: ${newProduct.id})`);
+    const newProduct = await productService.createProduct({
+      name: 'Demo Product',
+      price: 99.99,
+      category: 'Demo',
+    });
+    logger.info(`- Created new product: ${newProduct.name} (ID: ${newProduct.id})`);
 
-  console.log('\n==== SERVICE ADVANTAGES ====');
-  console.log('✅ Multi-level caching for improved performance');
-  console.log('✅ Optimized SQL queries via Prisma ORM');
-  console.log('✅ Comprehensive validation and error handling');
-  console.log('✅ Advanced search and filtering capabilities');
-  console.log('✅ Robust API for frontend integration');
+    logger.info('==== SERVICE ADVANTAGES ====');
+    logger.info('✅ Multi-level caching for improved performance');
+    logger.info('✅ Optimized SQL queries via Prisma ORM');
+    logger.info('✅ Comprehensive validation and error handling');
+    logger.info('✅ Advanced search and filtering capabilities');
+    logger.info('✅ Robust API for frontend integration');
 
-  console.log('\n==== DEMO COMPLETE ====');
+    logger.info('==== DEMO COMPLETE ====');
+  } catch (error) {
+    logger.error('Demo execution failed:', error);
+  }
 }
 
-runDemo().catch(console.error);
+// Only run demo in development environment
+if (process.env.NODE_ENV === 'development') {
+  runDemo();
+} else {
+  logger.warn('Demo script should not run in production environment');
+}

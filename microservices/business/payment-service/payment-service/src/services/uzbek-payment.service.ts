@@ -1,5 +1,6 @@
 import axios from 'axios';
 import crypto from 'crypto';
+import { logger } from '../utils/logger';
 
 export interface UzbekPaymentRequest {
   amount: number;
@@ -150,7 +151,11 @@ export class UzbekPaymentService {
       // To'lov statusini yangilash
       if (data.action === 1) {
         // To'lov tasdiqlandi
-        console.log(`Click payment confirmed: ${data.click_trans_id}`);
+        logger.info('Click payment confirmed', {
+          transactionId: data.click_trans_id,
+          amount: data.amount,
+          timestamp: new Date().toISOString()
+        });
       }
 
       return { success: true, message: 'Webhook processed' };

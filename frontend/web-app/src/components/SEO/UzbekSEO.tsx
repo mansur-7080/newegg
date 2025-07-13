@@ -1,5 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
+import DOMPurify from 'dompurify';
 
 interface SEOProps {
   title?: string;
@@ -215,6 +216,33 @@ const UzbekSEO: React.FC<SEOProps> = ({
     breadcrumb: generateBreadcrumbStructuredData(),
   };
 
+  // Sanitize and validate structured data
+  const sanitizeStructuredData = (data: any): string => {
+    try {
+      // Validate that data is a proper object
+      if (typeof data !== 'object' || data === null) {
+        return '{}';
+      }
+      
+      // Convert to JSON string
+      const jsonString = JSON.stringify(data, null, 2);
+      
+      // Sanitize the JSON string to prevent XSS
+      const sanitized = DOMPurify.sanitize(jsonString, {
+        ALLOWED_TAGS: [],
+        ALLOWED_ATTR: []
+      });
+      
+      // Validate that it's still valid JSON after sanitization
+      JSON.parse(sanitized);
+      
+      return sanitized;
+    } catch (error) {
+      console.warn('Invalid structured data provided:', error);
+      return '{}';
+    }
+  };
+
   return (
     <Helmet>
       {/* Basic Meta Tags */}
@@ -307,7 +335,7 @@ const UzbekSEO: React.FC<SEOProps> = ({
         </>
       )}
 
-      {/* Structured Data */}
+      {/* Structured Data with proper sanitization */}
       {Object.entries(finalStructuredData).map(
         ([key, data]) =>
           data && (
@@ -315,7 +343,7 @@ const UzbekSEO: React.FC<SEOProps> = ({
               key={key}
               type="application/ld+json"
               dangerouslySetInnerHTML={{
-                __html: JSON.stringify(data, null, 2),
+                __html: sanitizeStructuredData(data),
               }}
             />
           )

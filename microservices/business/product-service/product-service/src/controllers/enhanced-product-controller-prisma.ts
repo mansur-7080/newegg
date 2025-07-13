@@ -12,6 +12,7 @@ import {
   ProductCreateInput,
   ProductUpdateInput,
 } from '../types/product.types';
+import { logger } from '../utils/logger';
 
 /**
  * EnhancedProductController provides REST API endpoints for product management
@@ -79,6 +80,13 @@ export class EnhancedProductControllerPrisma {
 
       res.json(result);
     } catch (error) {
+      logger.error('Product controller error', {
+        error: error.message,
+        stack: error.stack,
+        controller: 'ProductController',
+        method: 'getProducts',
+        timestamp: new Date().toISOString()
+      });
       this.handleError(error, res);
     }
   };

@@ -55,6 +55,7 @@ foreach ($Service in $AllServices) {
         
         # Fayllarni ko'chirish
         $FilesRecovered = 0
+        $ErrorCount = 0
         
         # src papkasini ko'chirish
         try {
@@ -63,14 +64,16 @@ foreach ($Service in $AllServices) {
                 $FilesRecovered++
                 Write-Host "  ✅ src papkasi ko'chirildi" -ForegroundColor Green
             } else {
-                # Boshqa yo'llarni sinab ko'rish
                 docker cp "${ContainerName}:/app/${Service}/src" $ServiceDir 2>$null
                 if ($LASTEXITCODE -eq 0) {
                     $FilesRecovered++
                     Write-Host "  ✅ src papkasi ko'chirildi" -ForegroundColor Green
                 }
             }
-        } catch { }
+        } catch {
+            Write-Warning "  ⚠️ src papkasini ko'chirishda xatolik: $_"
+            $ErrorCount++
+        }
         
         # package.json ko'chirish
         try {
@@ -83,7 +86,10 @@ foreach ($Service in $AllServices) {
                     $FilesRecovered++
                 }
             }
-        } catch { }
+        } catch {
+            Write-Warning "  ⚠️ package.json ko'chirishda xatolik: $_"
+            $ErrorCount++
+        }
         
         # tsconfig.json ko'chirish
         try {
@@ -96,7 +102,10 @@ foreach ($Service in $AllServices) {
                     $FilesRecovered++
                 }
             }
-        } catch { }
+        } catch {
+            Write-Warning "  ⚠️ tsconfig.json ko'chirishda xatolik: $_"
+            $ErrorCount++
+        }
         
         # prisma papkasini ko'chirish
         try {
@@ -109,7 +118,10 @@ foreach ($Service in $AllServices) {
                     $FilesRecovered++
                 }
             }
-        } catch { }
+        } catch {
+            Write-Warning "  ⚠️ prisma papkasini ko'chirishda xatolik: $_"
+            $ErrorCount++
+        }
         
         # Dockerfile ko'chirish
         try {
@@ -117,7 +129,10 @@ foreach ($Service in $AllServices) {
             if ($LASTEXITCODE -eq 0) {
                 $FilesRecovered++
             }
-        } catch { }
+        } catch {
+            Write-Warning "  ⚠️ Dockerfile ko'chirishda xatolik: $_"
+            $ErrorCount++
+        }
         
         if ($FilesRecovered -gt 0) {
             Write-Host "  📦 $FilesRecovered xil fayl turi tiklandi" -ForegroundColor Green

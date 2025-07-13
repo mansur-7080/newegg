@@ -2,6 +2,8 @@
  * Custom Error Classes for Review Service
  */
 
+import { logger } from './logger';
+
 export class ApiError extends Error {
   public statusCode: number;
   public isOperational: boolean;
@@ -177,11 +179,11 @@ export const formatErrorResponse = (error: ApiError) => {
 
 // Error logging utility
 export const logError = (error: Error, context?: any) => {
-  const errorInfo = {
-    name: error.name,
+  const errorInfo: any = {
     message: error.message,
     stack: error.stack,
-    ...context,
+    timestamp: new Date().toISOString(),
+    context,
   };
 
   if (error instanceof ApiError) {
@@ -191,7 +193,8 @@ export const logError = (error: Error, context?: any) => {
     errorInfo.details = error.details;
   }
 
-  console.error('Error occurred:', errorInfo);
+  // Use structured logging instead of console.error
+  logger.error('Application error occurred', errorInfo);
 };
 
 // Validation error formatter

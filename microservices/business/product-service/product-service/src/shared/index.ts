@@ -60,13 +60,38 @@ const extractTokenFromHeader = (header: string): string | null => {
   return header.split(' ')[1];
 };
 
+// Environment validation
+const validateEnvironment = () => {
+  const jwtSecret = process.env.JWT_SECRET;
+  
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  
+  if (jwtSecret.length < 32) {
+    throw new Error('JWT_SECRET must be at least 32 characters long for security');
+  }
+  
+  if (jwtSecret === 'default-jwt-secret-key' || jwtSecret === 'your_jwt_secret') {
+    throw new Error('JWT_SECRET cannot use default values in production');
+  }
+  
+  return jwtSecret;
+};
+
 const verifyAccessToken = (token: string): JwtPayload => {
   try {
-    const secret = process.env.JWT_SECRET || 'default-jwt-secret-key';
+    const secret = validateEnvironment();
     const payload = jwt.verify(token, secret) as JwtPayload;
     return payload;
   } catch (error) {
-    throw new UnauthorizedError('Invalid token', { error });
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw new UnauthorizedError('Invalid token format', { error: error.message });
+    }
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new UnauthorizedError('Token has expired', { error: error.message });
+    }
+    throw new UnauthorizedError('Token verification failed', { error });
   }
 };
 

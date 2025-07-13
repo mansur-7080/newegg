@@ -1,6 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { ForbiddenError, UnauthorizedError } from '../utils/errors';
+import { UnauthorizedError } from '../utils/errors';
+
+// Environment validation for JWT secret
+const getJWTSecret = (): string => {
+  const secret = process.env.JWT_SECRET;
+  
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  
+  if (secret.length < 32) {
+    throw new Error('JWT_SECRET must be at least 32 characters long');
+  }
+  
+  if (secret === 'default_secret_key_for_development' || secret === 'your_jwt_secret') {
+    throw new Error('JWT_SECRET cannot use default values in production');
+  }
+  
+  return secret;
+};
 
 export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
@@ -11,7 +30,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const secret = process.env.JWT_SECRET || 'default_secret_key_for_development';
+    const secret = getJWTSecret();
     const decoded = jwt.verify(token, secret) as any;
 
     req.user = {
@@ -21,27 +40,22 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     };
 
     next();
-  } catch (error: any) {
-    if (error.name === 'TokenExpiredError') {
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) {
+      return next(new UnauthorizedError('Invalid token format'));
+    }
+    if (error instanceof jwt.TokenExpiredError) {
       return next(new UnauthorizedError('Token has expired'));
     }
-
-    return next(new UnauthorizedError('Invalid token'));
+    return next(new UnauthorizedError('Token verification failed'));
   }
 };
 
 export const authorizeRoles = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return next(new UnauthorizedError('User not authenticated'));
+    if (!req.user || !roles.includes(req.user.role)) {
+      return next(new UnauthorizedError('Insufficient permissions'));
     }
-
-    if (!roles.includes(req.user.role)) {
-      return next(
-        new ForbiddenError(`Role ${req.user.role} is not authorized to access this resource`)
-      );
-    }
-
     next();
   };
 };
