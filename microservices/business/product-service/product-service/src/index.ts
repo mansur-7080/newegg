@@ -71,7 +71,10 @@ app.use((req, res, next) => {
 });
 
 // Configure CORS with secure settings
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  process.env.ADMIN_URL || 'http://localhost:3001'
+];
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -315,8 +318,8 @@ const server = app.listen(PORT, async () => {
 
     logger.info(`🚀 Product Service running on port ${PORT}`);
     logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-    logger.info(`🔗 Health check: http://localhost:${PORT}/api/v1/health`);
+    logger.info(`📚 API Documentation: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api-docs`);
+    logger.info(`🔗 Health check: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/health`);
     logger.info(`💾 MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Not configured'}`);
   } catch (error) {
     logger.error('Failed to start Product Service:', error);

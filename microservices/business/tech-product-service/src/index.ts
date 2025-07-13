@@ -6,10 +6,32 @@ import { TechProductController } from './controllers/tech-product.controller';
 import { SpecsComparisonController } from './controllers/specs-comparison.controller';
 import { PCBuilderController } from './controllers/pc-builder.controller';
 import { TechCategoryController } from './controllers/tech-category.controller';
-import { errorHandler, logger } from './middleware';
+import { errorHandler } from './middleware';
+import winston from 'winston';
 
 const app = express();
 const PORT = process.env.PORT || 3020;
+
+// Configure logger
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'tech-product-service' },
+  transports: [
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' })
+  ]
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple()
+  }));
+}
 
 // Middleware
 app.use(helmet());
@@ -97,11 +119,10 @@ app.use('*', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🔧 Tech Product Service running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🖥️ PC Builder API: http://localhost:${PORT}/api/v1/pc-builder`);
-  console.log(`⚖️ Comparison API: http://localhost:${PORT}/api/v1/compare`);
-});
+logger.info(`� Tech Product Service running on port ${PORT}`);
+logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+logger.info(`📊 Health check: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/health`);
+logger.info(`🖥️ PC Builder API: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/pc-builder`);
+logger.info(`⚖️ Comparison API: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/compare`);
 
 export default app;

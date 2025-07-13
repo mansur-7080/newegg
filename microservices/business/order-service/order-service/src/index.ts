@@ -41,7 +41,10 @@ const PORT = process.env.PORT || 3005;
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      process.env.ADMIN_URL || 'http://localhost:3001'
+    ],
     credentials: true,
   })
 );
@@ -120,11 +123,11 @@ const server = app.listen(PORT, async () => {
 
     logger.info(`🚀 Order Service running on port ${PORT}`);
     logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-    logger.info(`🔗 Health check: http://localhost:${PORT}/api/v1/health`);
-    logger.info(`🛒 Orders: http://localhost:${PORT}/api/v1/orders`);
-    logger.info(`💳 Payments: http://localhost:${PORT}/api/v1/payments`);
-    logger.info(`🔗 Webhooks: http://localhost:${PORT}/api/v1/webhooks`);
+    logger.info(`📚 API Documentation: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api-docs`);
+    logger.info(`🔗 Health check: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/health`);
+    logger.info(`🛒 Orders: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/orders`);
+    logger.info(`💳 Payments: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/payments`);
+    logger.info(`🔗 Webhooks: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/webhooks`);
     logger.info(`💾 Database: PostgreSQL Connected`);
   } catch (error) {
     logger.error('Failed to start Order Service:', error);

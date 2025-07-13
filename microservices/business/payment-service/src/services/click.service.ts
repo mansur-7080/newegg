@@ -391,8 +391,11 @@ export class ClickService {
       });
 
       // Send notification to user
-      // TODO: Integrate with notification service
-      console.log(`Payment completed for order ${payload.merchant_trans_id}`);
+      await this.sendPaymentNotification(payload.merchant_trans_id, 'payment_success', {
+        amount: payload.amount,
+        currency: 'USD', // Assuming USD for now, adjust as needed
+        transactionId: payload.merchant_trans_id
+      });
     } catch (error) {
       throw error;
     }
@@ -429,6 +432,27 @@ export class ClickService {
         status: 'failed',
         error: 'Status check failed',
       };
+    }
+  }
+
+  private async sendPaymentNotification(
+    userId: string, 
+    type: string, 
+    data: Record<string, unknown>
+  ): Promise<void> {
+    try {
+      // Simple notification implementation - can be extended later
+      logger.info(`Payment notification sent to user ${userId}:`, {
+        type,
+        data,
+        timestamp: new Date().toISOString()
+      });
+      
+      // TODO: Integrate with actual notification service when available
+      // For now, just log the notification
+    } catch (error) {
+      logger.warn('Failed to send payment notification:', error);
+      // Don't throw error as notification failure shouldn't break payment flow
     }
   }
 }

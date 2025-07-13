@@ -2,58 +2,70 @@
  * Custom Error Classes for Review Service
  */
 
+export interface ErrorDetails {
+  field?: string;
+  value?: unknown;
+  message?: string;
+  code?: string;
+  validationErrors?: ValidationErrorDetails[];
+}
+
+export interface ValidationErrorDetails {
+  field: string;
+  value: unknown;
+  message: string;
+}
+
 export class ApiError extends Error {
   public statusCode: number;
   public isOperational: boolean;
-  public code?: string;
-  public details?: any;
-
+  public code: string;
+  public details?: ErrorDetails;
+  
   constructor(
     message: string,
     statusCode: number = 500,
     isOperational: boolean = true,
-    code?: string,
-    details?: any
+    code: string = 'INTERNAL_ERROR',
+    details?: ErrorDetails
   ) {
     super(message);
-    this.name = this.constructor.name;
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     this.code = code;
     this.details = details;
-
-    // Capture stack trace
+    
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
 export class ValidationError extends ApiError {
-  constructor(message: string, details?: any) {
-    super(message, 400, true, 'VALIDATION_ERROR', details);
+  constructor(message: string, details?: ValidationErrorDetails[]) {
+    super(message, 400, true, 'VALIDATION_ERROR', { validationErrors: details });
+  }
+}
+
+export class AuthenticationError extends ApiError {
+  constructor(message: string = 'Authentication failed') {
+    super(message, 401, true, 'AUTHENTICATION_ERROR');
+  }
+}
+
+export class AuthorizationError extends ApiError {
+  constructor(message: string = 'Access denied') {
+    super(message, 403, true, 'AUTHORIZATION_ERROR');
   }
 }
 
 export class NotFoundError extends ApiError {
-  constructor(resource: string = 'Resource') {
-    super(`${resource} not found`, 404, true, 'NOT_FOUND');
-  }
-}
-
-export class UnauthorizedError extends ApiError {
-  constructor(message: string = 'Unauthorized access') {
-    super(message, 401, true, 'UNAUTHORIZED');
-  }
-}
-
-export class ForbiddenError extends ApiError {
-  constructor(message: string = 'Forbidden access') {
-    super(message, 403, true, 'FORBIDDEN');
+  constructor(message: string = 'Resource not found') {
+    super(message, 404, true, 'NOT_FOUND');
   }
 }
 
 export class ConflictError extends ApiError {
-  constructor(message: string, details?: any) {
-    super(message, 409, true, 'CONFLICT', details);
+  constructor(message: string = 'Resource conflict') {
+    super(message, 409, true, 'CONFLICT');
   }
 }
 
@@ -64,20 +76,26 @@ export class TooManyRequestsError extends ApiError {
 }
 
 export class DatabaseError extends ApiError {
-  constructor(message: string = 'Database operation failed', details?: any) {
+  constructor(message: string = 'Database operation failed', details?: ErrorDetails) {
     super(message, 500, true, 'DATABASE_ERROR', details);
   }
 }
 
 export class ExternalServiceError extends ApiError {
-  constructor(service: string, message?: string, details?: any) {
+  constructor(service: string, message?: string, details?: ErrorDetails) {
     super(
-      message || `External service ${service} is unavailable`,
-      503,
+      message || `External service error: ${service}`,
+      502,
       true,
       'EXTERNAL_SERVICE_ERROR',
-      { service, ...details }
+      details
     );
+  }
+}
+
+export class PaymentError extends ApiError {
+  constructor(message: string, statusCode: number = 400, details?: ErrorDetails) {
+    super(message, statusCode, true, 'PAYMENT_ERROR', details);
   }
 }
 
@@ -100,7 +118,7 @@ export class ReviewAlreadyExistsError extends ConflictError {
   }
 }
 
-export class ReviewPermissionError extends ForbiddenError {
+export class ReviewPermissionError extends AuthorizationError {
   constructor(action: string = 'perform this action') {
     super(`You don't have permission to ${action} on this review`);
   }
@@ -130,79 +148,105 @@ export class ReviewReplyError extends ApiError {
   }
 }
 
-// Error handler utility functions
-export const handleDatabaseError = (error: any): ApiError => {
+// Error codes mapping
+export const ERROR_CODES = {
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  AUTHENTICATION_ERROR: 'AUTHENTICATION_ERROR',
+  AUTHORIZATION_ERROR: 'AUTHORIZATION_ERROR',
+  NOT_FOUND: 'NOT_FOUND',
+  CONFLICT: 'CONFLICT',
+  TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
+  DATABASE_ERROR: 'DATABASE_ERROR',
+  EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
+  PAYMENT_ERROR: 'PAYMENT_ERROR',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  REVIEW_ERROR: 'REVIEW_ERROR',
+  REVIEW_MODERATION_ERROR: 'REVIEW_MODERATION_ERROR',
+  REVIEW_VOTING_ERROR: 'REVIEW_VOTING_ERROR',
+  REVIEW_FLAG_ERROR: 'REVIEW_FLAG_ERROR',
+  REVIEW_REPLY_ERROR: 'REVIEW_REPLY_ERROR',
+} as const;
+
+// HTTP status codes mapping
+export const HTTP_STATUS_CODES = {
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  TOO_MANY_REQUESTS: 429,
+  INTERNAL_SERVER_ERROR: 500,
+  BAD_GATEWAY: 502,
+  SERVICE_UNAVAILABLE: 503,
+} as const;
+
+// Database error handler
+export const handleDatabaseError = (error: Error): ApiError => {
   if (error.name === 'ValidationError') {
-    return new ValidationError('Invalid data provided', error.errors);
+    return new ValidationError('Database validation failed');
   }
-
+  
   if (error.name === 'CastError') {
-    return new ValidationError('Invalid ID format');
+    return new ValidationError('Invalid data format');
   }
-
-  if (error.code === 11000) {
-    return new ConflictError('Duplicate entry', error.keyValue);
+  
+  if (error.name === 'MongoError' || error.name === 'MongooseError') {
+    return new DatabaseError('Database operation failed');
   }
-
-  return new DatabaseError('Database operation failed', error.message);
+  
+  return new ApiError('Internal server error', 500, false);
 };
 
-export const handleAsyncError = (fn: Function) => {
+// Global error handler middleware
+export const errorHandler = (logger: any) => {
   return (req: any, res: any, next: any) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+    res.error = (error: ApiError) => {
+      logger.error('API Error:', {
+        message: error.message,
+        statusCode: error.statusCode,
+        code: error.code,
+        stack: error.stack,
+        url: req.url,
+        method: req.method,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      const response: {
+        success: false;
+        error: {
+          message: string;
+          code: string;
+          details?: ErrorDetails;
+        };
+      } = {
+        success: false,
+        error: {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+        },
+      };
+
+      return res.status(error.statusCode).json(response);
+    };
+
+    next();
   };
 };
 
-// Error response formatter
-export const formatErrorResponse = (error: ApiError) => {
-  const response: any = {
-    success: false,
-    error: {
-      message: error.message,
-      code: error.code,
-      statusCode: error.statusCode,
-    },
-  };
-
-  if (error.details) {
-    response.error.details = error.details;
-  }
-
-  if (process.env.NODE_ENV === 'development') {
-    response.error.stack = error.stack;
-  }
-
-  return response;
-};
-
-// Error logging utility
-export const logError = (error: Error, context?: any) => {
-  const errorInfo = {
-    name: error.name,
+// Logging utilities
+export const logError = (error: Error, context?: Record<string, unknown>) => {
+  console.error('Error logged:', {
     message: error.message,
     stack: error.stack,
-    ...context,
-  };
-
-  if (error instanceof ApiError) {
-    errorInfo.statusCode = error.statusCode;
-    errorInfo.code = error.code;
-    errorInfo.isOperational = error.isOperational;
-    errorInfo.details = error.details;
-  }
-
-  console.error('Error occurred:', errorInfo);
+    context,
+  });
 };
 
 // Validation error formatter
-export const formatValidationError = (errors: any[]): ValidationError => {
-  const formattedErrors = errors.map((error) => ({
-    field: error.path || error.field,
-    message: error.message,
-    value: error.value,
-  }));
-
-  return new ValidationError('Validation failed', formattedErrors);
+export const formatValidationError = (errors: ValidationErrorDetails[]): ValidationError => {
+  return new ValidationError('Validation failed', errors);
 };
 
 // HTTP status code utilities
@@ -220,35 +264,3 @@ export const isOperationalError = (error: Error): boolean => {
   }
   return false;
 };
-
-// Error constants
-export const ERROR_CODES = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  NOT_FOUND: 'NOT_FOUND',
-  UNAUTHORIZED: 'UNAUTHORIZED',
-  FORBIDDEN: 'FORBIDDEN',
-  CONFLICT: 'CONFLICT',
-  TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
-  DATABASE_ERROR: 'DATABASE_ERROR',
-  EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
-  REVIEW_ERROR: 'REVIEW_ERROR',
-  REVIEW_MODERATION_ERROR: 'REVIEW_MODERATION_ERROR',
-  REVIEW_VOTING_ERROR: 'REVIEW_VOTING_ERROR',
-  REVIEW_FLAG_ERROR: 'REVIEW_FLAG_ERROR',
-  REVIEW_REPLY_ERROR: 'REVIEW_REPLY_ERROR',
-} as const;
-
-export const HTTP_STATUS = {
-  OK: 200,
-  CREATED: 201,
-  NO_CONTENT: 204,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  CONFLICT: 409,
-  UNPROCESSABLE_ENTITY: 422,
-  TOO_MANY_REQUESTS: 429,
-  INTERNAL_SERVER_ERROR: 500,
-  SERVICE_UNAVAILABLE: 503,
-} as const;

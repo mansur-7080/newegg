@@ -442,16 +442,20 @@ const startServer = async () => {
     // Start queue monitoring
     await queueService.startMonitoring();
 
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      process.env.ADMIN_URL || 'http://localhost:3001'
+    ];
     server.listen(PORT, () => {
       logger.info(`🚀 Inventory Service running on port ${PORT}`);
       logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-      logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-      logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
-      logger.info(`📦 Inventory: http://localhost:${PORT}/api/v1/inventory`);
-      logger.info(`📊 Stock: http://localhost:${PORT}/api/v1/stock`);
-      logger.info(`🚨 Alerts: http://localhost:${PORT}/api/v1/alerts`);
-      logger.info(`📈 Analytics: http://localhost:${PORT}/api/v1/analytics`);
-      logger.info(`🏭 Warehouses: http://localhost:${PORT}/api/v1/warehouses`);
+      logger.info(`📚 API Documentation: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api-docs`);
+      logger.info(`🔗 Health check: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/health`);
+      logger.info(`📦 Inventory: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/inventory`);
+      logger.info(`📊 Stock: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/stock`);
+      logger.info(`🚨 Alerts: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/alerts`);
+      logger.info(`📈 Analytics: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/analytics`);
+      logger.info(`🏭 Warehouses: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/warehouses`);
       logger.info(`⚡ Real-time: WebSocket on port ${PORT}`);
       logger.info(`💾 Database: PostgreSQL Connected`);
       logger.info(`🔄 Cache: Redis Connected`);

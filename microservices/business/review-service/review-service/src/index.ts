@@ -42,7 +42,10 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3010;
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      process.env.ADMIN_URL || 'http://localhost:3001'
+    ],
     credentials: true,
   })
 );
@@ -124,11 +127,11 @@ const server = app.listen(PORT, async () => {
 
     logger.info(`🚀 Review Service running on port ${PORT}`);
     logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-    logger.info(`🔗 Health check: http://localhost:${PORT}/api/v1/health`);
-    logger.info(`⭐ Reviews: http://localhost:${PORT}/api/v1/reviews`);
-    logger.info(`🛡️ Moderation: http://localhost:${PORT}/api/v1/moderation`);
-    logger.info(`📊 Analytics: http://localhost:${PORT}/api/v1/analytics`);
+    logger.info(`📚 API Documentation: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api-docs`);
+    logger.info(`🔗 Health check: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/health`);
+    logger.info(`⭐ Reviews: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/reviews`);
+    logger.info(`🛡️ Moderation: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/moderation`);
+    logger.info(`📊 Analytics: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api/v1/analytics`);
     logger.info(`💾 Database: MongoDB Connected`);
   } catch (error) {
     logger.error('Failed to start Review Service:', error);

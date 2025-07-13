@@ -19,41 +19,60 @@ import { validateToken } from '@ultramarket/shared/auth/jwt';
 validateEnvironmentOnStartup('api-gateway');
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const HOST = process.env.HOST ?? 'localhost';
+const HOST = process.env.HOST ?? '0.0.0.0';
+const PORT = parseInt(process.env.PORT || '3000', 10);
+
+// Service URLs with environment-based fallbacks
+const serviceUrls = {
+  auth: process.env.AUTH_SERVICE_URL || 'http://localhost:3002',
+  user: process.env.USER_SERVICE_URL || 'http://localhost:3001',
+  product: process.env.PRODUCT_SERVICE_URL || 'http://localhost:3003',
+  order: process.env.ORDER_SERVICE_URL || 'http://localhost:3004',
+  payment: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3005',
+  search: process.env.SEARCH_SERVICE_URL || 'http://localhost:3006',
+  notification: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3007',
+  analytics: process.env.ANALYTICS_SERVICE_URL || 'http://localhost:3008',
+};
+
+// CORS origins
+const corsOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  process.env.ADMIN_URL || 'http://localhost:3001',
+  ...(process.env.ALLOWED_ORIGINS?.split(',') || [])
+];
 
 // Service configurations
 const services = {
   auth: {
-    url: process.env.AUTH_SERVICE_URL || 'http://localhost:3002',
+    url: serviceUrls.auth,
     health: '/health',
   },
   user: {
-    url: process.env.USER_SERVICE_URL || 'http://localhost:3001',
+    url: serviceUrls.user,
     health: '/health',
   },
   product: {
-    url: process.env.PRODUCT_SERVICE_URL || 'http://localhost:3003',
+    url: serviceUrls.product,
     health: '/health',
   },
   order: {
-    url: process.env.ORDER_SERVICE_URL || 'http://localhost:3004',
+    url: serviceUrls.order,
     health: '/health',
   },
   payment: {
-    url: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3005',
+    url: serviceUrls.payment,
     health: '/health',
   },
   search: {
-    url: process.env.SEARCH_SERVICE_URL || 'http://localhost:3006',
+    url: serviceUrls.search,
     health: '/health',
   },
   notification: {
-    url: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3007',
+    url: serviceUrls.notification,
     health: '/health',
   },
   analytics: {
-    url: process.env.ANALYTICS_SERVICE_URL || 'http://localhost:3008',
+    url: serviceUrls.analytics,
     health: '/health',
   },
 };
@@ -61,20 +80,13 @@ const services = {
 // Security middleware
 app.use(helmet());
 // Secure CORS configuration
-const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [
-  process.env.FRONTEND_URL || 'http://localhost:3000',
-  process.env.ADMIN_URL || 'http://localhost:3001',
-  process.env.PRODUCTION_URL || 'https://ultramarket.uz',
-  process.env.STAGING_URL || 'https://staging.ultramarket.uz'
-];
-
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or Postman)
       if (!origin) return callback(null, true);
       
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      if (corsOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
         logger.warn('CORS blocked request', { origin });

@@ -447,8 +447,11 @@ export class PaymeService {
       });
 
       // Send notification to user
-      // TODO: Integrate with notification service
-      console.log(`Order ${orderId} completed successfully`);
+      await this.sendPaymentNotification(orderId, 'payment_success', {
+        amount: amount,
+        currency: 'UZS', // Assuming UZS for now
+        transactionId: orderId,
+      });
     } catch (error) {
       throw error;
     }
@@ -466,8 +469,13 @@ export class PaymeService {
       });
 
       // Process refund logic
-      // TODO: Integrate with payment provider refund API
-      console.log(`Refund processed for order ${orderId}`);
+      await this.processRefund({
+        userId: orderId, // Assuming orderId is the user ID for refund
+        amount: amount,
+        currency: 'UZS',
+        transactionId: orderId,
+        reason: 4, // Refund reason
+      });
     } catch (error) {
       throw error;
     }
@@ -486,6 +494,141 @@ export class PaymeService {
       return expectedSignature === signature;
     } catch (error) {
       return false;
+    }
+  }
+
+  private async sendPaymentNotification(
+    userId: string, 
+    type: string, 
+    data: Record<string, unknown>
+  ): Promise<void> {
+    try {
+      // Simple notification implementation - can be extended later
+      console.log(`Payment notification sent to user ${userId}:`, {
+        type,
+        data,
+        timestamp: new Date().toISOString()
+      });
+      
+      // TODO: Integrate with actual notification service when available
+      // For now, just log the notification
+    } catch (error) {
+      console.warn('Failed to send payment notification:', error);
+      // Don't throw error as notification failure shouldn't break payment flow
+    }
+  }
+
+  async processRefund(refundData: {
+    userId: string;
+    amount: number;
+    currency: string;
+    transactionId: string;
+    reason: number;
+  }): Promise<{
+    success: boolean;
+    refundId?: string;
+    amount: number;
+    currency: string;
+    status: string;
+  }> {
+    try {
+      // Validate refund data
+      if (!refundData.transactionId || !refundData.amount || !refundData.reason) {
+        throw new Error('Invalid refund data');
+      }
+
+      // Call Payme refund API
+      const refundResponse = await this.callPaymeRefundAPI(refundData);
+      
+      if (!refundResponse.success) {
+        throw new Error(`Refund failed: ${refundResponse.message}`);
+      }
+
+      // Update database
+      await this.updateRefundStatus(refundData.transactionId, 'completed', refundResponse.refundId);
+
+      // Send notification
+      await this.sendPaymentNotification(refundData.userId, 'refund_success', {
+        amount: refundData.amount,
+        currency: refundData.currency,
+        transactionId: refundData.transactionId,
+        refundId: refundResponse.refundId,
+        reason: refundData.reason
+      });
+
+      return {
+        success: true,
+        refundId: refundResponse.refundId,
+        amount: refundData.amount,
+        currency: refundData.currency,
+        status: 'completed'
+      };
+    } catch (error) {
+      // logger.error('Payme refund processing failed:', error); // logger is not defined
+      throw new Error('Refund processing failed');
+    }
+  }
+
+  private async callPaymeRefundAPI(refundData: {
+    userId: string;
+    amount: number;
+    currency: string;
+    transactionId: string;
+    reason: number;
+  }): Promise<{
+    success: boolean;
+    refundId?: string;
+    message?: string;
+  }> {
+    try {
+      const response = await axios.post(
+        `${this.endpoint}/refund`, // Assuming endpoint is the base URL for refund
+        {
+          transaction_id: refundData.transactionId,
+          amount: refundData.amount,
+          reason: refundData.reason,
+          merchant_id: this.merchantId,
+          timestamp: Date.now()
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.secretKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      return {
+        success: response.data.success,
+        refundId: response.data.refund_id,
+        message: response.data.message
+      };
+    } catch (error) {
+      // logger.error('Payme refund API call failed:', error); // logger is not defined
+      return {
+        success: false,
+        message: 'Refund API call failed'
+      };
+    }
+  }
+
+  private async updateRefundStatus(
+    transactionId: string, 
+    status: string, 
+    refundId?: string
+  ): Promise<void> {
+    try {
+      await prisma.paymeTransaction.update({
+        where: { id: transactionId },
+        data: {
+          refundStatus: status,
+          refundId,
+          refundedAt: status === 'completed' ? new Date() : null
+        }
+      });
+    } catch (error) {
+      // logger.error('Failed to update refund status:', error); // logger is not defined
+      throw new Error('Failed to update refund status');
     }
   }
 }

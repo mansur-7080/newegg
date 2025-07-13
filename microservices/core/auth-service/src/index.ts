@@ -53,9 +53,13 @@ app.use(
 );
 
 // CORS configuration
+const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  process.env.ADMIN_URL || 'http://localhost:3001'
+];
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -150,8 +154,8 @@ const startServer = async () => {
     // Start HTTP server
     app.listen(PORT, () => {
       logger.info(`🚀 Auth Service running on port ${PORT}`);
-      logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-      logger.info(`🏥 Health Check: http://localhost:${PORT}/health`);
+      logger.info(`📚 API Documentation: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/api-docs`);
+      logger.info(`🏥 Health Check: ${process.env.API_BASE_URL || `http://localhost:${PORT}`}/health`);
     });
   } catch (error) {
     logger.error('❌ Failed to start server:', error);
