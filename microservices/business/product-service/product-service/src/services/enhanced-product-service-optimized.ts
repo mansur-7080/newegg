@@ -406,7 +406,7 @@ export class EnhancedProductService {
   }
 
   /**
-   * Get a single product by ID
+   * Get a single product by ID - OPTIMIZED VERSION
    * @param id Product ID
    */
   async getProductById(id: string) {
@@ -423,67 +423,82 @@ export class EnhancedProductService {
         }
       }
 
-      // Fetch the product with a raw query
-      const products = await prisma.$queryRawUnsafe(
-        `
-        SELECT p.*, 
-               c.id as category_id, 
-               c.name as category_name, 
-               c.slug as category_slug
+      // OPTIMIZED: Single query with all related data
+      const productWithRelations = await prisma.$queryRawUnsafe(`
+        SELECT 
+          p.*,
+          c.id as category_id,
+          c.name as category_name,
+          c.slug as category_slug,
+          -- Aggregate images as JSON
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', pi.id,
+                'url', pi.url,
+                'alt', pi.alt,
+                'sort_order', pi.sort_order,
+                'is_main', pi.is_main
+              ) ORDER BY pi.sort_order ASC, pi.is_main DESC
+            ) FILTER (WHERE pi.id IS NOT NULL),
+            '[]'::json
+          ) as images,
+          -- Aggregate inventory as JSON
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', i.id,
+                'quantity', i.quantity,
+                'reserved_quantity', i.reserved_quantity,
+                'available_quantity', i.available_quantity,
+                'warehouse_id', i.warehouse_id
+              )
+            ) FILTER (WHERE i.id IS NOT NULL),
+            '[]'::json
+          ) as inventory,
+          -- Aggregate variants as JSON
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', pv.id,
+                'name', pv.name,
+                'sku', pv.sku,
+                'price', pv.price,
+                'inventory_quantity', vi.quantity
+              )
+            ) FILTER (WHERE pv.id IS NOT NULL),
+            '[]'::json
+          ) as variants,
+          -- Aggregate reviews as JSON
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', r.id,
+                'rating', r.rating,
+                'comment', r.comment,
+                'created_at', r.created_at
+              ) ORDER BY r.created_at DESC
+            ) FILTER (WHERE r.id IS NOT NULL),
+            '[]'::json
+          ) as reviews
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN product_images pi ON p.id = pi.product_id
+        LEFT JOIN inventory i ON p.id = i.product_id
+        LEFT JOIN product_variants pv ON p.id = pv.product_id
+        LEFT JOIN inventory vi ON pv.id = vi.variant_id
+        LEFT JOIN reviews r ON p.id = r.product_id
         WHERE p.id = ?
-      `,
-        id
-      );
+        GROUP BY p.id, c.id, c.name, c.slug
+      `, id);
 
-      if (!products || (products as any[]).length === 0) {
+      if (!productWithRelations || (productWithRelations as any[]).length === 0) {
         throw new ProductError('Product not found', 'PRODUCT_NOT_FOUND', 404);
       }
 
-      const product = (products as any[])[0];
+      const product = (productWithRelations as any[])[0];
 
-      // Fetch related data
-      const [images, inventory, variants, reviews] = await Promise.all([
-        prisma.$queryRawUnsafe(
-          `
-          SELECT * FROM product_images
-          WHERE product_id = ?
-          ORDER BY sort_order ASC, is_main DESC
-        `,
-          id
-        ),
-
-        prisma.$queryRawUnsafe(
-          `
-          SELECT * FROM inventory
-          WHERE product_id = ?
-        `,
-          id
-        ),
-
-        prisma.$queryRawUnsafe(
-          `
-          SELECT pv.*, i.quantity as inventory_quantity
-          FROM product_variants pv
-          LEFT JOIN inventory i ON pv.id = i.variant_id
-          WHERE pv.product_id = ?
-        `,
-          id
-        ),
-
-        prisma.$queryRawUnsafe(
-          `
-          SELECT * FROM reviews
-          WHERE product_id = ?
-          ORDER BY created_at DESC
-          LIMIT 5
-        `,
-          id
-        ),
-      ]);
-
-      // Enrich the product with related data
+      // Parse JSON aggregates
       const enrichedProduct = {
         ...product,
         category: {
@@ -491,10 +506,10 @@ export class EnhancedProductService {
           name: product.category_name,
           slug: product.category_slug,
         },
-        images: images as any[],
-        inventory: (inventory as any[])[0] || null,
-        variants: variants as any[],
-        reviews: reviews as any[],
+        images: product.images || [],
+        inventory: product.inventory?.[0] || null,
+        variants: product.variants || [],
+        reviews: product.reviews || [],
       };
 
       // Cache product

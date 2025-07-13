@@ -267,7 +267,7 @@ export class InventoryService extends EventEmitter {
   }
 
   /**
-   * Check availability for multiple items
+   * Check availability for multiple items - OPTIMIZED VERSION
    */
   async checkMultipleAvailability(
     items: Array<{
@@ -285,21 +285,61 @@ export class InventoryService extends EventEmitter {
     }>
   > {
     try {
-      const results = await Promise.all(
-        items.map(async (item) => {
-          const stock = await this.checkStock(item.productId, item.warehouseId);
+      // OPTIMIZED: Batch query for all products at once
+      const productIds = [...new Set(items.map(item => item.productId))];
+      
+      // Single query to get all inventory data
+      const inventoryData = await this.prisma.inventory.findMany({
+        where: {
+          productId: { in: productIds }
+        },
+        include: {
+          warehouse: true,
+        },
+      });
 
+      // Group inventory by product ID for quick lookup
+      const inventoryByProduct = inventoryData.reduce((acc, item) => {
+        if (!acc[item.productId]) {
+          acc[item.productId] = [];
+        }
+        acc[item.productId].push(item);
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      // Process each item using the batch data
+      return items.map(item => {
+        const productInventory = inventoryByProduct[item.productId] || [];
+        
+        // Filter by warehouse if specified
+        const relevantInventory = item.warehouseId 
+          ? productInventory.filter(inv => inv.warehouseId === item.warehouseId)
+          : productInventory;
+
+        if (relevantInventory.length === 0) {
           return {
             productId: item.productId,
             quantity: item.quantity,
-            available: stock.available >= item.quantity,
-            availableQuantity: stock.available,
+            available: false,
+            availableQuantity: 0,
             warehouseId: item.warehouseId,
           };
-        })
-      );
+        }
 
-      return results;
+        // Calculate total available quantity
+        const totalAvailable = relevantInventory.reduce(
+          (sum, inv) => sum + inv.availableQuantity, 
+          0
+        );
+
+        return {
+          productId: item.productId,
+          quantity: item.quantity,
+          available: totalAvailable >= item.quantity,
+          availableQuantity: totalAvailable,
+          warehouseId: item.warehouseId,
+        };
+      });
     } catch (error) {
       logger.error('Multiple availability check failed', { items, error });
       throw error;
