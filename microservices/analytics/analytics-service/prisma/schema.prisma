@@ -1,322 +1,589 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
+// This is the complete Prisma schema for Analytics Service
+// Generator and datasource configuration
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-model AnalyticsEvent {
-  id              String        @id @default(cuid())
-  userId          String?
-  sessionId       String?
-  eventType       String
-  eventName       String
-  properties      Json?
-  timestamp       DateTime      @default(now())
-  ipAddress       String?
-  userAgent       String?
-  referrer        String?
-  pageUrl         String?
-  metadata        Json?
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([eventType])
-  @@index([eventName])
-  @@index([timestamp])
-  @@map("analytics_events")
-}
-
-model PageView {
-  id              String   @id @default(cuid())
-  userId          String?
-  sessionId       String?
-  pageUrl         String
-  pageTitle       String?
-  referrer        String?
-  duration        Int?     // seconds
-  timestamp       DateTime @default(now())
-  ipAddress       String?
-  userAgent       String?
-  metadata        Json?
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([pageUrl])
-  @@index([timestamp])
-  @@map("page_views")
-}
-
-model UserSession {
-  id              String   @id @default(cuid())
-  userId          String?
-  sessionId       String   @unique
-  startTime       DateTime @default(now())
-  endTime         DateTime?
-  duration        Int?     // seconds
-  pageViews       Int      @default(0)
-  events          Int      @default(0)
-  ipAddress       String?
-  userAgent       String?
-  deviceType      String?
-  browser         String?
-  os              String?
-  country         String?
-  city            String?
-  metadata        Json?
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([startTime])
-  @@map("user_sessions")
-}
-
-model Conversion {
-  id              String   @id @default(cuid())
-  userId          String
-  sessionId       String?
-  type            ConversionType
-  value           Decimal  @db.Decimal(10, 2)
-  currency        String   @default("USD")
-  orderId         String?
-  productId       String?
-  categoryId      String?
-  timestamp       DateTime @default(now())
-  metadata        Json?
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([type])
-  @@index([timestamp])
-  @@map("conversions")
-}
-
-model Revenue {
-  id              String   @id @default(cuid())
-  userId          String?
-  orderId         String
-  amount           Decimal  @db.Decimal(10, 2)
-  currency         String   @default("USD")
-  taxAmount        Decimal  @db.Decimal(10, 2)
-  shippingAmount   Decimal  @db.Decimal(10, 2)
-  discountAmount   Decimal  @db.Decimal(10, 2)
-  netAmount        Decimal  @db.Decimal(10, 2)
-  timestamp       DateTime @default(now())
-  metadata        Json?
-
-  @@index([userId])
-  @@index([orderId])
-  @@index([timestamp])
-  @@map("revenue")
-}
-
-model ProductPerformance {
-  id              String   @id @default(cuid())
-  productId       String
-  date            DateTime @db.Date
-  views           Int      @default(0)
-  clicks           Int      @default(0)
-  addToCart       Int      @default(0)
-  purchases       Int      @default(0)
-  revenue         Decimal  @default(0) @db.Decimal(10, 2)
-  conversionRate  Decimal  @default(0) @db.Decimal(5, 2)
-  averageOrderValue Decimal @default(0) @db.Decimal(10, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([productId, date])
-  @@index([productId])
-  @@index([date])
-  @@map("product_performance")
-}
-
-model CategoryPerformance {
-  id              String   @id @default(cuid())
-  categoryId      String
-  date            DateTime @db.Date
-  views           Int      @default(0)
-  clicks           Int      @default(0)
-  addToCart       Int      @default(0)
-  purchases       Int      @default(0)
-  revenue         Decimal  @default(0) @db.Decimal(10, 2)
-  conversionRate  Decimal  @default(0) @db.Decimal(5, 2)
-  averageOrderValue Decimal @default(0) @db.Decimal(10, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([categoryId, date])
-  @@index([categoryId])
-  @@index([date])
-  @@map("category_performance")
-}
-
-model UserBehavior {
-  id              String   @id @default(cuid())
-  userId          String
-  date            DateTime @db.Date
-  sessions        Int      @default(0)
-  pageViews       Int      @default(0)
-  events          Int      @default(0)
-  orders          Int      @default(0)
-  revenue         Decimal  @default(0) @db.Decimal(10, 2)
-  averageOrderValue Decimal @default(0) @db.Decimal(10, 2)
-  retentionScore  Decimal  @default(0) @db.Decimal(5, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([userId, date])
-  @@index([userId])
-  @@index([date])
-  @@map("user_behavior")
-}
-
-model Funnel {
-  id              String   @id @default(cuid())
-  name            String
-  steps           Json
-  date            DateTime @db.Date
-  stepCounts      Json
-  conversionRates Json
-  totalConversions Int     @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([name, date])
-  @@index([name])
-  @@index([date])
-  @@map("funnels")
-}
-
-model Cohort {
-  id              String   @id @default(cuid())
-  name            String
-  cohortDate      DateTime @db.Date
-  period          String   // day, week, month
-  userCount       Int      @default(0)
-  retentionData   Json
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([name, cohortDate, period])
-  @@index([name])
-  @@index([cohortDate])
-  @@map("cohorts")
-}
-
-model Report {
-  id              String        @id @default(cuid())
-  name            String
-  type            ReportType
-  description     String?
-  query           String
-  parameters      Json?
-  schedule        String?       // cron expression
-  isActive        Boolean       @default(true)
-  lastGenerated   DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  @@index([name])
-  @@index([type])
-  @@index([isActive])
-  @@map("reports")
-}
-
-model ReportExecution {
-  id              String        @id @default(cuid())
-  reportId        String
-  status          ExecutionStatus
-  startedAt       DateTime      @default(now())
-  completedAt     DateTime?
-  duration        Int?          // milliseconds
-  resultUrl       String?
-  errorMessage    String?
-  metadata        Json?
-
-  // Relations
-  report          Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
-
-  @@index([reportId])
-  @@index([status])
-  @@index([startedAt])
-  @@map("report_executions")
-}
-
-model Dashboard {
-  id              String   @id @default(cuid())
-  name            String
-  description     String?
-  layout          Json
-  widgets         Json
-  isPublic        Boolean  @default(false)
-  isActive        Boolean  @default(true)
-  createdBy       String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([name])
-  @@index([createdBy])
-  @@index([isActive])
-  @@map("dashboards")
-}
-
-model Widget {
-  id              String   @id @default(cuid())
-  dashboardId     String
-  name            String
-  type            WidgetType
-  config          Json
-  position        Json
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relations
-  dashboard       Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
-
-  @@index([dashboardId])
-  @@index([type])
-  @@index([isActive])
-  @@map("widgets")
+  url      = env("ANALYTICS_DATABASE_URL")
 }
 
 // Enums
-enum ConversionType {
+enum EventType {
+  PAGE_VIEW
+  PRODUCT_VIEW
+  PRODUCT_SEARCH
+  ADD_TO_CART
+  REMOVE_FROM_CART
+  CHECKOUT_START
+  CHECKOUT_COMPLETE
   PURCHASE
-  SIGNUP
-  SUBSCRIPTION
+  USER_REGISTER
+  USER_LOGIN
+  USER_LOGOUT
+  STORE_VISIT
+  CATEGORY_VIEW
+  BRAND_VIEW
+  REVIEW_SUBMIT
+  WISHLIST_ADD
+  COMPARE_ADD
+  SHARE_PRODUCT
   DOWNLOAD
-  LEAD
   CUSTOM
 }
 
-enum ReportType {
-  SALES
-  USER_BEHAVIOR
-  PRODUCT_PERFORMANCE
-  TRAFFIC
-  CUSTOM
+enum MetricType {
+  COUNTER
+  GAUGE
+  HISTOGRAM
+  TIMER
+  PERCENTAGE
 }
 
-enum ExecutionStatus {
+enum ReportStatus {
   PENDING
-  RUNNING
+  PROCESSING
   COMPLETED
   FAILED
   CANCELLED
 }
 
-enum WidgetType {
-  CHART
-  METRIC
-  TABLE
-  HEATMAP
-  FUNNEL
-  COHORT
+enum ReportFormat {
+  PDF
+  EXCEL
+  CSV
+  JSON
+}
+
+enum DashboardType {
+  OVERVIEW
+  SALES
+  PRODUCTS
+  CUSTOMERS
+  TRAFFIC
   CUSTOM
+}
+
+// Models
+model Event {
+  id          String    @id @default(cuid())
+  sessionId   String?
+  userId      String?
+  storeId     String?
+  productId   String?
+  categoryId  String?
+  
+  // Event Details
+  eventType   EventType
+  eventName   String
+  description String?
+  
+  // Context
+  page        String?
+  referrer    String?
+  userAgent   String?
+  ipAddress   String?
+  country     String?
+  city        String?
+  device      String?
+  browser     String?
+  platform    String?
+  
+  // Custom Properties
+  properties  Json?
+  metadata    Json?
+  
+  // Values
+  value       Float?
+  revenue     Decimal?  @db.Decimal(10, 2)
+  quantity    Int?
+  
+  // Timestamps
+  timestamp   DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  @@index([eventType])
+  @@index([userId])
+  @@index([storeId])
+  @@index([productId])
+  @@index([timestamp])
+  @@map("events")
+}
+
+model PageView {
+  id          String   @id @default(cuid())
+  sessionId   String
+  userId      String?
+  storeId     String?
+  
+  // Page Details
+  url         String
+  path        String
+  title       String?
+  referrer    String?
+  
+  // User Context
+  userAgent   String?
+  ipAddress   String?
+  country     String?
+  city        String?
+  device      String?
+  browser     String?
+  platform    String?
+  
+  // Timing
+  loadTime    Int?     // milliseconds
+  timeOnPage  Int?     // seconds
+  
+  // Engagement
+  scrollDepth Float?   // percentage
+  bounced     Boolean  @default(false)
+  
+  // UTM Parameters
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+  
+  // Timestamps
+  viewedAt    DateTime @default(now())
+  exitedAt    DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([storeId])
+  @@index([viewedAt])
+  @@map("page_views")
+}
+
+model ProductAnalytics {
+  id            String   @id @default(cuid())
+  productId     String
+  storeId       String
+  date          DateTime @db.Date
+  
+  // View Metrics
+  views         Int      @default(0)
+  uniqueViews   Int      @default(0)
+  impressions   Int      @default(0)
+  
+  // Engagement Metrics
+  addToCarts    Int      @default(0)
+  purchases     Int      @default(0)
+  wishlistAdds  Int      @default(0)
+  compares      Int      @default(0)
+  shares        Int      @default(0)
+  
+  // Conversion Metrics
+  conversionRate Float   @default(0)
+  cartConversionRate Float @default(0)
+  
+  // Revenue Metrics
+  revenue       Decimal  @db.Decimal(12, 2) @default(0)
+  avgOrderValue Decimal  @db.Decimal(10, 2) @default(0)
+  
+  // Search Metrics
+  searchRank    Float?
+  searchClicks  Int      @default(0)
+  searchImpressions Int  @default(0)
+  
+  // Review Metrics
+  reviews       Int      @default(0)
+  avgRating     Float?
+  
+  // Inventory Impact
+  stockLevel    Int?
+  stockouts     Int      @default(0)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([productId, date])
+  @@index([storeId, date])
+  @@map("product_analytics")
+}
+
+model StoreAnalytics {
+  id              String   @id @default(cuid())
+  storeId         String
+  date            DateTime @db.Date
+  
+  // Traffic Metrics
+  visitors        Int      @default(0)
+  uniqueVisitors  Int      @default(0)
+  pageViews       Int      @default(0)
+  sessions        Int      @default(0)
+  bounceRate      Float    @default(0)
+  avgSessionTime  Int      @default(0) // seconds
+  
+  // Sales Metrics
+  orders          Int      @default(0)
+  revenue         Decimal  @db.Decimal(12, 2) @default(0)
+  avgOrderValue   Decimal  @db.Decimal(10, 2) @default(0)
+  conversionRate  Float    @default(0)
+  
+  // Product Metrics
+  productViews    Int      @default(0)
+  cartAdditions   Int      @default(0)
+  cartAbandonments Int     @default(0)
+  
+  // Customer Metrics
+  newCustomers    Int      @default(0)
+  returningCustomers Int   @default(0)
+  customerRetentionRate Float @default(0)
+  
+  // Geographic Data
+  topCountries    Json?    // Array of {country, visitors}
+  topCities       Json?    // Array of {city, visitors}
+  
+  // Traffic Sources
+  organicTraffic  Int      @default(0)
+  directTraffic   Int      @default(0)
+  referralTraffic Int      @default(0)
+  socialTraffic   Int      @default(0)
+  paidTraffic     Int      @default(0)
+  
+  // Device Data
+  desktopUsers    Int      @default(0)
+  mobileUsers     Int      @default(0)
+  tabletUsers     Int      @default(0)
+  
+  // Top Content
+  topPages        Json?    // Array of {path, views}
+  topProducts     Json?    // Array of {productId, views, revenue}
+  topCategories   Json?    // Array of {categoryId, views}
+  
+  // Search Data
+  topSearchTerms  Json?    // Array of {term, count, results}
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([storeId, date])
+  @@map("store_analytics")
+}
+
+model UserAnalytics {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime @db.Date
+  
+  // Session Data
+  sessions        Int      @default(0)
+  totalTime       Int      @default(0) // seconds
+  pageViews       Int      @default(0)
+  
+  // Shopping Behavior
+  productsViewed  Int      @default(0)
+  categoriesViewed Int     @default(0)
+  storesVisited   Int      @default(0)
+  searches        Int      @default(0)
+  
+  // Cart Behavior
+  cartAdditions   Int      @default(0)
+  cartRemovals    Int      @default(0)
+  checkoutStarts  Int      @default(0)
+  
+  // Purchase Behavior
+  orders          Int      @default(0)
+  revenue         Decimal  @db.Decimal(10, 2) @default(0)
+  avgOrderValue   Decimal  @db.Decimal(10, 2) @default(0)
+  
+  // Engagement
+  reviews         Int      @default(0)
+  wishlistAdds    Int      @default(0)
+  shares          Int      @default(0)
+  
+  // Device Usage
+  deviceTypes     Json?    // {desktop: 5, mobile: 3}
+  browsers        Json?    // {chrome: 8, firefox: 2}
+  
+  // Geographic
+  countries       Json?    // Array of countries visited from
+  cities          Json?    // Array of cities visited from
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@map("user_analytics")
+}
+
+model SearchAnalytics {
+  id              String   @id @default(cuid())
+  date            DateTime @db.Date
+  storeId         String?
+  
+  // Search Terms
+  searchTerm      String
+  searchCount     Int      @default(0)
+  uniqueSearchers Int      @default(0)
+  
+  // Results
+  resultCount     Int      @default(0)
+  avgResultCount  Float    @default(0)
+  noResultsCount  Int      @default(0)
+  
+  // Engagement
+  clickThroughRate Float   @default(0)
+  totalClicks     Int      @default(0)
+  avgPosition     Float?
+  
+  // Conversion
+  conversions     Int      @default(0)
+  conversionRate  Float    @default(0)
+  revenue         Decimal  @db.Decimal(10, 2) @default(0)
+  
+  // Filters Used
+  filtersUsed     Json?    // Array of filter types used
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([date, searchTerm, storeId])
+  @@map("search_analytics")
+}
+
+model ConversionFunnel {
+  id              String   @id @default(cuid())
+  name            String
+  storeId         String?
+  date            DateTime @db.Date
+  
+  // Funnel Steps
+  step1_visitors  Int      @default(0) // Landing page
+  step2_product_views Int  @default(0) // Product page views
+  step3_cart_adds Int      @default(0) // Add to cart
+  step4_checkout_starts Int @default(0) // Checkout initiation
+  step5_purchases Int      @default(0) // Completed purchases
+  
+  // Conversion Rates
+  visitor_to_view_rate Float @default(0)
+  view_to_cart_rate   Float @default(0)
+  cart_to_checkout_rate Float @default(0)
+  checkout_to_purchase_rate Float @default(0)
+  overall_conversion_rate Float @default(0)
+  
+  // Revenue
+  totalRevenue    Decimal  @db.Decimal(12, 2) @default(0)
+  avgOrderValue   Decimal  @db.Decimal(10, 2) @default(0)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([name, storeId, date])
+  @@map("conversion_funnels")
+}
+
+model Cohort {
+  id              String   @id @default(cuid())
+  cohortDate      DateTime @db.Date
+  storeId         String?
+  
+  // Cohort Size
+  totalUsers      Int
+  
+  // Retention by Period
+  week1_retention Float    @default(0)
+  week2_retention Float    @default(0)
+  week4_retention Float    @default(0)
+  week8_retention Float    @default(0)
+  week12_retention Float   @default(0)
+  week24_retention Float   @default(0)
+  week52_retention Float   @default(0)
+  
+  // Revenue by Period
+  week1_revenue   Decimal  @db.Decimal(10, 2) @default(0)
+  week2_revenue   Decimal  @db.Decimal(10, 2) @default(0)
+  week4_revenue   Decimal  @db.Decimal(10, 2) @default(0)
+  week8_revenue   Decimal  @db.Decimal(10, 2) @default(0)
+  week12_revenue  Decimal  @db.Decimal(10, 2) @default(0)
+  week24_revenue  Decimal  @db.Decimal(10, 2) @default(0)
+  week52_revenue  Decimal  @db.Decimal(10, 2) @default(0)
+  
+  // LTV Calculations
+  ltv_30_days     Decimal? @db.Decimal(10, 2)
+  ltv_90_days     Decimal? @db.Decimal(10, 2)
+  ltv_180_days    Decimal? @db.Decimal(10, 2)
+  ltv_365_days    Decimal? @db.Decimal(10, 2)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([cohortDate, storeId])
+  @@map("cohorts")
+}
+
+model CustomMetric {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  type        MetricType
+  storeId     String?
+  
+  // Metric Configuration
+  formula     String?    // Formula for calculated metrics
+  filters     Json?      // Filters to apply
+  dimensions  Json?      // Dimensions to group by
+  
+  // Values
+  value       Float
+  target      Float?
+  threshold   Float?
+  
+  // Time period
+  period      String     // "daily", "weekly", "monthly"
+  date        DateTime   @db.Date
+  
+  // Metadata
+  metadata    Json?
+  
+  // Timestamps
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([name, storeId, date])
+  @@map("custom_metrics")
+}
+
+model Report {
+  id            String       @id @default(cuid())
+  name          String
+  description   String?
+  type          String       // "sales", "traffic", "products", "custom"
+  storeId       String?
+  
+  // Report Configuration
+  config        Json         // Report parameters and filters
+  schedule      String?      // Cron expression for scheduled reports
+  
+  // Output
+  format        ReportFormat @default(PDF)
+  status        ReportStatus @default(PENDING)
+  fileUrl       String?
+  filePath      String?
+  fileSize      Int?
+  
+  // Recipients
+  recipients    String[]     // Email addresses
+  
+  // Execution
+  lastRunAt     DateTime?
+  nextRunAt     DateTime?
+  errorMessage  String?
+  
+  // Timestamps
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("reports")
+}
+
+model Dashboard {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  type        DashboardType @default(CUSTOM)
+  storeId     String?
+  userId      String?
+  
+  // Configuration
+  config      Json          // Dashboard layout and widgets
+  isPublic    Boolean       @default(false)
+  isDefault   Boolean       @default(false)
+  
+  // Sharing
+  shareToken  String?       @unique
+  
+  // Usage
+  viewCount   Int           @default(0)
+  lastViewedAt DateTime?
+  
+  // Timestamps
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("dashboards")
+}
+
+model Alert {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  storeId     String?
+  
+  // Alert Configuration
+  metric      String   // Metric to monitor
+  condition   String   // "greater_than", "less_than", "equals", "percent_change"
+  threshold   Float
+  period      String   // "1h", "24h", "7d", "30d"
+  
+  // Notification
+  channels    String[] // "email", "sms", "webhook", "slack"
+  recipients  String[] // Email addresses or webhook URLs
+  
+  // Status
+  isActive    Boolean  @default(true)
+  isTriggered Boolean  @default(false)
+  lastTriggeredAt DateTime?
+  lastCheckedAt   DateTime?
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("alerts")
+}
+
+model AnalyticsSession {
+  id          String   @id @default(cuid())
+  sessionId   String   @unique
+  userId      String?
+  storeId     String?
+  
+  // Session Details
+  startTime   DateTime @default(now())
+  endTime     DateTime?
+  duration    Int?     // seconds
+  pageViews   Int      @default(0)
+  
+  // User Context
+  userAgent   String?
+  ipAddress   String?
+  country     String?
+  city        String?
+  device      String?
+  browser     String?
+  platform    String?
+  
+  // Traffic Source
+  source      String?  // "organic", "direct", "referral", "social", "paid"
+  medium      String?
+  campaign    String?
+  referrer    String?
+  
+  // Engagement
+  bounced     Boolean  @default(false)
+  converted   Boolean  @default(false)
+  revenue     Decimal? @db.Decimal(10, 2)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([storeId])
+  @@index([startTime])
+  @@map("analytics_sessions")
 }
