@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { createError } from './error.middleware';
+import { logger } from '../utils/logger';
+import { getPrismaClient } from '../config/database';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -8,6 +10,11 @@ export interface AuthenticatedRequest extends Request {
     email: string;
     role: string;
     name: string;
+  };
+  store?: {
+    id: string;
+    isOwner: boolean;
+    role: string;
   };
 }
 
@@ -79,9 +86,67 @@ export const requireStoreOwner = async (
       return;
     }
 
-    // TODO: Check store ownership from database
-    // For now, allow all authenticated users
-    next();
+    // Check store ownership from database
+    try {
+      const storeId = req.params.storeId || req.body.storeId;
+      if (!storeId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Store ID is required',
+        });
+      }
+
+             // Get database client
+       const prisma = getPrismaClient();
+
+      // Check if user owns the store or is store staff
+      const store = await prisma.store.findFirst({
+        where: {
+          id: storeId,
+          OR: [
+            { ownerId: req.user!.id },
+            {
+              staff: {
+                some: {
+                  userId: req.user!.id,
+                  isActive: true,
+                },
+              },
+            },
+          ],
+        },
+        include: {
+          staff: {
+            where: {
+              userId: req.user!.id,
+              isActive: true,
+            },
+          },
+        },
+      });
+
+      if (!store) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied: You do not have permission to access this store',
+        });
+      }
+
+      // Add store info to request for later use
+      req.store = {
+        id: store.id,
+        isOwner: store.ownerId === req.user!.id,
+        role: store.ownerId === req.user!.id ? 'OWNER' : store.staff[0]?.role || 'VIEWER',
+      };
+
+      next();
+    } catch (error) {
+      logger.error('Store ownership check failed', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to verify store ownership',
+      });
+    }
   } catch (error) {
     next(error);
   }
