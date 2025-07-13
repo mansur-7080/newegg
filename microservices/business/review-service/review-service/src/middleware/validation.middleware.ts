@@ -1,502 +1,450 @@
 import { Request, Response, NextFunction } from 'express';
-import Joi from 'joi';
-import { ValidationError } from '../utils/errors';
 import { logger } from '../utils/logger';
 
-export interface ValidationOptions {
-  abortEarly?: boolean;
-  allowUnknown?: boolean;
-  stripUnknown?: boolean;
-  skipFunctions?: boolean;
-  convert?: boolean;
+// Validation schemas
+const reviewValidation = {
+  content: {
+    min: 10,
+    max: 1000,
+    required: true,
+  },
+  rating: {
+    min: 1,
+    max: 5,
+    required: true,
+  },
+  productId: {
+    required: true,
+    pattern: /^[a-fA-F0-9]{24}$/, // MongoDB ObjectId pattern
+  },
+};
+
+const replyValidation = {
+  content: {
+    min: 1,
+    max: 500,
+    required: true,
+  },
+  userType: {
+    enum: ['customer', 'vendor', 'admin'],
+    required: true,
+  },
+};
+
+const voteValidation = {
+  vote: {
+    enum: [true, false],
+    required: true,
+  },
+};
+
+const flagValidation = {
+  reason: {
+    enum: ['inappropriate', 'spam', 'fake', 'offensive', 'other'],
+    required: true,
+  },
+  description: {
+    max: 500,
+    required: false,
+  },
+};
+
+// Helper function to validate string length
+function validateStringLength(value: string, min: number, max: number): boolean {
+  if (!value || typeof value !== 'string') return false;
+  return value.length >= min && value.length <= max;
 }
 
-/**
- * Generic validation middleware factory
- */
-export const validateRequest = (schema: Joi.ObjectSchema, options: ValidationOptions = {}) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    try {
-      const validationOptions: Joi.ValidationOptions = {
-        abortEarly: options.abortEarly ?? false,
-        allowUnknown: options.allowUnknown ?? false,
-        stripUnknown: options.stripUnknown ?? true,
-        skipFunctions: options.skipFunctions ?? true,
-        convert: options.convert ?? true,
-      };
+// Helper function to validate MongoDB ObjectId
+function validateObjectId(id: string): boolean {
+  return /^[a-fA-F0-9]{24}$/.test(id);
+}
 
-      const { error, value } = schema.validate(req.body, validationOptions);
+// Helper function to validate enum values
+function validateEnum(value: any, allowedValues: any[]): boolean {
+  return allowedValues.includes(value);
+}
 
-      if (error) {
-        const validationErrors = error.details.map((detail) => ({
-          field: detail.path.join('.'),
-          message: detail.message,
-          value: detail.context?.value,
-          type: detail.type,
-        }));
+// Helper function to validate number range
+function validateNumberRange(value: number, min: number, max: number): boolean {
+  return typeof value === 'number' && value >= min && value <= max;
+}
 
-        logger.warn('Validation failed', {
-          route: req.path,
-          method: req.method,
-          errors: validationErrors,
-          body: req.body,
-        });
+// Helper function to sanitize input
+function sanitizeString(input: string): string {
+  return input.trim().replace(/[<>]/g, '');
+}
 
-        res.status(400).json({
-          success: false,
-          message: 'Validation failed',
-          errors: validationErrors,
-        });
-        return;
-      }
+// Helper function to validate pagination parameters
+function validatePagination(page: any, limit: any): { page: number; limit: number } {
+  const defaultPage = 1;
+  const defaultLimit = 20;
+  const maxLimit = 100;
 
-      // Replace request body with validated and sanitized data
-      req.body = value;
+  const pageNum = parseInt(page as string) || defaultPage;
+  const limitNum = parseInt(limit as string) || defaultLimit;
 
-      logger.debug('Validation successful', {
-        route: req.path,
-        method: req.method,
-      });
-
-      next();
-    } catch (error) {
-      logger.error('Validation middleware error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Validation error',
-        error: 'VALIDATION_ERROR',
-      });
-    }
+  return {
+    page: Math.max(1, pageNum),
+    limit: Math.min(maxLimit, Math.max(1, limitNum)),
   };
-};
+}
 
-/**
- * Validate query parameters
- */
-export const validateQuery = (schema: Joi.ObjectSchema, options: ValidationOptions = {}) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    try {
-      const validationOptions: Joi.ValidationOptions = {
-        abortEarly: options.abortEarly ?? false,
-        allowUnknown: options.allowUnknown ?? true,
-        stripUnknown: options.stripUnknown ?? true,
-        skipFunctions: options.skipFunctions ?? true,
-        convert: options.convert ?? true,
-      };
-
-      const { error, value } = schema.validate(req.query, validationOptions);
-
-      if (error) {
-        const validationErrors = error.details.map((detail) => ({
-          field: detail.path.join('.'),
-          message: detail.message,
-          value: detail.context?.value,
-          type: detail.type,
-        }));
-
-        logger.warn('Query validation failed', {
-          route: req.path,
-          method: req.method,
-          errors: validationErrors,
-          query: req.query,
-        });
-
-        res.status(400).json({
-          success: false,
-          message: 'Query validation failed',
-          errors: validationErrors,
-        });
-        return;
-      }
-
-      // Replace request query with validated and sanitized data
-      req.query = value;
-
-      logger.debug('Query validation successful', {
-        route: req.path,
-        method: req.method,
-      });
-
-      next();
-    } catch (error) {
-      logger.error('Query validation middleware error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Query validation error',
-        error: 'VALIDATION_ERROR',
-      });
-    }
-  };
-};
-
-/**
- * Validate URL parameters
- */
-export const validateParams = (schema: Joi.ObjectSchema, options: ValidationOptions = {}) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    try {
-      const validationOptions: Joi.ValidationOptions = {
-        abortEarly: options.abortEarly ?? false,
-        allowUnknown: options.allowUnknown ?? false,
-        stripUnknown: options.stripUnknown ?? true,
-        skipFunctions: options.skipFunctions ?? true,
-        convert: options.convert ?? true,
-      };
-
-      const { error, value } = schema.validate(req.params, validationOptions);
-
-      if (error) {
-        const validationErrors = error.details.map((detail) => ({
-          field: detail.path.join('.'),
-          message: detail.message,
-          value: detail.context?.value,
-          type: detail.type,
-        }));
-
-        logger.warn('Params validation failed', {
-          route: req.path,
-          method: req.method,
-          errors: validationErrors,
-          params: req.params,
-        });
-
-        res.status(400).json({
-          success: false,
-          message: 'Parameters validation failed',
-          errors: validationErrors,
-        });
-        return;
-      }
-
-      // Replace request params with validated and sanitized data
-      req.params = value;
-
-      logger.debug('Params validation successful', {
-        route: req.path,
-        method: req.method,
-      });
-
-      next();
-    } catch (error) {
-      logger.error('Params validation middleware error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Parameters validation error',
-        error: 'VALIDATION_ERROR',
-      });
-    }
-  };
-};
-
-/**
- * Comprehensive validation middleware (body, query, params)
- */
-export const validateAll = (
-  schemas: {
-    body?: Joi.ObjectSchema;
-    query?: Joi.ObjectSchema;
-    params?: Joi.ObjectSchema;
-  },
-  options: ValidationOptions = {}
-) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    try {
-      const validationOptions: Joi.ValidationOptions = {
-        abortEarly: options.abortEarly ?? false,
-        allowUnknown: options.allowUnknown ?? false,
-        stripUnknown: options.stripUnknown ?? true,
-        skipFunctions: options.skipFunctions ?? true,
-        convert: options.convert ?? true,
-      };
-
-      const errors: any[] = [];
-
-      // Validate body
-      if (schemas.body) {
-        const { error, value } = schemas.body.validate(req.body, validationOptions);
-        if (error) {
-          errors.push(
-            ...error.details.map((detail) => ({
-              location: 'body',
-              field: detail.path.join('.'),
-              message: detail.message,
-              value: detail.context?.value,
-              type: detail.type,
-            }))
-          );
-        } else {
-          req.body = value;
-        }
-      }
-
-      // Validate query
-      if (schemas.query) {
-        const { error, value } = schemas.query.validate(req.query, {
-          ...validationOptions,
-          allowUnknown: true, // Allow unknown query parameters
-        });
-        if (error) {
-          errors.push(
-            ...error.details.map((detail) => ({
-              location: 'query',
-              field: detail.path.join('.'),
-              message: detail.message,
-              value: detail.context?.value,
-              type: detail.type,
-            }))
-          );
-        } else {
-          req.query = value;
-        }
-      }
-
-      // Validate params
-      if (schemas.params) {
-        const { error, value } = schemas.params.validate(req.params, validationOptions);
-        if (error) {
-          errors.push(
-            ...error.details.map((detail) => ({
-              location: 'params',
-              field: detail.path.join('.'),
-              message: detail.message,
-              value: detail.context?.value,
-              type: detail.type,
-            }))
-          );
-        } else {
-          req.params = value;
-        }
-      }
-
-      if (errors.length > 0) {
-        logger.warn('Comprehensive validation failed', {
-          route: req.path,
-          method: req.method,
-          errors,
-        });
-
-        res.status(400).json({
-          success: false,
-          message: 'Validation failed',
-          errors,
-        });
-        return;
-      }
-
-      logger.debug('Comprehensive validation successful', {
-        route: req.path,
-        method: req.method,
-      });
-
-      next();
-    } catch (error) {
-      logger.error('Comprehensive validation middleware error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Validation error',
-        error: 'VALIDATION_ERROR',
-      });
-    }
-  };
-};
-
-/**
- * Sanitize HTML content
- */
-export const sanitizeHtml = (req: Request, res: Response, next: NextFunction): void => {
+// Validation middleware for creating reviews
+export const validateCreateReview = (req: Request, res: Response, next: NextFunction): void => {
   try {
-    const sanitizeString = (str: string): string => {
-      return str
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/<[^>]*>/g, '')
-        .trim();
-    };
+    const { content, rating, productId } = req.body;
 
-    const sanitizeObject = (obj: any): any => {
-      if (typeof obj === 'string') {
-        return sanitizeString(obj);
-      }
+    const errors: string[] = [];
 
-      if (Array.isArray(obj)) {
-        return obj.map(sanitizeObject);
-      }
-
-      if (obj && typeof obj === 'object') {
-        const sanitized: any = {};
-        for (const key in obj) {
-          if (obj.hasOwnProperty(key)) {
-            sanitized[key] = sanitizeObject(obj[key]);
-          }
-        }
-        return sanitized;
-      }
-
-      return obj;
-    };
-
-    // Sanitize request body
-    if (req.body) {
-      req.body = sanitizeObject(req.body);
+    // Validate content
+    if (!content || !validateStringLength(content, reviewValidation.content.min, reviewValidation.content.max)) {
+      errors.push(`Content must be between ${reviewValidation.content.min} and ${reviewValidation.content.max} characters`);
     }
 
-    // Sanitize query parameters
-    if (req.query) {
-      req.query = sanitizeObject(req.query);
+    // Validate rating
+    if (!rating || !validateNumberRange(rating, reviewValidation.rating.min, reviewValidation.rating.max)) {
+      errors.push(`Rating must be between ${reviewValidation.rating.min} and ${reviewValidation.rating.max}`);
     }
 
-    logger.debug('HTML sanitization completed', {
-      route: req.path,
-      method: req.method,
-    });
+    // Validate productId
+    if (!productId || !validateObjectId(productId)) {
+      errors.push('Valid product ID is required');
+    }
+
+    if (errors.length > 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors,
+      });
+      return;
+    }
+
+    // Sanitize content
+    req.body.content = sanitizeString(content);
 
     next();
   } catch (error) {
-    logger.error('HTML sanitization error:', error);
-    next(); // Continue on error
+    logger.error('Validation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Validation error occurred',
+    });
   }
 };
 
-/**
- * Validate file uploads
- */
-export const validateFileUpload = (options: {
-  maxSize?: number;
-  allowedTypes?: string[];
-  maxFiles?: number;
-  required?: boolean;
-}) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    try {
-      const {
-        maxSize = 5 * 1024 * 1024, // 5MB default
-        allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-        maxFiles = 5,
-        required = false,
-      } = options;
-
-      const files = req.files as Express.Multer.File[] | undefined;
-
-      if (required && (!files || files.length === 0)) {
-        res.status(400).json({
-          success: false,
-          message: 'File upload is required',
-          error: 'FILE_REQUIRED',
-        });
-        return;
-      }
-
-      if (files && files.length > 0) {
-        if (files.length > maxFiles) {
-          res.status(400).json({
-            success: false,
-            message: `Maximum ${maxFiles} files allowed`,
-            error: 'TOO_MANY_FILES',
-          });
-          return;
-        }
-
-        for (const file of files) {
-          if (file.size > maxSize) {
-            res.status(400).json({
-              success: false,
-              message: `File size must be less than ${maxSize / (1024 * 1024)}MB`,
-              error: 'FILE_TOO_LARGE',
-            });
-            return;
-          }
-
-          if (!allowedTypes.includes(file.mimetype)) {
-            res.status(400).json({
-              success: false,
-              message: `File type ${file.mimetype} not allowed. Allowed types: ${allowedTypes.join(', ')}`,
-              error: 'INVALID_FILE_TYPE',
-            });
-            return;
-          }
-        }
-      }
-
-      logger.debug('File upload validation successful', {
-        route: req.path,
-        method: req.method,
-        fileCount: files?.length || 0,
-      });
-
-      next();
-    } catch (error) {
-      logger.error('File upload validation error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'File validation error',
-        error: 'FILE_VALIDATION_ERROR',
-      });
-    }
-  };
-};
-
-/**
- * Rate limiting validation
- */
-export const validateRateLimit = (req: Request, res: Response, next: NextFunction): void => {
+// Validation middleware for updating reviews
+export const validateUpdateReview = (req: Request, res: Response, next: NextFunction): void => {
   try {
-    const rateLimitHeaders = {
-      'X-RateLimit-Limit': res.getHeader('X-RateLimit-Limit'),
-      'X-RateLimit-Remaining': res.getHeader('X-RateLimit-Remaining'),
-      'X-RateLimit-Reset': res.getHeader('X-RateLimit-Reset'),
-    };
+    const { id } = req.params;
+    const { content, rating } = req.body;
 
-    // Check if rate limit headers are present
-    if (rateLimitHeaders['X-RateLimit-Remaining'] === '0') {
-      logger.warn('Rate limit exceeded', {
-        ip: req.ip,
-        route: req.path,
-        method: req.method,
-        headers: rateLimitHeaders,
-      });
+    const errors: string[] = [];
 
-      res.status(429).json({
+    // Validate review ID
+    if (!id || !validateObjectId(id)) {
+      errors.push('Valid review ID is required');
+    }
+
+    // Validate content if provided
+    if (content !== undefined) {
+      if (!validateStringLength(content, reviewValidation.content.min, reviewValidation.content.max)) {
+        errors.push(`Content must be between ${reviewValidation.content.min} and ${reviewValidation.content.max} characters`);
+      } else {
+        req.body.content = sanitizeString(content);
+      }
+    }
+
+    // Validate rating if provided
+    if (rating !== undefined) {
+      if (!validateNumberRange(rating, reviewValidation.rating.min, reviewValidation.rating.max)) {
+        errors.push(`Rating must be between ${reviewValidation.rating.min} and ${reviewValidation.rating.max}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      res.status(400).json({
         success: false,
-        message: 'Rate limit exceeded',
-        error: 'RATE_LIMIT_EXCEEDED',
-        retryAfter: rateLimitHeaders['X-RateLimit-Reset'],
+        message: 'Validation failed',
+        errors,
       });
       return;
     }
 
     next();
   } catch (error) {
-    logger.error('Rate limit validation error:', error);
-    next(); // Continue on error
-  }
-};
-
-/**
- * Custom validation error handler
- */
-export const handleValidationError = (
-  error: any,
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
-  if (error instanceof ValidationError) {
-    logger.warn('Validation error handled', {
-      route: req.path,
-      method: req.method,
-      error: error.message,
-      details: error.details,
-    });
-
-    res.status(400).json({
+    logger.error('Validation error:', error);
+    res.status(500).json({
       success: false,
-      message: error.message,
-      error: 'VALIDATION_ERROR',
-      details: error.details,
+      message: 'Validation error occurred',
     });
-    return;
   }
-
-  next(error);
 };
 
-export default validateRequest;
+// Validation middleware for review ID
+export const validateReviewId = (req: Request, res: Response, next: NextFunction): void => {
+  try {
+    const { id } = req.params;
+
+    if (!id || !validateObjectId(id)) {
+      res.status(400).json({
+        success: false,
+        message: 'Valid review ID is required',
+      });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    logger.error('Validation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Validation error occurred',
+    });
+  }
+};
+
+// Validation middleware for adding replies
+export const validateAddReply = (req: Request, res: Response, next: NextFunction): void => {
+  try {
+    const { content, userType } = req.body;
+
+    const errors: string[] = [];
+
+    // Validate content
+    if (!content || !validateStringLength(content, replyValidation.content.min, replyValidation.content.max)) {
+      errors.push(`Reply content must be between ${replyValidation.content.min} and ${replyValidation.content.max} characters`);
+    }
+
+    // Validate userType
+    if (!userType || !validateEnum(userType, replyValidation.userType.enum)) {
+      errors.push(`User type must be one of: ${replyValidation.userType.enum.join(', ')}`);
+    }
+
+    if (errors.length > 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors,
+      });
+      return;
+    }
+
+    // Sanitize content
+    req.body.content = sanitizeString(content);
+
+    next();
+  } catch (error) {
+    logger.error('Validation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Validation error occurred',
+    });
+  }
+};
+
+// Validation middleware for voting
+export const validateVote = (req: Request, res: Response, next: NextFunction): void => {
+  try {
+    const { vote } = req.body;
+
+    if (vote === undefined || !validateEnum(vote, voteValidation.vote.enum)) {
+      res.status(400).json({
+        success: false,
+        message: 'Valid vote (true/false) is required',
+      });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    logger.error('Validation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Validation error occurred',
+    });
+  }
+};
+
+// Validation middleware for flagging reviews
+export const validateFlagReview = (req: Request, res: Response, next: NextFunction): void => {
+  try {
+    const { reason, description } = req.body;
+
+    const errors: string[] = [];
+
+    // Validate reason
+    if (!reason || !validateEnum(reason, flagValidation.reason.enum)) {
+      errors.push(`Reason must be one of: ${flagValidation.reason.enum.join(', ')}`);
+    }
+
+    // Validate description if provided
+    if (description && !validateStringLength(description, 1, flagValidation.description.max!)) {
+      errors.push(`Description must be no more than ${flagValidation.description.max} characters`);
+    }
+
+    if (errors.length > 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors,
+      });
+      return;
+    }
+
+    // Sanitize description
+    if (description) {
+      req.body.description = sanitizeString(description);
+    }
+
+    next();
+  } catch (error) {
+    logger.error('Validation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Validation error occurred',
+    });
+  }
+};
+
+// Validation middleware for query parameters
+export const validateQueryParams = (req: Request, res: Response, next: NextFunction): void => {
+  try {
+    const { page, limit, rating, verified, sortBy, sortOrder } = req.query;
+
+    // Validate pagination
+    const pagination = validatePagination(page, limit);
+    req.query.page = pagination.page.toString();
+    req.query.limit = pagination.limit.toString();
+
+    // Validate rating if provided
+    if (rating !== undefined) {
+      const ratingNum = parseInt(rating as string);
+      if (isNaN(ratingNum) || !validateNumberRange(ratingNum, 1, 5)) {
+        res.status(400).json({
+          success: false,
+          message: 'Rating must be a number between 1 and 5',
+        });
+        return;
+      }
+    }
+
+    // Validate verified if provided
+    if (verified !== undefined && verified !== 'true' && verified !== 'false') {
+      res.status(400).json({
+        success: false,
+        message: 'Verified must be true or false',
+      });
+      return;
+    }
+
+    // Validate sortBy if provided
+    const allowedSortFields = ['createdAt', 'rating', 'helpful', 'verified'];
+    if (sortBy && !validateEnum(sortBy, allowedSortFields)) {
+      res.status(400).json({
+        success: false,
+        message: `Sort field must be one of: ${allowedSortFields.join(', ')}`,
+      });
+      return;
+    }
+
+    // Validate sortOrder if provided
+    if (sortOrder && !validateEnum(sortOrder, ['asc', 'desc'])) {
+      res.status(400).json({
+        success: false,
+        message: 'Sort order must be asc or desc',
+      });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    logger.error('Validation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Validation error occurred',
+    });
+  }
+};
+
+// Validation middleware for search queries
+export const validateSearchQuery = (req: Request, res: Response, next: NextFunction): void => {
+  try {
+    const { q, productId, rating, page, limit } = req.query;
+
+    // Validate search query
+    if (!q || typeof q !== 'string' || q.trim().length < 2) {
+      res.status(400).json({
+        success: false,
+        message: 'Search query must be at least 2 characters long',
+      });
+      return;
+    }
+
+    // Validate productId if provided
+    if (productId && !validateObjectId(productId as string)) {
+      res.status(400).json({
+        success: false,
+        message: 'Valid product ID is required',
+      });
+      return;
+    }
+
+    // Validate rating if provided
+    if (rating !== undefined) {
+      const ratingNum = parseInt(rating as string);
+      if (isNaN(ratingNum) || !validateNumberRange(ratingNum, 1, 5)) {
+        res.status(400).json({
+          success: false,
+          message: 'Rating must be a number between 1 and 5',
+        });
+        return;
+      }
+    }
+
+    // Validate pagination
+    const pagination = validatePagination(page, limit);
+    req.query.page = pagination.page.toString();
+    req.query.limit = pagination.limit.toString();
+
+    // Sanitize search query
+    req.query.q = sanitizeString(q as string);
+
+    next();
+  } catch (error) {
+    logger.error('Validation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Validation error occurred',
+    });
+  }
+};
+
+// Sanitization middleware for all requests
+export const sanitizeInput = (req: Request, res: Response, next: NextFunction): void => {
+  try {
+    // Sanitize body
+    if (req.body) {
+      Object.keys(req.body).forEach(key => {
+        if (typeof req.body[key] === 'string') {
+          req.body[key] = sanitizeString(req.body[key]);
+        }
+      });
+    }
+
+    // Sanitize query parameters
+    if (req.query) {
+      Object.keys(req.query).forEach(key => {
+        if (typeof req.query[key] === 'string') {
+          req.query[key] = sanitizeString(req.query[key] as string);
+        }
+      });
+    }
+
+    next();
+  } catch (error) {
+    logger.error('Sanitization error:', error);
+    next();
+  }
+};

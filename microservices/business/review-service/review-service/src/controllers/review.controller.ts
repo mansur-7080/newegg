@@ -3,6 +3,7 @@ import { Review, IReview } from '../models/Review';
 import { logger } from '../utils/logger';
 import { ApiError } from '../utils/errors';
 import { ReviewService } from '../services/review.service';
+import { AuthenticatedRequest, ReviewFilters, ReviewSortOptions } from '../types/express';
 
 export class ReviewController {
   private reviewService: ReviewService;
@@ -97,9 +98,9 @@ export class ReviewController {
   /**
    * Create a new review
    */
-  public createReview = async (req: Request, res: Response): Promise<void> => {
+  public createReview = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const userId = (req as any).user.id;
+      const userId = req.user.id;
       const reviewData = { ...req.body, userId };
 
       // Check if user already reviewed this product
@@ -136,10 +137,10 @@ export class ReviewController {
   /**
    * Update a review
    */
-  public updateReview = async (req: Request, res: Response): Promise<void> => {
+  public updateReview = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const userId = (req as any).user.id;
+      const userId = req.user.id;
       const updateData = req.body;
 
       const review = await Review.findById(id);
@@ -180,10 +181,10 @@ export class ReviewController {
   /**
    * Delete a review
    */
-  public deleteReview = async (req: Request, res: Response): Promise<void> => {
+  public deleteReview = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const userId = (req as any).user.id;
+      const userId = req.user.id;
 
       const review = await Review.findById(id);
       if (!review) {
@@ -292,13 +293,13 @@ export class ReviewController {
   /**
    * Get reviews by a specific user
    */
-  public getUserReviews = async (req: Request, res: Response): Promise<void> => {
+  public getUserReviews = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { userId } = req.params;
-      const currentUserId = (req as any).user.id;
+      const currentUserId = req.user.id;
 
       // Users can only see their own reviews unless they're admin
-      if (userId !== currentUserId && (req as any).user.role !== 'admin') {
+      if (userId !== currentUserId && req.user.role !== 'admin') {
         res.status(403).json({
           success: false,
           message: 'Not authorized to view these reviews',
@@ -338,13 +339,13 @@ export class ReviewController {
   /**
    * Get review statistics for a user
    */
-  public getUserReviewStats = async (req: Request, res: Response): Promise<void> => {
+  public getUserReviewStats = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { userId } = req.params;
-      const currentUserId = (req as any).user.id;
+      const currentUserId = req.user.id;
 
       // Users can only see their own stats unless they're admin
-      if (userId !== currentUserId && (req as any).user.role !== 'admin') {
+      if (userId !== currentUserId && req.user.role !== 'admin') {
         res.status(403).json({
           success: false,
           message: 'Not authorized to view these statistics',
@@ -371,11 +372,11 @@ export class ReviewController {
   /**
    * Vote on review helpfulness
    */
-  public voteHelpful = async (req: Request, res: Response): Promise<void> => {
+  public voteHelpful = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
       const { vote } = req.body;
-      const userId = (req as any).user.id;
+      const userId = req.user.id;
 
       const review = await Review.findById(id);
       if (!review) {
@@ -408,10 +409,10 @@ export class ReviewController {
   /**
    * Remove helpful vote
    */
-  public removeHelpfulVote = async (req: Request, res: Response): Promise<void> => {
+  public removeHelpfulVote = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const userId = (req as any).user.id;
+      const userId = req.user.id;
 
       const review = await Review.findById(id);
       if (!review) {
@@ -444,11 +445,11 @@ export class ReviewController {
   /**
    * Flag a review for moderation
    */
-  public flagReview = async (req: Request, res: Response): Promise<void> => {
+  public flagReview = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
       const { reason, description } = req.body;
-      const userId = (req as any).user.id;
+      const userId = req.user.id;
 
       const review = await Review.findById(id);
       if (!review) {
@@ -489,11 +490,11 @@ export class ReviewController {
   /**
    * Add a reply to a review
    */
-  public addReply = async (req: Request, res: Response): Promise<void> => {
+  public addReply = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
       const { content, userType } = req.body;
-      const userId = (req as any).user.id;
+      const userId = req.user.id;
 
       const review = await Review.findById(id);
       if (!review) {
