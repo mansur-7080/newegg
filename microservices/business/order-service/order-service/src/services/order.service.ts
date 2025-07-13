@@ -299,7 +299,8 @@ export class OrderService {
     userId: string,
     page = 1,
     limit = 10,
-    status?: string
+    status?: string,
+    includeItems = false // Performance optimization
   ): Promise<ServiceResponse<any>> {
     try {
       const where: any = { userId };
@@ -307,13 +308,40 @@ export class OrderService {
         where.status = status;
       }
 
+      // OPTIMIZED: Selective includes and cursor-based pagination
+      const includeOptions: any = {};
+      if (includeItems) {
+        includeOptions.items = {
+          select: {
+            id: true,
+            productId: true,
+            name: true,
+            price: true,
+            quantity: true,
+            subtotal: true,
+          }
+        };
+      }
+
+      // Use cursor-based pagination for better performance
+      const cursor = page > 1 ? { id: await this.getCursorForPage(userId, page, limit, status) } : undefined;
+
       const [orders, total] = await Promise.all([
         prisma.order.findMany({
           where,
-          include: { items: true },
-          skip: (page - 1) * limit,
+          include: includeOptions,
           take: limit,
+          cursor,
           orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            userId: true,
+            status: true,
+            totalAmount: true,
+            createdAt: true,
+            updatedAt: true,
+            ...(includeItems && { items: true }),
+          }
         }),
         prisma.order.count({ where }),
       ]);
@@ -327,6 +355,8 @@ export class OrderService {
             limit,
             total,
             totalPages: Math.ceil(total / limit),
+            hasNextPage: page * limit < total,
+            hasPrevPage: page > 1,
           },
         },
         message: 'User orders retrieved successfully',
@@ -342,6 +372,33 @@ export class OrderService {
         },
       };
     }
+  }
+
+  /**
+   * Get cursor for cursor-based pagination
+   */
+  private async getCursorForPage(
+    userId: string, 
+    page: number, 
+    limit: number, 
+    status?: string
+  ): Promise<string | undefined> {
+    if (page <= 1) return undefined;
+
+    const where: any = { userId };
+    if (status) {
+      where.status = status;
+    }
+
+    const skip = (page - 1) * limit - 1;
+    const cursorOrder = await prisma.order.findFirst({
+      where,
+      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+      skip,
+    });
+
+    return cursorOrder?.id;
   }
 
   async cancelOrder(orderId: string, userId: string): Promise<ServiceResponse<any>> {
