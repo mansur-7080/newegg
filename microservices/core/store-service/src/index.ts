@@ -1,6 +1,6 @@
 /**
- * UltraMarket Analytics Service
- * Professional analytics and business intelligence service
+ * UltraMarket Store Service
+ * Professional multi-vendor store management service
  */
 
 import express from 'express';
@@ -10,23 +10,23 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
 import { createClient } from 'redis';
-import { config } from 'dotenv';
+import dotenv from 'dotenv';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
-import { analyticsRoutes } from './routes/analytics.routes';
-import { reportRoutes } from './routes/report.routes';
+import { storeRoutes } from './routes/store.routes';
+import { vendorRoutes } from './routes/vendor.routes';
 import { healthRoutes } from './routes/health.routes';
 import { swaggerSetup } from './config/swagger';
 import { validateEnv } from './config/env.validation';
 
 // Load environment variables
-config();
+dotenv.config();
 
 // Validate environment variables
 validateEnv();
 
 const app = express();
-const PORT = process.env.PORT || 3020;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3004;
 
 // Initialize database clients
 export const prisma = new PrismaClient({
@@ -38,24 +38,28 @@ export const redis = createClient({
 });
 
 // Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'https:'],
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+      },
     },
-  },
-}));
+  })
+);
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-}));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  })
+);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -67,11 +71,14 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
 app.use(limiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Compression middleware
 app.use(compression());
 
 // Request logging
@@ -85,8 +92,8 @@ app.use((req, res, next) => {
 });
 
 // API Routes
-app.use('/api/v1/analytics', analyticsRoutes);
-app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/stores', storeRoutes);
+app.use('/api/v1/vendors', vendorRoutes);
 app.use('/health', healthRoutes);
 
 // Swagger documentation
@@ -109,15 +116,21 @@ app.use(errorHandler);
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
+
+  // Close database connections
   await prisma.$disconnect();
   await redis.quit();
+
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
+
+  // Close database connections
   await prisma.$disconnect();
   await redis.quit();
+
   process.exit(0);
 });
 
@@ -134,11 +147,11 @@ const startServer = async () => {
 
     // Start HTTP server
     app.listen(PORT, () => {
-      logger.info(`🚀 Analytics Service running on port ${PORT}`);
+      logger.info(`🚀 Store Service running on port ${PORT}`);
       logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
       logger.info(`🏥 Health Check: http://localhost:${PORT}/health`);
-      logger.info(`📊 Analytics: http://localhost:${PORT}/api/v1/analytics`);
-      logger.info(`📋 Reports: http://localhost:${PORT}/api/v1/reports`);
+      logger.info(`🏪 Stores: http://localhost:${PORT}/api/v1/stores`);
+      logger.info(`👥 Vendors: http://localhost:${PORT}/api/v1/vendors`);
     });
   } catch (error) {
     logger.error('❌ Failed to start server:', error);
