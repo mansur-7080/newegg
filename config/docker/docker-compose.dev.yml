@@ -6,9 +6,9 @@ services:
     image: postgres:15-alpine
     container_name: ultramarket_postgres
     environment:
-      POSTGRES_DB: ultramarket
-      POSTGRES_USER: ultramarket_user
-      POSTGRES_PASSWORD: ultramarket_password
+      POSTGRES_DB: ${POSTGRES_DB:-ultramarket}
+      POSTGRES_USER: ${POSTGRES_USER:-ultramarket_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ultramarket_secure_password_2024}
     ports:
       - '5432:5432'
     volumes:
@@ -25,6 +25,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: ultramarket_redis
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-ultramarket_redis_secure_2024}
     ports:
       - '6379:6379'
     volumes:
@@ -32,7 +34,7 @@ services:
     networks:
       - ultramarket_network
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD:-ultramarket_redis_secure_2024}', 'ping']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -49,9 +51,9 @@ services:
       - NODE_ENV=development
       - KONG_DATABASE=postgres
       - KONG_PG_HOST=postgres
-      - KONG_PG_USER=ultramarket_user
-      - KONG_PG_PASSWORD=ultramarket_password
-      - KONG_PG_DATABASE=ultramarket
+      - KONG_PG_USER=${POSTGRES_USER:-ultramarket_user}
+      - KONG_PG_PASSWORD=${POSTGRES_PASSWORD:-ultramarket_secure_password_2024}
+      - KONG_PG_DATABASE=${POSTGRES_DB:-ultramarket}
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,12 +73,17 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3001
-      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
-      - JWT_ACCESS_SECRET=your-super-secret-access-key-here-make-it-long-and-secure
-      - JWT_REFRESH_SECRET=your-super-secret-refresh-key-here-make-it-long-and-secure
-      - JWT_EMAIL_VERIFICATION_SECRET=your-email-verification-secret-key
-      - JWT_PASSWORD_RESET_SECRET=your-password-reset-secret-key
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ultramarket_user}:${POSTGRES_PASSWORD:-ultramarket_secure_password_2024}@postgres:5432/${POSTGRES_DB:-ultramarket}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-ultramarket_jwt_access_secret_2024_development_only}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-ultramarket_jwt_refresh_secret_2024_development_only}
+      - JWT_EMAIL_VERIFICATION_SECRET=${JWT_EMAIL_VERIFICATION_SECRET:-ultramarket_email_verification_secret_2024}
+      - JWT_PASSWORD_RESET_SECRET=${JWT_PASSWORD_RESET_SECRET:-ultramarket_password_reset_secret_2024}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-ultramarket_redis_secure_2024}@redis:6379
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@ultramarket.uz}
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,8 +105,8 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3002
-      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ultramarket_user}:${POSTGRES_PASSWORD:-ultramarket_secure_password_2024}@postgres:5432/${POSTGRES_DB:-ultramarket}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-ultramarket_redis_secure_2024}@redis:6379
     depends_on:
       postgres:
         condition: service_healthy
@@ -122,8 +129,8 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3003
-      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ultramarket_user}:${POSTGRES_PASSWORD:-ultramarket_secure_password_2024}@postgres:5432/${POSTGRES_DB:-ultramarket}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-ultramarket_redis_secure_2024}@redis:6379
     depends_on:
       postgres:
         condition: service_healthy
@@ -145,8 +152,8 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3004
-      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ultramarket_user}:${POSTGRES_PASSWORD:-ultramarket_secure_password_2024}@postgres:5432/${POSTGRES_DB:-ultramarket}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-ultramarket_redis_secure_2024}@redis:6379
     depends_on:
       postgres:
         condition: service_healthy
@@ -168,10 +175,12 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3005
-      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
-      - REDIS_URL=redis://redis:6379
-      - STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
-      - STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ultramarket_user}:${POSTGRES_PASSWORD:-ultramarket_secure_password_2024}@postgres:5432/${POSTGRES_DB:-ultramarket}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-ultramarket_redis_secure_2024}@redis:6379
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_your_stripe_secret_key}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_your_webhook_secret}
+      - CLICK_SECRET_KEY=${CLICK_SECRET_KEY:-}
+      - PAYME_SECRET_KEY=${PAYME_SECRET_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -193,8 +202,8 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3006
-      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ultramarket_user}:${POSTGRES_PASSWORD:-ultramarket_secure_password_2024}@postgres:5432/${POSTGRES_DB:-ultramarket}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-ultramarket_redis_secure_2024}@redis:6379
     depends_on:
       postgres:
         condition: service_healthy
@@ -207,45 +216,23 @@ services:
       - /app/node_modules
 
   # Platform Services
-  search-service:
-    build:
-      context: ../../microservices/platform/search-service/search-service
-      dockerfile: Dockerfile.dev
-    container_name: ultramarket_search_service
-    ports:
-      - '3007:3007'
-    environment:
-      - NODE_ENV=development
-      - PORT=3007
-      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - ultramarket_network
-    volumes:
-      - ../../microservices/platform/search-service/search-service:/app
-      - /app/node_modules
-
   notification-service:
     build:
       context: ../../microservices/platform/notification-service/notification-service
       dockerfile: Dockerfile.dev
     container_name: ultramarket_notification_service
     ports:
-      - '3008:3008'
+      - '3007:3007'
     environment:
       - NODE_ENV=development
-      - PORT=3008
-      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
-      - REDIS_URL=redis://redis:6379
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_USER=your-email@gmail.com
-      - SMTP_PASS=your-app-password
+      - PORT=3007
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ultramarket_user}:${POSTGRES_PASSWORD:-ultramarket_secure_password_2024}@postgres:5432/${POSTGRES_DB:-ultramarket}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-ultramarket_redis_secure_2024}@redis:6379
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - FIREBASE_SERVER_KEY=${FIREBASE_SERVER_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -257,92 +244,100 @@ services:
       - ../../microservices/platform/notification-service/notification-service:/app
       - /app/node_modules
 
-  # Analytics Services
-  analytics-service:
+  search-service:
     build:
-      context: ../../microservices/analytics/analytics-service
+      context: ../../microservices/platform/search-service/search-service
       dockerfile: Dockerfile.dev
-    container_name: ultramarket_analytics_service
+    container_name: ultramarket_search_service
     ports:
-      - '3009:3009'
+      - '3008:3008'
     environment:
       - NODE_ENV=development
-      - PORT=3009
-      - DATABASE_URL=postgresql://ultramarket_user:ultramarket_password@postgres:5432/ultramarket
-      - REDIS_URL=redis://redis:6379
+      - PORT=3008
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-ultramarket_redis_secure_2024}@redis:6379
     depends_on:
-      postgres:
+      elasticsearch:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
       - ultramarket_network
     volumes:
-      - ../../microservices/analytics/analytics-service:/app
+      - ../../microservices/platform/search-service/search-service:/app
       - /app/node_modules
 
   # Monitoring Services
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: ultramarket_prometheus
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ultramarket_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
-      - '9090:9090'
+      - '9200:9200'
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - ultramarket_network
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: ultramarket_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - '5601:5601'
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     networks:
       - ultramarket_network
 
-  grafana:
-    image: grafana/grafana:latest
-    container_name: ultramarket_grafana
+  # Frontend Applications
+  web-app:
+    build:
+      context: ../../frontend/web-app
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket_web_app
     ports:
       - '3000:3000'
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_ENVIRONMENT=development
+    networks:
+      - ultramarket_network
     volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
-    networks:
-      - ultramarket_network
-    depends_on:
-      - prometheus
+      - ../../frontend/web-app:/app
+      - /app/node_modules
 
-  # Development Tools
-  adminer:
-    image: adminer:latest
-    container_name: ultramarket_adminer
+  admin-panel:
+    build:
+      context: ../../frontend/admin-panel
+      dockerfile: Dockerfile.dev
+    container_name: ultramarket_admin_panel
     ports:
-      - '8080:8080'
-    networks:
-      - ultramarket_network
-
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: ultramarket_redis_commander
-    ports:
-      - '8081:8081'
+      - '3009:3000'
     environment:
-      - REDIS_HOSTS=local:redis:6379
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_ENVIRONMENT=development
     networks:
       - ultramarket_network
-    depends_on:
-      - redis
-
-volumes:
-  postgres_data:
-  redis_data:
-  prometheus_data:
-  grafana_data:
+    volumes:
+      - ../../frontend/admin-panel:/app
+      - /app/node_modules
 
 networks:
   ultramarket_network:
     driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  elasticsearch_data:

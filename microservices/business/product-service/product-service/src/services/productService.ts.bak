@@ -256,32 +256,55 @@ export class ProductService {
   }
 
   // Category methods
-  async createCategory(categoryData: Partial<ICategory>): Promise<any> {
+  async createCategory(categoryData: ICategory): Promise<ICategory> {
     try {
-      // Prepare category data for MongoDB
-      const categoryToCreate = {
-        name: categoryData.name || '',
-        slug: categoryData.slug || categoryData.name?.toLowerCase().replace(/\s+/g, '-') || '',
-        description: categoryData.description,
-        parentCategory: categoryData.parentCategory, // Using the correct field name for MongoDB
-        image: categoryData.image,
-        isActive: categoryData.isActive ?? true,
-        sortOrder: categoryData.sortOrder ?? 0
-      };
+      // Validate category data
+      if (!categoryData.name || !categoryData.slug) {
+        throw new Error('Category name and slug are required');
+      }
 
-      // TODO: Add the createCategory method to the database class
-      // For now, we'll simulate it
-      logger.info('Category would be created:', categoryToCreate);
-      
-      // Return mock data with the correct structure
-      return {
-        ...categoryToCreate,
-        _id: `cat_${Date.now()}`,
+      // Check if category with same slug already exists
+      const existingCategory = await this.database.getCategoryBySlug(categoryData.slug);
+      if (existingCategory) {
+        throw new Error('Category with this slug already exists');
+      }
+
+      // Create category with proper validation
+      const categoryToCreate = {
+        name: categoryData.name,
+        slug: categoryData.slug,
+        description: categoryData.description || '',
+        parentCategory: categoryData.parentCategory || null,
+        isActive: categoryData.isActive !== undefined ? categoryData.isActive : true,
+        sortOrder: categoryData.sortOrder || 0,
+        metaTitle: categoryData.metaTitle || categoryData.name,
+        metaDescription: categoryData.metaDescription || categoryData.description || '',
+        imageUrl: categoryData.imageUrl || '',
+        icon: categoryData.icon || '',
         createdAt: new Date(),
         updatedAt: new Date()
       };
+
+      // Create category in database
+      const createdCategory = await this.database.createCategory(categoryToCreate);
+      
+      logger.info('Category created successfully', {
+        categoryId: createdCategory.id,
+        categoryName: createdCategory.name,
+        categorySlug: createdCategory.slug,
+        operation: 'category_creation'
+      });
+
+      return createdCategory;
     } catch (error) {
-      logger.error('Error creating category:', error);
+      logger.error('Error creating category:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        categoryData: {
+          name: categoryData.name,
+          slug: categoryData.slug
+        },
+        operation: 'category_creation'
+      });
       throw error;
     }
   }

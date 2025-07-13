@@ -1,9 +1,8 @@
-import * as Joi from 'joi';
+import Joi from 'joi';
 import { logger } from '../utils/logger';
 
 /**
- * Professional environment validation schema for Auth Service
- * Uses Joi for schema validation with detailed error messages
+ * Environment validation schema for Auth Service
  */
 const envSchema = Joi.object({
   // Node environment
@@ -52,19 +51,79 @@ const envSchema = Joi.object({
 
   REDIS_PASSWORD: Joi.string().allow('').description('Redis password'),
 
-  // JWT configuration
-  JWT_SECRET: Joi.string().min(32).required().description('Secret for signing JWT tokens'),
+  // JWT configuration - STRICT VALIDATION
+  JWT_SECRET: Joi.string()
+    .min(32)
+    .required()
+    .description('Secret for signing JWT tokens')
+    .custom((value, helpers) => {
+      // Check for common insecure patterns
+      const insecurePatterns = [
+        'default',
+        'secret',
+        'key',
+        'password',
+        'ultramarket',
+        'development',
+        'test',
+        'dev',
+        'local'
+      ];
+      
+      const lowerValue = value.toLowerCase();
+      if (insecurePatterns.some(pattern => lowerValue.includes(pattern))) {
+        return helpers.error('any.invalid', { 
+          message: 'JWT_SECRET contains insecure patterns. Use a strong, random secret.' 
+        });
+      }
+      
+      return value;
+    }),
 
   JWT_REFRESH_SECRET: Joi.string()
     .min(32)
     .required()
-    .description('Secret for signing refresh tokens'),
+    .description('Secret for signing refresh tokens')
+    .custom((value, helpers) => {
+      // Check for common insecure patterns
+      const insecurePatterns = [
+        'default',
+        'secret',
+        'key',
+        'password',
+        'ultramarket',
+        'development',
+        'test',
+        'dev',
+        'local'
+      ];
+      
+      const lowerValue = value.toLowerCase();
+      if (insecurePatterns.some(pattern => lowerValue.includes(pattern))) {
+        return helpers.error('any.invalid', { 
+          message: 'JWT_REFRESH_SECRET contains insecure patterns. Use a strong, random secret.' 
+        });
+      }
+      
+      return value;
+    }),
 
   JWT_EXPIRES_IN: Joi.string().default('15m').description('JWT token expiration time'),
 
   JWT_REFRESH_EXPIRES_IN: Joi.string()
     .default('7d')
     .description('JWT refresh token expiration time'),
+
+  // Email verification and password reset secrets
+  JWT_EMAIL_VERIFICATION_SECRET: Joi.string()
+    .min(32)
+    .required()
+    .description('Secret for email verification tokens'),
+
+  JWT_PASSWORD_RESET_SECRET: Joi.string()
+    .min(32)
+    .required()
+    .description('Secret for password reset tokens'),
 
   // Bcrypt configuration
   BCRYPT_SALT_ROUNDS: Joi.number()
@@ -92,7 +151,7 @@ const envSchema = Joi.object({
 
   ENABLE_SWAGGER: Joi.boolean().default(true).description('Enable Swagger documentation'),
 
-  // Email configuration (optional for local dev)
+  // Email configuration
   SMTP_HOST: Joi.string().hostname().description('SMTP server host'),
 
   SMTP_PORT: Joi.number().port().default(587).description('SMTP server port'),
@@ -101,7 +160,7 @@ const envSchema = Joi.object({
 
   SMTP_PASS: Joi.string().description('SMTP server password'),
 
-  EMAIL_FROM: Joi.string().email().description('Default sender email address'),
+  SMTP_FROM: Joi.string().email().description('Default sender email address'),
 
   // Service URLs for inter-service communication
   USER_SERVICE_URL: Joi.string()
@@ -117,8 +176,37 @@ const envSchema = Joi.object({
   // Session management
   SESSION_SECRET: Joi.string()
     .min(32)
-    .default('ultra-market-session-secret-change-in-production')
-    .description('Secret for signing session cookies'),
+    .required()
+    .description('Secret for signing session cookies')
+    .custom((value, helpers) => {
+      // Check for common insecure patterns
+      const insecurePatterns = [
+        'default',
+        'secret',
+        'key',
+        'password',
+        'ultramarket',
+        'development',
+        'test',
+        'dev',
+        'local'
+      ];
+      
+      const lowerValue = value.toLowerCase();
+      if (insecurePatterns.some(pattern => lowerValue.includes(pattern))) {
+        return helpers.error('any.invalid', { 
+          message: 'SESSION_SECRET contains insecure patterns. Use a strong, random secret.' 
+        });
+      }
+      
+      return value;
+    }),
+
+  // Frontend URL for email links
+  FRONTEND_URL: Joi.string()
+    .uri()
+    .default('http://localhost:3000')
+    .description('Frontend URL for email verification links'),
 }).unknown(); // Allow unknown environment variables (for flexibility)
 
 /**
@@ -138,52 +226,92 @@ export const validateEnv = (): Record<string, any> => {
       const validationErrors = error.details.map((detail) => ({
         key: detail.path.join('.'),
         message: detail.message,
+        type: detail.type,
       }));
 
       logger.error('❌ Environment validation failed:', {
         errors: validationErrors,
         service: 'auth-service',
+        environment: process.env.NODE_ENV,
       });
 
       throw new Error(`Environment validation failed: ${error.message}`);
     }
 
-    // Check for insecure defaults in production
+    // Additional security checks for production
     if (process.env.NODE_ENV === 'production') {
       const securityChecks = [
         {
           key: 'JWT_SECRET',
           value: value.JWT_SECRET,
-          insecureValue: 'ultra-market-jwt-secret-change-in-production',
-          message: 'Using default JWT secret in production',
+          insecurePatterns: ['default', 'secret', 'key', 'password', 'ultramarket', 'development', 'test'],
+          message: 'JWT_SECRET contains insecure patterns in production',
         },
         {
           key: 'JWT_REFRESH_SECRET',
           value: value.JWT_REFRESH_SECRET,
-          insecureValue: 'ultra-market-refresh-secret-change-in-production',
-          message: 'Using default JWT refresh secret in production',
+          insecurePatterns: ['default', 'secret', 'key', 'password', 'ultramarket', 'development', 'test'],
+          message: 'JWT_REFRESH_SECRET contains insecure patterns in production',
         },
         {
           key: 'SESSION_SECRET',
           value: value.SESSION_SECRET,
-          insecureValue: 'ultra-market-session-secret-change-in-production',
-          message: 'Using default session secret in production',
+          insecurePatterns: ['default', 'secret', 'key', 'password', 'ultramarket', 'development', 'test'],
+          message: 'SESSION_SECRET contains insecure patterns in production',
+        },
+        {
+          key: 'DATABASE_URL',
+          value: value.DATABASE_URL,
+          insecurePatterns: ['password', 'ultramarket_password'],
+          message: 'DATABASE_URL contains insecure patterns in production',
         },
       ];
 
-      const securityWarnings = securityChecks.filter(
-        (check) => check.value === check.insecureValue
-      );
+      const securityWarnings = securityChecks.filter((check) => {
+        const lowerValue = check.value.toLowerCase();
+        return check.insecurePatterns.some(pattern => lowerValue.includes(pattern));
+      });
 
       if (securityWarnings.length > 0) {
         securityWarnings.forEach((warning) => {
           logger.error(`⚠️ SECURITY RISK: ${warning.message}`, {
             key: warning.key,
             env: process.env.NODE_ENV,
+            service: 'auth-service',
           });
         });
 
-        throw new Error('Security configuration error: Default secrets used in production');
+        throw new Error('Security configuration error: Insecure secrets detected in production');
+      }
+
+      // Check for strong secrets (at least 32 characters with mixed content)
+      const strongSecretChecks = [
+        { key: 'JWT_SECRET', value: value.JWT_SECRET },
+        { key: 'JWT_REFRESH_SECRET', value: value.JWT_REFRESH_SECRET },
+        { key: 'SESSION_SECRET', value: value.SESSION_SECRET },
+      ];
+
+      const weakSecrets = strongSecretChecks.filter((check) => {
+        const secret = check.value;
+        // Check for minimum complexity
+        return secret.length < 32 || 
+               !/[A-Z]/.test(secret) || 
+               !/[a-z]/.test(secret) || 
+               !/[0-9]/.test(secret) ||
+               !/[^A-Za-z0-9]/.test(secret);
+      });
+
+      if (weakSecrets.length > 0) {
+        weakSecrets.forEach((secret) => {
+          logger.error(`⚠️ WEAK SECRET: ${secret.key} does not meet complexity requirements`, {
+            key: secret.key,
+            env: process.env.NODE_ENV,
+            service: 'auth-service',
+            requirements: 'Minimum 32 characters with uppercase, lowercase, numbers, and special characters',
+          });
+        });
+
+        throw new Error('Security configuration error: Weak secrets detected in production');
       }
     }
 
@@ -193,6 +321,9 @@ export const validateEnv = (): Record<string, any> => {
     logger.info('✅ Environment validation passed', {
       environment: process.env.NODE_ENV,
       service: 'auth-service',
+      databaseConfigured: !!value.DATABASE_URL,
+      redisConfigured: !!value.REDIS_URL,
+      emailConfigured: !!(value.SMTP_HOST && value.SMTP_USER && value.SMTP_PASS),
     });
 
     return value;
@@ -201,6 +332,7 @@ export const validateEnv = (): Record<string, any> => {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
       service: 'auth-service',
+      environment: process.env.NODE_ENV,
     });
     throw error;
   }
