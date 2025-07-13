@@ -1,27 +1,52 @@
 import { Request, Response } from 'express';
-import { ProductService, ProductFilters, ProductQueryOptions } from '../services/product.service';
+import { ProductService } from '../services/product.service';
+import { SearchService } from '../services/search.service';
+import { SpecificationService } from '../services/specification.service';
+import { CompatibilityService } from '../services/compatibility.service';
+import { ReviewService } from '../services/review.service';
+import { BenchmarkService } from '../services/benchmark.service';
+import { PriceService } from '../services/price.service';
 import { logger } from '../utils/logger';
+import { validationResult } from 'express-validator';
 
 const productService = new ProductService();
+const searchService = new SearchService();
+const specificationService = new SpecificationService();
+const compatibilityService = new CompatibilityService();
+const reviewService = new ReviewService();
+const benchmarkService = new BenchmarkService();
+const priceService = new PriceService();
 
 export class TechProductController {
   static async getProducts(req: Request, res: Response) {
     try {
-      // Parse query parameters
-      const filters: ProductFilters = {
-        categoryId: req.query.categoryId as string,
-        brandId: req.query.brandId as string,
-        minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
-        maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
-        inStock: req.query.inStock === 'true',
-        search: req.query.q as string,
+      const {
+        page = 1,
+        limit = 20,
+        categoryId,
+        brandId,
+        minPrice,
+        maxPrice,
+        inStock,
+        featured,
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+      } = req.query;
+
+      const filters = {
+        categoryId: categoryId as string,
+        brandId: brandId as string,
+        minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
+        maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
+        inStock: inStock === 'true',
+        featured: featured === 'true',
       };
 
-      const options: ProductQueryOptions = {
-        page: req.query.page ? Number(req.query.page) : 1,
-        limit: req.query.limit ? Number(req.query.limit) : 20,
-        sortBy: req.query.sortBy as string || 'createdAt',
-        sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'desc',
+      const options = {
+        page: parseInt(page as string),
+        limit: Math.min(parseInt(limit as string), 100),
+        sortBy: sortBy as string,
+        sortOrder: sortOrder as 'asc' | 'desc',
         include: {
           category: true,
           brand: true,
@@ -36,17 +61,17 @@ export class TechProductController {
         success: true,
         data: result.products,
         pagination: {
-          total: result.total,
           page: result.page,
           limit: result.limit,
+          total: result.total,
           totalPages: result.totalPages,
         },
       });
     } catch (error) {
-      logger.error('Failed to fetch products', error);
+      logger.error('Failed to get products', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch products',
+        error: 'Failed to get products',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -54,43 +79,60 @@ export class TechProductController {
 
   static async searchProducts(req: Request, res: Response) {
     try {
-      const { q, category, minPrice, maxPrice } = req.query;
+      const {
+        q: query,
+        category,
+        brand,
+        minPrice,
+        maxPrice,
+        page = 1,
+        limit = 20,
+        sortBy = 'relevance',
+      } = req.query;
 
-      const filters: ProductFilters = {
-        search: q as string,
-        categoryId: category as string,
-        minPrice: minPrice ? Number(minPrice) : undefined,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
-      };
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'Search query is required',
+        });
+      }
 
-      const options: ProductQueryOptions = {
-        page: req.query.page ? Number(req.query.page) : 1,
-        limit: req.query.limit ? Number(req.query.limit) : 20,
-        include: {
-          category: true,
-          brand: true,
-          images: true,
+      const searchOptions = {
+        query: query.trim(),
+        filters: {
+          categoryId: category as string,
+          brandId: brand as string,
+          minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
+          maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
         },
+        pagination: {
+          page: parseInt(page as string),
+          limit: Math.min(parseInt(limit as string), 100),
+        },
+        sortBy: sortBy as string,
       };
 
-      const result = await productService.getProducts(filters, options);
+      const searchResults = await searchService.searchProducts(searchOptions);
 
       res.json({
         success: true,
-        data: result.products,
+        data: searchResults.products,
+        searchQuery: query,
+        filters: searchOptions.filters,
         pagination: {
-          total: result.total,
-          page: result.page,
-          limit: result.limit,
-          totalPages: result.totalPages,
+          page: searchResults.page,
+          limit: searchResults.limit,
+          total: searchResults.total,
+          totalPages: searchResults.totalPages,
         },
-        query: q,
+        suggestions: searchResults.suggestions,
+        facets: searchResults.facets,
       });
     } catch (error) {
-      logger.error('Failed to search products', error);
+      logger.error('Search failed', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to search products',
+        error: 'Search failed',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -98,20 +140,45 @@ export class TechProductController {
 
   static async filterProducts(req: Request, res: Response) {
     try {
-      const filters: ProductFilters = {
-        categoryId: req.body.categoryId,
-        brandId: req.body.brandId,
-        minPrice: req.body.minPrice,
-        maxPrice: req.body.maxPrice,
-        inStock: req.body.inStock,
-        featured: req.body.featured,
+      const {
+        category,
+        brand,
+        minPrice,
+        maxPrice,
+        specifications,
+        inStock,
+        condition,
+        page = 1,
+        limit = 20,
+        sortBy = 'price',
+        sortOrder = 'asc',
+      } = req.query;
+
+      // Parse specifications filter
+      let specFilters = {};
+      if (specifications && typeof specifications === 'string') {
+        try {
+          specFilters = JSON.parse(specifications);
+        } catch (e) {
+          logger.warn('Invalid specifications filter format', e);
+        }
+      }
+
+      const filters = {
+        categoryId: category as string,
+        brandId: brand as string,
+        minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
+        maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
+        inStock: inStock === 'true',
+        condition: condition as string,
+        specifications: specFilters,
       };
 
-      const options: ProductQueryOptions = {
-        page: req.body.page || 1,
-        limit: req.body.limit || 20,
-        sortBy: req.body.sortBy || 'createdAt',
-        sortOrder: req.body.sortOrder || 'desc',
+      const options = {
+        page: parseInt(page as string),
+        limit: Math.min(parseInt(limit as string), 100),
+        sortBy: sortBy as string,
+        sortOrder: sortOrder as 'asc' | 'desc',
         include: {
           category: true,
           brand: true,
@@ -120,24 +187,25 @@ export class TechProductController {
         },
       };
 
-      const result = await productService.getProducts(filters, options);
+      const result = await productService.getFilteredProducts(filters, options);
 
       res.json({
         success: true,
         data: result.products,
+        filters: filters,
         pagination: {
-          total: result.total,
           page: result.page,
           limit: result.limit,
+          total: result.total,
           totalPages: result.totalPages,
         },
-        appliedFilters: filters,
+        availableFilters: result.availableFilters,
       });
     } catch (error) {
-      logger.error('Failed to filter products', error);
+      logger.error('Filter failed', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to filter products',
+        error: 'Filter failed',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -153,6 +221,8 @@ export class TechProductController {
         images: true,
         specifications: true,
         reviews: true,
+        variants: true,
+        inventory: true,
       });
 
       if (!product) {
@@ -162,15 +232,27 @@ export class TechProductController {
         });
       }
 
+      // Get additional data
+      const [compatibility, priceHistory, relatedProducts] = await Promise.all([
+        compatibilityService.getProductCompatibility(id),
+        priceService.getPriceHistory(id, 30), // Last 30 days
+        productService.getRelatedProducts(id, 6),
+      ]);
+
       res.json({
         success: true,
-        data: product,
+        data: {
+          ...product,
+          compatibility,
+          priceHistory,
+          relatedProducts,
+        },
       });
     } catch (error) {
-      logger.error('Failed to get product', error);
+      logger.error('Failed to fetch product', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to get product',
+        error: 'Failed to fetch product',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -186,6 +268,8 @@ export class TechProductController {
         images: true,
         specifications: true,
         reviews: true,
+        variants: true,
+        inventory: true,
       });
 
       if (!product) {
@@ -200,10 +284,10 @@ export class TechProductController {
         data: product,
       });
     } catch (error) {
-      logger.error('Failed to get product by slug', error);
+      logger.error('Failed to fetch product by slug', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to get product by slug',
+        error: 'Failed to fetch product',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -211,6 +295,15 @@ export class TechProductController {
 
   static async createProduct(req: Request, res: Response) {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: errors.array(),
+        });
+      }
+
       const product = await productService.createProduct(req.body);
 
       res.status(201).json({
@@ -220,7 +313,7 @@ export class TechProductController {
       });
     } catch (error) {
       logger.error('Failed to create product', error);
-      res.status(400).json({
+      res.status(500).json({
         success: false,
         error: 'Failed to create product',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -242,7 +335,7 @@ export class TechProductController {
       });
     } catch (error) {
       logger.error('Failed to update product', error);
-      res.status(400).json({
+      res.status(500).json({
         success: false,
         error: 'Failed to update product',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -262,7 +355,7 @@ export class TechProductController {
       });
     } catch (error) {
       logger.error('Failed to delete product', error);
-      res.status(400).json({
+      res.status(500).json({
         success: false,
         error: 'Failed to delete product',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -272,8 +365,12 @@ export class TechProductController {
 
   static async getFeaturedProducts(req: Request, res: Response) {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : 10;
-      const products = await productService.getFeaturedProducts(limit);
+      const { limit = 10, categoryId } = req.query;
+
+      const products = await productService.getFeaturedProducts(
+        parseInt(limit as string),
+        categoryId as string
+      );
 
       res.json({
         success: true,
@@ -291,8 +388,12 @@ export class TechProductController {
 
   static async getTopRatedProducts(req: Request, res: Response) {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : 10;
-      const products = await productService.getTopRatedProducts(limit);
+      const { limit = 10, categoryId } = req.query;
+
+      const products = await productService.getTopRatedProducts(
+        parseInt(limit as string),
+        categoryId as string
+      );
 
       res.json({
         success: true,
@@ -308,28 +409,23 @@ export class TechProductController {
     }
   }
 
-  // Legacy mock methods for backward compatibility
+  // Professional specification methods
   static async getDetailedSpecs(req: Request, res: Response) {
     try {
       const { id } = req.params;
 
-      const product = await productService.getProductById(id, {
-        specifications: true,
-      });
+      const specifications = await specificationService.getDetailedSpecifications(id);
 
-      if (!product) {
+      if (!specifications) {
         return res.status(404).json({
           success: false,
-          error: 'Product not found',
+          error: 'Product specifications not found',
         });
       }
 
       res.json({
         success: true,
-        data: {
-          productId: product.id,
-          specifications: product.specifications,
-        },
+        data: specifications,
       });
     } catch (error) {
       logger.error('Failed to get detailed specs', error);
@@ -340,558 +436,131 @@ export class TechProductController {
       });
     }
   }
-        {
-          id: 'intel-i5-13600k',
-          name: 'Intel Core i5-13600K',
-          brand: 'Intel',
-          category: 'cpu',
-          price: 3200000,
-          currency: 'UZS',
-          image: '/images/products/intel-i5-13600k.jpg',
-          specifications: {
-            cores: 14,
-            threads: 20,
-            baseClock: '3.5 GHz',
-            boostClock: '5.1 GHz',
-            socket: 'LGA1700',
-            cache: '24MB',
-            tdp: 125,
-          },
-          stock: 15,
-          rating: 4.8,
-          reviewCount: 342,
-        },
-        {
-          id: 'rtx-4060',
-          name: 'NVIDIA GeForce RTX 4060',
-          brand: 'NVIDIA',
-          category: 'gpu',
-          price: 3800000,
-          currency: 'UZS',
-          image: '/images/products/rtx-4060.jpg',
-          specifications: {
-            memory: '8GB GDDR6',
-            coreClock: '1830 MHz',
-            boostClock: '2460 MHz',
-            memorySpeed: '17 Gbps',
-            busWidth: '128-bit',
-            powerConsumption: 115,
-          },
-          stock: 8,
-          rating: 4.6,
-          reviewCount: 189,
-        },
-      ];
-
-      res.json({
-        success: true,
-        data: products,
-        total: products.length,
-        page: 1,
-        limit: 20,
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch products',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-
-  static async searchProducts(req: Request, res: Response) {
-    try {
-      const { q, category, minPrice, maxPrice } = req.query;
-
-      // Mock search implementation
-      const searchResults = [
-        {
-          id: 'search-result-1',
-          name: `Search result for: ${q}`,
-          category: category || 'general',
-          price: 2500000,
-          relevanceScore: 0.95,
-        },
-      ];
-
-      res.json({
-        success: true,
-        data: searchResults,
-        searchQuery: q,
-        filters: { category, minPrice, maxPrice },
-        total: searchResults.length,
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Search failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-
-  static async filterProducts(req: Request, res: Response) {
-    try {
-      const filters = req.query;
-
-      // Mock filter implementation
-      res.json({
-        success: true,
-        data: [],
-        filters: filters,
-        total: 0,
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Filter failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-
-  static async getProduct(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-
-      // Mock product detail
-      const product = {
-        id: id,
-        name: 'Intel Core i5-13600K',
-        brand: 'Intel',
-        category: 'cpu',
-        price: 3200000,
-        currency: 'UZS',
-        images: [
-          '/images/products/intel-i5-13600k-1.jpg',
-          '/images/products/intel-i5-13600k-2.jpg',
-        ],
-        specifications: {
-          cores: 14,
-          threads: 20,
-          baseClock: '3.5 GHz',
-          boostClock: '5.1 GHz',
-          socket: 'LGA1700',
-          cache: '24MB',
-          tdp: 125,
-          architecture: 'Raptor Lake',
-          process: '10nm',
-          supportedMemory: 'DDR4-3200, DDR5-5600',
-        },
-        description: 'High-performance processor for gaming and productivity',
-        descriptionUz: 'Gaming va ishlab chiqarish uchun yuqori unumli protsessor',
-        features: [
-          'Intel Turbo Boost Max Technology 3.0',
-          'Intel Hyper-Threading Technology',
-          'Intel UHD Graphics 770',
-        ],
-        compatibility: {
-          motherboards: ['Z790', 'B760', 'H770'],
-          coolers: ['LGA1700 compatible'],
-          memory: ['DDR4', 'DDR5'],
-        },
-        warranty: {
-          period: 36,
-          type: 'manufacturer',
-          coverage: 'Full hardware warranty',
-        },
-        vendor: {
-          name: 'TechnoMall Uzbekistan',
-          location: 'Toshkent',
-          authorized: true,
-        },
-      };
-
-      res.json({
-        success: true,
-        data: product,
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch product',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-
-  static async getDetailedSpecs(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-
-      // Mock detailed specifications
-      const specs = {
-        productId: id,
-        generalSpecs: {
-          brand: 'Intel',
-          model: 'Core i5-13600K',
-          family: 'Raptor Lake',
-          releaseDate: '2022-10-20',
-        },
-        performanceSpecs: {
-          cores: 14,
-          pCores: 6,
-          eCores: 8,
-          threads: 20,
-          baseClock: '3.5 GHz',
-          pCoreBoost: '5.1 GHz',
-          eCoreBoost: '3.9 GHz',
-          cache: {
-            l1: '1.25 MB',
-            l2: '20 MB',
-            l3: '24 MB',
-          },
-        },
-        technicalSpecs: {
-          socket: 'LGA1700',
-          process: '10nm',
-          tdp: 125,
-          maxTdp: 181,
-          integratedGraphics: 'Intel UHD Graphics 770',
-          memorySupport: {
-            types: ['DDR4-3200', 'DDR5-5600'],
-            maxCapacity: '128GB',
-            channels: 2,
-          },
-          pcieLanes: 20,
-          pcieVersion: '4.0 / 5.0',
-        },
-        features: [
-          'Intel Turbo Boost Max Technology 3.0',
-          'Intel Hyper-Threading Technology',
-          'Intel Virtualization Technology (VT-x)',
-          'Intel 64',
-          'Enhanced Intel SpeedStep Technology',
-        ],
-        benchmarks: {
-          cinebenchR23: {
-            singleCore: 1850,
-            multiCore: 24500,
-          },
-          gaming: {
-            avgFps1080p: 165,
-            avgFps1440p: 142,
-          },
-        },
-      };
-
-      res.json({
-        success: true,
-        data: specs,
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch specifications',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
 
   static async getCompatibility(req: Request, res: Response) {
     try {
       const { id } = req.params;
+      const { checkWith } = req.query;
 
-      // Mock compatibility data
-      const compatibility = {
-        productId: id,
-        compatibleWith: {
-          motherboards: [
-            { chipset: 'Z790', compatibility: 'full' },
-            { chipset: 'B760', compatibility: 'full' },
-            { chipset: 'H770', compatibility: 'limited' },
-          ],
-          memory: [
-            { type: 'DDR4', speeds: ['3200', '3600', '4000'] },
-            { type: 'DDR5', speeds: ['4800', '5600', '6000'] },
-          ],
-          coolers: [{ socket: 'LGA1700', tdpRating: '125W+' }],
-        },
-        incompatibleWith: [
-          { chipset: 'Z690', reason: 'Requires BIOS update' },
-          { socket: 'AM5', reason: 'Different socket type' },
-        ],
-        requirements: {
-          minimumPSU: 650,
-          recommendedPSU: 750,
-          coolingRequirement: 'Adequate cooling for 125W TDP',
-        },
-      };
+      let compatibility;
+      if (checkWith) {
+        // Check compatibility with specific products
+        const productIds = Array.isArray(checkWith) ? checkWith : [checkWith];
+        compatibility = await compatibilityService.checkCompatibility(id, productIds as string[]);
+      } else {
+        // Get all compatibility information
+        compatibility = await compatibilityService.getProductCompatibility(id);
+      }
 
       res.json({
         success: true,
         data: compatibility,
       });
     } catch (error) {
+      logger.error('Failed to get compatibility', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch compatibility',
+        error: 'Failed to get compatibility',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
 
-  static async getProductReviews(req: Request, res: Response) {
+  static async getReviews(req: Request, res: Response) {
     try {
       const { id } = req.params;
+      const { page = 1, limit = 10, rating, sortBy = 'newest' } = req.query;
 
-      // Mock reviews
-      const reviews = [
-        {
-          id: 'review-1',
-          userId: 'user-1',
-          username: 'TechExpert_UZ',
-          rating: 5,
-          title: 'Excellent processor for gaming',
-          titleUz: 'Gaming uchun ajoyib protsessor',
-          content: 'Great performance, runs all modern games smoothly',
-          contentUz: "Ajoyib ishlash, barcha zamonaviy o'yinlarni ravon ishlatadi",
-          pros: ['High performance', 'Good value', 'Low temperatures'],
-          cons: ['High power consumption'],
-          verified: true,
-          helpful: 45,
-          createdAt: '2024-01-15T10:30:00Z',
-        },
-      ];
+      const filters = {
+        productId: id,
+        rating: rating ? parseInt(rating as string) : undefined,
+      };
+
+      const options = {
+        page: parseInt(page as string),
+        limit: Math.min(parseInt(limit as string), 50),
+        sortBy: sortBy as string,
+      };
+
+      const reviews = await reviewService.getProductReviews(filters, options);
 
       res.json({
         success: true,
         data: reviews,
-        total: reviews.length,
-        averageRating: 4.8,
       });
     } catch (error) {
+      logger.error('Failed to get reviews', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch reviews',
+        error: 'Failed to get reviews',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
 
-  static async getBenchmarks(req: Request, res: Response) {
+  static async getBenchmarkData(req: Request, res: Response) {
     try {
       const { id } = req.params;
+      const { benchmarkType, comparison } = req.query;
 
-      // Mock benchmark data
-      const benchmarks = {
-        productId: id,
-        synthetics: {
-          cinebenchR23: {
-            singleCore: 1850,
-            multiCore: 24500,
-            comparison: {
-              vsIntelI7: -15,
-              vsAMDRyzen5: +8,
-            },
-          },
-          geekbench5: {
-            singleCore: 1920,
-            multiCore: 14200,
-          },
-        },
-        gaming: {
-          avgFps: {
-            '1080p': 165,
-            '1440p': 142,
-            '4k': 85,
-          },
-          games: [
-            { name: 'Cyberpunk 2077', fps1080p: 95, settings: 'High' },
-            { name: 'Call of Duty', fps1080p: 180, settings: 'Ultra' },
-          ],
-        },
-        productivity: {
-          videoEncoding: '4K@60fps',
-          renderTime: '15% faster than previous gen',
-        },
-      };
+      let benchmarkData;
+      if (comparison) {
+        // Compare with other products
+        const compareIds = Array.isArray(comparison) ? comparison : [comparison];
+        benchmarkData = await benchmarkService.compareBenchmarks(id, compareIds as string[]);
+      } else {
+        // Get all benchmark data for product
+        benchmarkData = await benchmarkService.getProductBenchmarks(
+          id,
+          benchmarkType as string
+        );
+      }
 
       res.json({
         success: true,
-        data: benchmarks,
+        data: benchmarkData,
       });
     } catch (error) {
+      logger.error('Failed to get benchmark data', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch benchmarks',
+        error: 'Failed to get benchmark data',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
 
-  static async getUzbekVendors(req: Request, res: Response) {
+  static async compareProducts(req: Request, res: Response) {
     try {
-      const vendors = [
-        {
-          id: 'technomall-uz',
-          name: 'TechnoMall Uzbekistan',
-          location: 'Toshkent',
-          address: "Chilonzor tumani, Bunyodkor ko'chasi",
-          phone: '+998712345678',
-          website: 'technomall.uz',
-          specializes: ['CPU', 'GPU', 'Motherboard'],
-          authorized: true,
-          rating: 4.8,
-          serviceLanguages: ['uz', 'ru', 'en'],
-        },
-        {
-          id: 'megaplanet-uz',
-          name: 'Mega Planet Tech',
-          location: 'Toshkent',
-          address: "Yunusobod tumani, Shaxriston ko'chasi",
-          phone: '+998712345679',
-          website: 'megaplanet.uz',
-          specializes: ['Laptops', 'Monitors', 'Peripherals'],
-          authorized: true,
-          rating: 4.6,
-          serviceLanguages: ['uz', 'ru'],
-        },
-      ];
+      const { ids } = req.query;
+
+      if (!ids) {
+        return res.status(400).json({
+          success: false,
+          error: 'Product IDs are required for comparison',
+        });
+      }
+
+      const productIds = Array.isArray(ids) ? ids : (ids as string).split(',');
+
+      if (productIds.length < 2 || productIds.length > 5) {
+        return res.status(400).json({
+          success: false,
+          error: 'You can compare between 2 and 5 products',
+        });
+      }
+
+      const comparison = await productService.compareProducts(productIds as string[]);
 
       res.json({
         success: true,
-        data: vendors,
-        total: vendors.length,
+        data: comparison,
       });
     } catch (error) {
+      logger.error('Failed to compare products', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch vendors',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-
-  static async getWarrantyInfo(req: Request, res: Response) {
-    try {
-      const { productId } = req.params;
-
-      const warranty = {
-        productId,
-        period: 36,
-        type: 'manufacturer',
-        coverage: {
-          manufacturing: true,
-          accidental: false,
-          liquid: false,
-        },
-        terms: {
-          uz: 'Ishlab chiqaruvchi kafolati 3 yil',
-          ru: 'Гарантия производителя 3 года',
-          en: 'Manufacturer warranty 3 years',
-        },
-        supportCenters: [
-          {
-            name: 'Intel Service Center Tashkent',
-            address: "Toshkent, Amir Temur ko'chasi",
-            phone: '+998712345681',
-            workingHours: '09:00-18:00',
-          },
-        ],
-        extendedOptions: [
-          {
-            period: 60,
-            price: 320000,
-            coverage: 'Full coverage including accidental damage',
-          },
-        ],
-      };
-
-      res.json({
-        success: true,
-        data: warranty,
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch warranty info',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-
-  static async getDeliveryOptions(req: Request, res: Response) {
-    try {
-      const { productId } = req.params;
-
-      const deliveryOptions = [
-        {
-          id: 'express24',
-          name: 'Express24',
-          price: 25000,
-          duration: '1-2 kun',
-          available: true,
-          regions: ['Toshkent', 'Samarqand', 'Buxoro'],
-        },
-        {
-          id: 'uzbekiston-post',
-          name: 'Uzbekiston Post',
-          price: 15000,
-          duration: '3-5 kun',
-          available: true,
-          regions: 'Barcha viloyatlar',
-        },
-        {
-          id: 'pickup',
-          name: "Do'kondan olish",
-          price: 0,
-          duration: 'Darhol',
-          available: true,
-          address: 'Toshkent, Chilonzor',
-        },
-      ];
-
-      res.json({
-        success: true,
-        data: deliveryOptions,
-        productId,
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch delivery options',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-
-  static async getSupportCenters(req: Request, res: Response) {
-    try {
-      const supportCenters = [
-        {
-          id: 'intel-tashkent',
-          brand: 'Intel',
-          name: 'Intel Authorized Service Center',
-          address: "Toshkent, Amir Temur ko'chasi 42",
-          phone: '+998712345681',
-          email: 'support.uz@intel.com',
-          workingHours: '09:00-18:00',
-          services: ['Warranty repair', 'Technical support', 'Diagnostics'],
-          languages: ['uz', 'ru', 'en'],
-        },
-        {
-          id: 'nvidia-tashkent',
-          brand: 'NVIDIA',
-          name: 'NVIDIA Partner Service',
-          address: 'Toshkent, Yunusobod 15',
-          phone: '+998712345682',
-          email: 'support@nvidia.uz',
-          workingHours: '09:00-17:00',
-          services: ['GPU repair', 'Driver support', 'RMA'],
-          languages: ['uz', 'ru'],
-        },
-      ];
-
-      res.json({
-        success: true,
-        data: supportCenters,
-        total: supportCenters.length,
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch support centers',
+        error: 'Failed to compare products',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -899,37 +568,24 @@ export class TechProductController {
 
   static async getPriceHistory(req: Request, res: Response) {
     try {
-      const { productId } = req.params;
+      const { id } = req.params;
+      const { days = 30, interval = 'daily' } = req.query;
 
-      // Mock price history
-      const priceHistory = {
-        productId,
-        currentPrice: 3200000,
-        currency: 'UZS',
-        history: [
-          { date: '2024-01-01', price: 3500000 },
-          { date: '2024-01-15', price: 3300000 },
-          { date: '2024-02-01', price: 3200000 },
-          { date: '2024-02-15', price: 3200000 },
-        ],
-        lowestPrice: 3200000,
-        highestPrice: 3500000,
-        avgPrice: 3300000,
-        priceChange: {
-          last7days: 0,
-          last30days: -100000,
-          last90days: -300000,
-        },
-      };
+      const priceHistory = await priceService.getPriceHistory(
+        id,
+        parseInt(days as string),
+        interval as string
+      );
 
       res.json({
         success: true,
         data: priceHistory,
       });
     } catch (error) {
+      logger.error('Failed to get price history', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch price history',
+        error: 'Failed to get price history',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -937,26 +593,30 @@ export class TechProductController {
 
   static async createPriceAlert(req: Request, res: Response) {
     try {
-      const { productId, userId, targetPrice, email } = req.body;
+      const { id } = req.params;
+      const { targetPrice, email, userId } = req.body;
 
-      // Mock price alert creation
-      const alert = {
-        id: `alert-${Date.now()}`,
-        productId,
-        userId,
-        targetPrice,
+      if (!targetPrice || (!email && !userId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Target price and email or user ID are required',
+        });
+      }
+
+      const priceAlert = await priceService.createPriceAlert({
+        productId: id,
+        targetPrice: parseFloat(targetPrice),
         email,
-        currentPrice: 3200000,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      };
+        userId,
+      });
 
-      res.json({
+      res.status(201).json({
         success: true,
-        data: alert,
+        data: priceAlert,
         message: 'Price alert created successfully',
       });
     } catch (error) {
+      logger.error('Failed to create price alert', error);
       res.status(500).json({
         success: false,
         error: 'Failed to create price alert',
@@ -968,30 +628,68 @@ export class TechProductController {
   static async getUserPriceAlerts(req: Request, res: Response) {
     try {
       const { userId } = req.params;
+      const { active = true } = req.query;
 
-      // Mock user price alerts
-      const alerts = [
-        {
-          id: 'alert-1',
-          productId: 'intel-i5-13600k',
-          productName: 'Intel Core i5-13600K',
-          targetPrice: 3000000,
-          currentPrice: 3200000,
-          isActive: true,
-          createdAt: '2024-01-15T10:30:00Z',
-        },
-      ];
+      const priceAlerts = await priceService.getUserPriceAlerts(
+        userId,
+        active === 'true'
+      );
 
       res.json({
         success: true,
-        data: alerts,
-        total: alerts.length,
-        userId,
+        data: priceAlerts,
       });
     } catch (error) {
+      logger.error('Failed to get user price alerts', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch price alerts',
+        error: 'Failed to get user price alerts',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  static async getRelatedProducts(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { limit = 6, type = 'similar' } = req.query;
+
+      const relatedProducts = await productService.getRelatedProducts(
+        id,
+        parseInt(limit as string),
+        type as string
+      );
+
+      res.json({
+        success: true,
+        data: relatedProducts,
+      });
+    } catch (error) {
+      logger.error('Failed to get related products', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get related products',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  static async getProductAnalytics(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { period = '30d' } = req.query;
+
+      const analytics = await productService.getProductAnalytics(id, period as string);
+
+      res.json({
+        success: true,
+        data: analytics,
+      });
+    } catch (error) {
+      logger.error('Failed to get product analytics', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get product analytics',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }

@@ -396,14 +396,20 @@ export class ProductService {
     }
   }
 
-  async getFeaturedProducts(limit: number = 10): Promise<Product[]> {
+  async getFeaturedProducts(limit: number = 10, categoryId?: string): Promise<Product[]> {
     try {
+      const whereConditions: any = {
+        featured: true,
+        status: ProductStatus.ACTIVE,
+        deletedAt: null,
+      };
+
+      if (categoryId) {
+        whereConditions.categoryId = categoryId;
+      }
+
       return await this.prisma.product.findMany({
-        where: {
-          featured: true,
-          status: ProductStatus.ACTIVE,
-          deletedAt: null,
-        },
+        where: whereConditions,
         take: limit,
         include: {
           category: true,
@@ -418,14 +424,20 @@ export class ProductService {
     }
   }
 
-  async getTopRatedProducts(limit: number = 10): Promise<Product[]> {
+  async getTopRatedProducts(limit: number = 10, categoryId?: string): Promise<Product[]> {
     try {
+      const whereConditions: any = {
+        status: ProductStatus.ACTIVE,
+        deletedAt: null,
+        rating: { not: null },
+      };
+
+      if (categoryId) {
+        whereConditions.categoryId = categoryId;
+      }
+
       return await this.prisma.product.findMany({
-        where: {
-          status: ProductStatus.ACTIVE,
-          deletedAt: null,
-          rating: { not: null },
-        },
+        where: whereConditions,
         take: limit,
         include: {
           category: true,
@@ -449,5 +461,268 @@ export class ProductService {
       .replace(/[^\w\s-]/g, '')
       .replace(/[\s_-]+/g, '-')
       .replace(/^-+|-+$/g, '');
+  }
+
+  async getFilteredProducts(filters: ProductFilters & { 
+    condition?: string;
+    specifications?: Record<string, any>;
+  }, options: ProductQueryOptions = {}): Promise<{
+    products: Product[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    availableFilters: any;
+  }> {
+    try {
+      const page = options.page || 1;
+      const limit = options.limit || 20;
+      const offset = (page - 1) * limit;
+
+      // Build where conditions
+      const whereConditions: any = {
+        status: 'ACTIVE',
+      };
+
+      if (filters.categoryId) whereConditions.categoryId = filters.categoryId;
+      if (filters.brandId) whereConditions.brandId = filters.brandId;
+      if (filters.minPrice) whereConditions.price = { ...whereConditions.price, gte: filters.minPrice };
+      if (filters.maxPrice) whereConditions.price = { ...whereConditions.price, lte: filters.maxPrice };
+      if (filters.inStock) whereConditions.stock = { gt: 0 };
+      if (filters.condition) whereConditions.condition = filters.condition;
+
+      // Add specification filters
+      if (filters.specifications && Object.keys(filters.specifications).length > 0) {
+        whereConditions.specifications = {
+          some: {
+            OR: Object.entries(filters.specifications).map(([name, value]) => ({
+              name,
+              value: Array.isArray(value) ? { in: value } : value
+            }))
+          }
+        };
+      }
+
+      const [products, total] = await Promise.all([
+        this.prisma.product.findMany({
+          where: whereConditions,
+          include: {
+            category: true,
+            brand: true,
+            images: true,
+            specifications: true,
+          },
+          orderBy: { [options.sortBy || 'createdAt']: options.sortOrder || 'desc' },
+          skip: offset,
+          take: limit,
+        }),
+        this.prisma.product.count({ where: whereConditions })
+      ]);
+
+      // Get available filters for faceted search
+      const availableFilters = await this.getAvailableFilters(whereConditions);
+
+      return {
+        products,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        availableFilters,
+      };
+    } catch (error) {
+      logger.error('Failed to get filtered products', error);
+      throw error;
+    }
+  }
+
+
+
+  async compareProducts(productIds: string[]): Promise<{
+    products: any[];
+    comparison: {
+      specifications: Record<string, Record<string, any>>;
+      prices: Record<string, number>;
+      ratings: Record<string, number>;
+    };
+  }> {
+    try {
+      const products = await this.prisma.product.findMany({
+        where: { id: { in: productIds } },
+        include: {
+          category: true,
+          brand: true,
+          specifications: true,
+          reviews: { select: { rating: true } }
+        }
+      });
+
+      // Build comparison data
+      const specifications: Record<string, Record<string, any>> = {};
+      const prices: Record<string, number> = {};
+      const ratings: Record<string, number> = {};
+
+      products.forEach(product => {
+        prices[product.id] = product.price;
+        
+        const avgRating = product.reviews.length > 0 
+          ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length 
+          : 0;
+        ratings[product.id] = avgRating;
+
+        product.specifications.forEach(spec => {
+          if (!specifications[spec.name]) {
+            specifications[spec.name] = {};
+          }
+          specifications[spec.name][product.id] = {
+            value: spec.value,
+            unit: spec.unit
+          };
+        });
+      });
+
+      return {
+        products,
+        comparison: {
+          specifications,
+          prices,
+          ratings,
+        }
+      };
+    } catch (error) {
+      logger.error('Failed to compare products', error);
+      throw error;
+    }
+  }
+
+  async getRelatedProducts(productId: string, limit: number = 6, type: string = 'similar'): Promise<Product[]> {
+    try {
+      const product = await this.prisma.product.findUnique({
+        where: { id: productId },
+        include: { category: true }
+      });
+
+      if (!product) return [];
+
+      let whereConditions: any = {
+        status: 'ACTIVE',
+        id: { not: productId }
+      };
+
+      switch (type) {
+        case 'similar':
+          whereConditions.categoryId = product.categoryId;
+          break;
+        case 'brand':
+          whereConditions.brandId = product.brandId;
+          break;
+        case 'price_range':
+          const priceRange = product.price * 0.3; // 30% price range
+          whereConditions.price = {
+            gte: product.price - priceRange,
+            lte: product.price + priceRange
+          };
+          break;
+        default:
+          whereConditions.categoryId = product.categoryId;
+      }
+
+      return await this.prisma.product.findMany({
+        where: whereConditions,
+        include: {
+          category: true,
+          brand: true,
+          images: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      });
+    } catch (error) {
+      logger.error('Failed to get related products', error);
+      throw error;
+    }
+  }
+
+  async getProductAnalytics(productId: string, period: string = '30d'): Promise<{
+    views: number;
+    sales: number;
+    revenue: number;
+    conversionRate: number;
+    topSearchTerms: string[];
+    performanceScore: number;
+  }> {
+    try {
+      // This would typically query analytics tables
+      // For now, return mock analytics data
+      return {
+        views: Math.floor(Math.random() * 10000),
+        sales: Math.floor(Math.random() * 100),
+        revenue: Math.floor(Math.random() * 1000000),
+        conversionRate: Math.random() * 10,
+        topSearchTerms: ['gaming', 'processor', 'intel', 'performance'],
+        performanceScore: Math.floor(Math.random() * 100),
+      };
+    } catch (error) {
+      logger.error('Failed to get product analytics', error);
+      throw error;
+    }
+  }
+
+  private async getAvailableFilters(baseWhereConditions: any): Promise<any> {
+    try {
+      const [brands, categories, priceRange] = await Promise.all([
+        this.prisma.product.groupBy({
+          by: ['brandId'],
+          where: baseWhereConditions,
+          _count: true,
+        }).then(async (groups) => {
+          const brandIds = groups.map(g => g.brandId).filter(Boolean);
+          const brands = await this.prisma.brand.findMany({
+            where: { id: { in: brandIds } },
+            select: { id: true, name: true }
+          });
+          return groups.map(group => ({
+            id: group.brandId,
+            name: brands.find(b => b.id === group.brandId)?.name || 'Unknown',
+            count: group._count
+          }));
+        }),
+        
+        this.prisma.product.groupBy({
+          by: ['categoryId'],
+          where: baseWhereConditions,
+          _count: true,
+        }).then(async (groups) => {
+          const categoryIds = groups.map(g => g.categoryId).filter(Boolean);
+          const categories = await this.prisma.category.findMany({
+            where: { id: { in: categoryIds } },
+            select: { id: true, name: true }
+          });
+          return groups.map(group => ({
+            id: group.categoryId,
+            name: categories.find(c => c.id === group.categoryId)?.name || 'Unknown',
+            count: group._count
+          }));
+        }),
+
+        this.prisma.product.aggregate({
+          where: baseWhereConditions,
+          _min: { price: true },
+          _max: { price: true },
+        })
+      ]);
+
+      return {
+        brands,
+        categories,
+        priceRange: {
+          min: priceRange._min.price || 0,
+          max: priceRange._max.price || 0,
+        }
+      };
+    } catch (error) {
+      logger.error('Failed to get available filters', error);
+      return { brands: [], categories: [], priceRange: { min: 0, max: 0 } };
+    }
   }
 }
