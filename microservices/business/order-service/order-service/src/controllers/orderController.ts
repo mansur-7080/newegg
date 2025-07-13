@@ -45,7 +45,8 @@ export const getOrderById = async (req: Request, res: Response): Promise<Respons
     const { userId, role } = req.user as { userId: string; role: string };
 
     if (!id || !userId || !role) {
-      return res.status(400).json({
+        throw new ValidationError('id || !userId || !role is required', 400);
+      }{
         success: false,
         message: 'Missing required parameters',
       });
@@ -106,7 +107,8 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<Re
     const { userId } = req.user as { userId: string };
 
     if (!id || !status || !userId) {
-      return res.status(400).json({
+        throw new ValidationError('id || !status || !userId is required', 400);
+      }{
         success: false,
         message: 'Missing required parameters',
       });
@@ -145,7 +147,8 @@ export const cancelOrder = async (req: Request, res: Response): Promise<Response
     const { userId } = req.user as { userId: string };
 
     if (!id || !reason || !userId) {
-      return res.status(400).json({
+        throw new ValidationError('id || !reason || !userId is required', 400);
+      }{
         success: false,
         message: 'Missing required parameters',
       });
@@ -178,7 +181,8 @@ export const getOrdersByUser = async (req: Request, res: Response): Promise<Resp
     const { page = 1, limit = 10 } = req.query;
 
     if (!userId) {
-      return res.status(400).json({
+        throw new ValidationError('userId is required', 400);
+      }{
         success: false,
         message: 'User ID is required',
       });
@@ -208,7 +212,8 @@ export const getOrderHistory = async (req: Request, res: Response): Promise<Resp
     const { page = 1, limit = 10 } = req.query;
 
     if (!userId) {
-      return res.status(400).json({
+        throw new ValidationError('userId is required', 400);
+      }{
         success: false,
         message: 'User ID is required',
       });
@@ -239,7 +244,8 @@ export const processOrderPayment = async (req: Request, res: Response): Promise<
     const { userId } = req.user as { userId: string };
 
     if (!id || !paymentMethod) {
-      return res.status(400).json({
+        throw new ValidationError('id || !paymentMethod is required', 400);
+      }{
         success: false,
         message: 'Missing required parameters',
       });
@@ -282,7 +288,8 @@ export const refundOrder = async (req: Request, res: Response): Promise<Response
     const { userId } = req.user as { userId: string };
 
     if (!id || !amount || !reason || !userId) {
-      return res.status(400).json({
+        throw new ValidationError('id || !amount || !reason || !userId is required', 400);
+      }{
         success: false,
         message: 'Missing required parameters',
       });

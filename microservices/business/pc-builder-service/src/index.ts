@@ -344,7 +344,8 @@ app.post('/api/pc-builder/builds', (req, res) => {
     const { name, userId } = req.body;
 
     if (!name) {
-      return res.status(400).json({
+        throw new ValidationError('name is required', 400);
+      }{
         success: false,
         error: { code: 'MISSING_NAME', message: 'Build name is required' },
       });
@@ -404,7 +405,8 @@ app.post('/api/pc-builder/builds/:buildId/components', (req, res) => {
     const { componentId, category } = req.body;
 
     if (!componentId || !category) {
-      return res.status(400).json({
+        throw new ValidationError('componentId || !category is required', 400);
+      }{
         success: false,
         error: { code: 'MISSING_DATA', message: 'Component ID and category are required' },
       });

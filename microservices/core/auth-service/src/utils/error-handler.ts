@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { logger } from '../utils/logger';
 
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '@ultramarket/shared';
 /**
  * Error codes for the auth service
  */

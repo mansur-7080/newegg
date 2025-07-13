@@ -7,6 +7,7 @@ import { validateRequest } from '../utils/validation'; // Local validation util
 import { AuthService } from '../services/authService';
 import { UserService } from '../services/userService';
 import { TokenService } from '../services/tokenService';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '@ultramarket/shared';
 import {
   AuthServiceError,
   ValidationError,
@@ -148,7 +149,8 @@ export class AuthController {
       });
 
       if (!validation.isValid) {
-        return res.status(400).json({
+        throw new ValidationError('validation.isValid is required', 400);
+      }{
           success: false,
           message: 'Validation failed',
           errors: validation.errors,
@@ -231,7 +233,8 @@ export class AuthController {
       const { refreshToken } = req.body;
 
       if (!refreshToken) {
-        return res.status(400).json({
+        throw new ValidationError('refreshToken is required', 400);
+      }{
           success: false,
           message: 'Refresh token is required',
         });
@@ -390,7 +393,8 @@ export class AuthController {
       });
 
       if (!validation.isValid) {
-        return res.status(400).json({
+        throw new ValidationError('validation.isValid is required', 400);
+      }{
           success: false,
           message: 'Validation failed',
           errors: validation.errors,
@@ -452,7 +456,8 @@ export class AuthController {
       });
 
       if (!validation.isValid) {
-        return res.status(400).json({
+        throw new ValidationError('validation.isValid is required', 400);
+      }{
           success: false,
           message: 'Validation failed',
           errors: validation.errors,
@@ -473,7 +478,8 @@ export class AuthController {
       // Verify current password
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
       if (!isCurrentPasswordValid) {
-        return res.status(400).json({
+        throw new ValidationError('isCurrentPasswordValid is required', 400);
+      }{
           success: false,
           message: 'Current password is incorrect',
         });

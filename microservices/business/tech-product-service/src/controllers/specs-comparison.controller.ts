@@ -268,7 +268,8 @@ export class SpecsComparisonController {
       const { userId, comparisonName, productIds, notes } = req.body;
 
       if (!userId || !comparisonName || !productIds || productIds.length < 2) {
-        return res.status(400).json({
+        throw new ValidationError('userId || !comparisonName || !productIds || productIds.length < 2 is required', 400);
+      }{
           success: false,
           error: 'Missing required fields',
         });

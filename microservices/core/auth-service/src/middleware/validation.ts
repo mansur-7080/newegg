@@ -6,6 +6,7 @@ import {
 } from '@ultramarket/shared/validation/validation';
 import { logger } from '@ultramarket/shared/logging/logger';
 
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '@ultramarket/shared';
 /**
  * Request validation middleware
  */
@@ -53,7 +54,8 @@ export const validateEmailField = (fieldName: string = 'email') => {
     const email = req.body[fieldName] || req.query[fieldName] || req.params[fieldName];
 
     if (!email) {
-      return res.status(400).json({
+        throw new ValidationError('email is required', 400);
+      }{
         success: false,
         message: `${fieldName} is required`,
       });
@@ -78,7 +80,8 @@ export const validatePasswordField = (fieldName: string = 'password') => {
     const password = req.body[fieldName];
 
     if (!password) {
-      return res.status(400).json({
+        throw new ValidationError('password is required', 400);
+      }{
         success: false,
         message: `${fieldName} is required`,
       });

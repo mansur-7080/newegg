@@ -4,6 +4,7 @@ import { logger } from '@ultramarket/shared/logging/logger';
 import { getJWTManager } from '@ultramarket/shared/auth/jwt-manager';
 import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '@ultramarket/shared';
 /**
  * Authenticate JWT token middleware
  */

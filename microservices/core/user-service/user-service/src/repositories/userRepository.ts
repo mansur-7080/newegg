@@ -2,6 +2,7 @@ import { PrismaClient, User, Address } from '@prisma/client';
 import { UserRole } from '../types/auth';
 import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '@ultramarket/shared';
 const prisma = new PrismaClient();
 
 // Type definitions

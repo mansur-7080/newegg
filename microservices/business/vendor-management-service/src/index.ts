@@ -169,7 +169,8 @@ app.post('/api/v1/vendors/register', async (req, res) => {
 
     // Validate Uzbek region
     if (!UzbekRegions[registrationData.region as keyof typeof UzbekRegions]) {
-      return res.status(400).json({
+        throw new ValidationError('UzbekRegions[registrationData.region as keyof typeof UzbekRegions] is required', 400);
+      }{
         success: false,
         error: 'INVALID_REGION',
         message: "Noto'g'ri viloyat kodi",
@@ -375,7 +376,8 @@ app.post('/api/v1/vendors/:vendorId/products', async (req, res) => {
 
     // Validate product data
     if (!productData.name || !productData.price || !productData.category) {
-      return res.status(400).json({
+        throw new ValidationError('productData.name || !productData.price || !productData.category is required', 400);
+      }{
         success: false,
         error: 'INVALID_PRODUCT_DATA',
         message: "Mahsulot ma'lumotlari to'liq emas",

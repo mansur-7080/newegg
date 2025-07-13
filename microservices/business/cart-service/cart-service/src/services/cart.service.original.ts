@@ -2,6 +2,7 @@ import { getRedisClient } from '../config/redis';
 import { logger } from '../utils/logger';
 import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '@ultramarket/shared';
 // Define interfaces for our service
 export interface ICartItem {
   id?: string;

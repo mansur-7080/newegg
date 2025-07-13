@@ -2,6 +2,7 @@ import axios, { AxiosResponse } from 'axios';
 import { logger } from '../utils/logger';
 import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '@ultramarket/shared';
 export interface SMSData {
   to: string;
   message: string;
