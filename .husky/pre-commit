@@ -1,0 +1,29 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Pre-commit hook for code quality
+
+echo "🔍 Running pre-commit checks..."
+
+# Run linting
+echo "📝 Running ESLint..."
+npm run lint || {
+    echo "❌ ESLint failed. Please fix linting errors."
+    exit 1
+}
+
+# Run type checking
+echo "🔍 Running TypeScript check..."
+npx tsc --noEmit || {
+    echo "❌ TypeScript errors found. Please fix type errors."
+    exit 1
+}
+
+# Run tests for changed files
+echo "🧪 Running tests..."
+npm run test -- --passWithNoTests || {
+    echo "❌ Tests failed. Please fix failing tests."
+    exit 1
+}
+
+echo "✅ All pre-commit checks passed!"

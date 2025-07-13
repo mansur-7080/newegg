@@ -1,0 +1,32 @@
+{
+  "extends": "./config/typescript/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@ultramarket/shared": ["./libs/shared/src"],
+      "@ultramarket/shared/*": ["./libs/shared/src/*"],
+      "@ultramarket/types": ["./libs/types/src"],
+      "@ultramarket/types/*": ["./libs/types/src/*"],
+      "@ultramarket/utils": ["./libs/utils/src"],
+      "@ultramarket/utils/*": ["./libs/utils/src/*"],
+      "@ultramarket/constants": ["./libs/constants/src"],
+      "@ultramarket/constants/*": ["./libs/constants/src/*"],
+      "@ultramarket/ui-components": ["./libs/ui-components/src"],
+      "@ultramarket/ui-components/*": ["./libs/ui-components/src/*"]
+    }
+  },
+  "include": [
+    "libs/**/*",
+    "microservices/**/*",
+    "frontend/**/*",
+    "tests/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "**/*.js",
+    "**/*.d.ts"
+  ]
+}

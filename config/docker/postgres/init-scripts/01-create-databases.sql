@@ -59,7 +59,8 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 CREATE EXTENSION IF NOT EXISTS "btree_gin";
 
 -- Create read-only user for analytics
-CREATE USER analytics_reader WITH PASSWORD 'analytics_readonly_password';
+-- Note: Password should be set via environment variable
+CREATE USER analytics_reader WITH PASSWORD 'ANALYTICS_READER_PASSWORD_PLACEHOLDER';
 GRANT CONNECT ON DATABASE analytics_db TO analytics_reader;
 GRANT CONNECT ON DATABASE order_db TO analytics_reader;
 GRANT CONNECT ON DATABASE payment_db TO analytics_reader;
