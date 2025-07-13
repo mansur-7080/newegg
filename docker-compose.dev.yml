@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: ultramarket_dev
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_postgres_password_change_me}
     ports:
       - '5432:5432'
     volumes:
@@ -28,7 +28,7 @@ services:
     container_name: ultramarket-mongodb
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-dev_mongodb_password_change_me}
       MONGO_INITDB_DATABASE: ultramarket_dev
     ports:
       - '27017:27017'
@@ -52,7 +52,7 @@ services:
     volumes:
       - redis_data:/data
       - ./config/docker/redis/config/redis.conf:/etc/redis/redis.conf
-    command: redis-server /etc/redis/redis.conf
+    command: redis-server /etc/redis/redis.conf ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
     networks:
       - ultramarket-network
     healthcheck:
@@ -87,8 +87,8 @@ services:
     image: minio/minio:latest
     container_name: ultramarket-minio
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio_dev_user}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_dev_password_change_me}
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -130,7 +130,7 @@ services:
       - grafana_data:/var/lib/grafana
       - ./infrastructure/monitoring/grafana:/etc/grafana/provisioning
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-grafana_dev_password_change_me}
     networks:
       - ultramarket-network
 
@@ -186,10 +186,10 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3001
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ultramarket_dev
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
-      - JWT_REFRESH_SECRET=your-super-secret-refresh-key-change-in-production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-dev_postgres_password_change_me}@postgres:5432/ultramarket_dev
+      - REDIS_URL=redis://${REDIS_PASSWORD:+:$REDIS_PASSWORD@}redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev_jwt_secret_key_change_in_production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-dev_refresh_secret_key_change_in_production}
     depends_on:
       - postgres
       - redis
@@ -211,8 +211,8 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3002
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ultramarket_dev
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-dev_postgres_password_change_me}@postgres:5432/ultramarket_dev
+      - REDIS_URL=redis://${REDIS_PASSWORD:+:$REDIS_PASSWORD@}redis:6379
     depends_on:
       - postgres
       - redis
@@ -234,7 +234,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3003
-      - MONGODB_URL=mongodb://root:password@mongodb:27017/ultramarket_dev?authSource=admin
+      - MONGODB_URL=mongodb://root:${MONGODB_PASSWORD:-dev_mongodb_password_change_me}@mongodb:27017/ultramarket_dev?authSource=admin
       - REDIS_URL=redis://redis:6379
       - ELASTICSEARCH_URL=http://elasticsearch:9200
     depends_on:
@@ -259,7 +259,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3004
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ultramarket_dev
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-dev_postgres_password_change_me}@postgres:5432/ultramarket_dev
       - REDIS_URL=redis://redis:6379
     depends_on:
       - postgres
@@ -304,7 +304,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3006
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ultramarket_dev
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-dev_postgres_password_change_me}@postgres:5432/ultramarket_dev
       - REDIS_URL=redis://redis:6379
       - CLICK_MERCHANT_ID=your-click-merchant-id
       - CLICK_SECRET_KEY=your-click-secret-key
