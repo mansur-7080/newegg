@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Row, Col, Statistic, Typography, Space, Progress } from 'antd';
+import { Card, Row, Col, Statistic, Typography, Space, Progress, Alert } from 'antd';
 import {
   ShoppingCartOutlined,
   UserOutlined,
@@ -8,14 +8,33 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
 } from '@ant-design/icons';
+import { useProductStats } from '../hooks/useProducts';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const { Title } = Typography;
 
 const Dashboard: React.FC = () => {
+  const { data: productStats, isLoading, error } = useProductStats();
+
+  if (isLoading) {
+    return <LoadingSpinner tip="Loading dashboard..." />;
+  }
+
+  if (error) {
+    return (
+      <Alert
+        message="Error loading dashboard"
+        description="Failed to load dashboard data. Please try again later."
+        type="error"
+        showIcon
+      />
+    );
+  }
+
   const stats = [
     {
       title: 'Total Sales',
-      value: 1234567,
+      value: productStats?.totalValue || 0,
       prefix: '$',
       icon: <DollarOutlined />,
       color: '#3f8600',
@@ -23,21 +42,21 @@ const Dashboard: React.FC = () => {
     },
     {
       title: 'Total Orders',
-      value: 8542,
+      value: 8542, // This would come from order service
       icon: <ShoppingCartOutlined />,
       color: '#1890ff',
       trend: 8.2,
     },
     {
       title: 'Total Users',
-      value: 45123,
+      value: 45123, // This would come from user service
       icon: <UserOutlined />,
       color: '#722ed1',
       trend: -2.1,
     },
     {
       title: 'Total Products',
-      value: 1256,
+      value: productStats?.totalProducts || 0,
       icon: <ShopOutlined />,
       color: '#fa541c',
       trend: 5.7,

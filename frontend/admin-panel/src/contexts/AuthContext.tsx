@@ -1,11 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-}
+import { authService, User } from '../services/authService';
 
 interface AuthContextType {
   user: User | null;
@@ -28,21 +22,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-      if (token) {
-        // In a real app, you'd validate the token with your API
-        // For now, we'll just check if it exists
-        const mockUser: User = {
-          id: '1',
-          email: 'admin@ultramarket.com',
-          name: 'Admin User',
-          role: 'admin',
-        };
-        setUser(mockUser);
+      if (authService.isAuthenticated()) {
+        const user = await authService.getCurrentUser();
+        setUser(user);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('adminToken');
+      await authService.logout();
     } finally {
       setIsLoading(false);
     }
@@ -51,21 +37,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      // In a real app, you'd make an API call here
-      if (email === 'admin@ultramarket.com' && password === 'admin123') {
-        const mockUser: User = {
-          id: '1',
-          email: 'admin@ultramarket.com',
-          name: 'Admin User',
-          role: 'admin',
-        };
-        const mockToken = 'mock-jwt-token-' + Date.now();
-        
-        localStorage.setItem('adminToken', mockToken);
-        setUser(mockUser);
-      } else {
-        throw new Error('Invalid credentials');
-      }
+      const response = await authService.login({ email, password });
+      setUser(response.user);
     } catch (error) {
       throw error;
     } finally {
@@ -73,8 +46,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('adminToken');
+  const logout = async () => {
+    await authService.logout();
     setUser(null);
   };
 
