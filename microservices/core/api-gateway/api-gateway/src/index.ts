@@ -60,10 +60,32 @@ const services = {
 
 // Security middleware
 app.use(helmet());
+// Secure CORS configuration
+const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://ultramarket.uz',
+  'https://www.ultramarket.uz'
+];
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN ?? '*',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or Postman)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        logger.warn('CORS blocked request', { origin });
+        callback(new Error('CORS policy violation'), false);
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
+    exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
+    maxAge: 86400, // 24 hours
   })
 );
 

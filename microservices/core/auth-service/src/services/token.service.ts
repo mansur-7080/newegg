@@ -56,6 +56,15 @@ export class TokenService {
         throw new Error('JWT secrets are not configured');
       }
 
+      // Validate JWT secret strength
+      if (secret.length < 64) {
+        throw new Error('JWT_SECRET must be at least 64 characters long');
+      }
+
+      if (refreshSecret.length < 64) {
+        throw new Error('JWT_REFRESH_SECRET must be at least 64 characters long');
+      }
+
       // Generate access token
       const accessToken = jwt.sign(payload, secret, {
         expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
@@ -108,6 +117,11 @@ export class TokenService {
         throw new Error('JWT_SECRET is not configured');
       }
 
+      // Validate JWT secret strength
+      if (secret.length < 64) {
+        throw new Error('JWT_SECRET must be at least 64 characters long');
+      }
+
       const decoded = jwt.verify(token, secret, {
         issuer: 'ultramarket-auth',
         audience: 'ultramarket-users',
@@ -144,6 +158,11 @@ export class TokenService {
       const secret = process.env.JWT_REFRESH_SECRET;
       if (!secret) {
         throw new Error('JWT_REFRESH_SECRET is not configured');
+      }
+
+      // Validate JWT secret strength
+      if (secret.length < 64) {
+        throw new Error('JWT_REFRESH_SECRET must be at least 64 characters long');
       }
 
       const decoded = jwt.verify(token, secret, {

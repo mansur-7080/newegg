@@ -1,4 +1,26 @@
 import { Request, Response, NextFunction } from 'express';
+import winston from 'winston';
+
+// Configure Winston logger
+const winstonLogger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'tech-product-service' },
+  transports: [
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' }),
+  ],
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  winstonLogger.add(new winston.transports.Console({
+    format: winston.format.simple()
+  }));
+}
 
 // Logger middleware
 export const logger = (req: Request, res: Response, next: NextFunction) => {
@@ -7,15 +29,21 @@ export const logger = (req: Request, res: Response, next: NextFunction) => {
   const url = req.url;
   const userAgent = req.get('User-Agent') || 'Unknown';
 
-  console.log(`[${timestamp}] ${method} ${url} - ${userAgent}`);
+  winstonLogger.info(`Request: ${method} ${url}`, {
+    userAgent,
+    timestamp,
+  });
 
   next();
 };
 
 // Error handler middleware
 export const errorHandler = (error: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(`[ERROR] ${error.message}`);
-  console.error(error.stack);
+  winstonLogger.error(`Error: ${error.message}`, {
+    stack: error.stack,
+    url: req.url,
+    method: req.method,
+  });
 
   // Don't leak error details in production
   const isDevelopment = process.env.NODE_ENV === 'development';

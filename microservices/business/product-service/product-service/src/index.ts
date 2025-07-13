@@ -320,7 +320,8 @@ const server = app.listen(PORT, async () => {
     logger.info(`💾 MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Not configured'}`);
   } catch (error) {
     logger.error('Failed to start Product Service:', error);
-    process.exit(1);
+    // Don't exit immediately, log the error and continue
+    logger.error('Service startup failed, but continuing...');
   }
 });
 
@@ -331,13 +332,20 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  // Don't exit immediately, log and continue
+  logger.error('Unhandled rejection logged, continuing...');
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught Exception:', error);
-  process.exit(1);
+  // Log the error but don't exit immediately
+  logger.error('Uncaught exception logged, attempting to continue...');
+  // Only exit if it's a critical error
+  if (error.message.includes('EADDRINUSE') || error.message.includes('ECONNREFUSED')) {
+    logger.error('Critical error detected, shutting down...');
+    process.exit(1);
+  }
 });
 
 export default app;

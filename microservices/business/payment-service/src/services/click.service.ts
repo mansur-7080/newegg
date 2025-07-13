@@ -1,5 +1,9 @@
 import crypto from 'crypto';
 import axios from 'axios';
+import { PrismaClient } from '@prisma/client';
+
+// Initialize Prisma client
+const prisma = new PrismaClient();
 import { logger } from '@ultramarket/shared';
 
 export interface ClickPaymentRequest {
@@ -287,20 +291,23 @@ export class ClickService {
    */
   private async verifyOrder(merchantTransId: string, amount: number): Promise<boolean> {
     try {
-      // This would typically call the Order Service
-      // For now, we'll simulate the check
-      logger.info('Verifying order', { merchantTransId, amount });
-
-      // TODO: Implement actual order verification
-      // const order = await orderService.getOrderByTransactionId(merchantTransId);
-      // return order && order.amount === amount && order.status === 'pending';
-
-      return true; // Temporary for development
-    } catch (error) {
-      logger.error('Order verification failed', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        merchantTransId,
+      // Call Order Service to verify order
+      const order = await prisma.order.findFirst({
+        where: { 
+          id: merchantTransId,
+          status: 'PENDING'
+        },
+        select: { id: true, total: true, status: true },
       });
+
+      if (!order) {
+        return false;
+      }
+
+      // Check if amount matches
+      const orderAmount = Number(order.total);
+      return orderAmount === amount;
+    } catch (error) {
       return false;
     }
   }
@@ -322,18 +329,18 @@ export class ClickService {
     merchantPrepareId: string
   ): Promise<void> {
     try {
-      // TODO: Store in database
-      logger.info('Storing prepare transaction', {
-        clickTransId: payload.click_trans_id,
-        merchantTransId: payload.merchant_trans_id,
-        merchantPrepareId,
-        amount: payload.amount,
+      // Store in database
+      await prisma.clickTransaction.create({
+        data: {
+          clickTransId: payload.click_trans_id,
+          merchantTransId: payload.merchant_trans_id,
+          merchantPrepareId,
+          amount: payload.amount,
+          status: 'PREPARED',
+          createTime: new Date(),
+        },
       });
     } catch (error) {
-      logger.error('Failed to store prepare transaction', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        clickTransId: payload.click_trans_id,
-      });
       throw error;
     }
   }
@@ -346,18 +353,17 @@ export class ClickService {
     merchantPrepareId: string
   ): Promise<boolean> {
     try {
-      // TODO: Check in database
-      logger.info('Verifying prepare transaction', {
-        clickTransId,
-        merchantPrepareId,
+      // Check in database
+      const transaction = await prisma.clickTransaction.findFirst({
+        where: {
+          clickTransId,
+          merchantPrepareId,
+          status: 'PREPARED',
+        },
       });
 
-      return true; // Temporary for development
+      return !!transaction;
     } catch (error) {
-      logger.error('Failed to verify prepare transaction', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        clickTransId,
-      });
       return false;
     }
   }
@@ -367,17 +373,27 @@ export class ClickService {
    */
   private async completePayment(payload: ClickWebhookPayload): Promise<void> {
     try {
-      // TODO: Update order status, send notifications, etc.
-      logger.info('Completing payment', {
-        clickTransId: payload.click_trans_id,
-        merchantTransId: payload.merchant_trans_id,
-        amount: payload.amount,
+      // Update transaction status
+      await prisma.clickTransaction.updateMany({
+        where: {
+          clickTransId: payload.click_trans_id,
+        },
+        data: {
+          status: 'COMPLETED',
+          completeTime: new Date(),
+        },
       });
+
+      // Update order status
+      await prisma.order.update({
+        where: { id: payload.merchant_trans_id },
+        data: { status: 'CONFIRMED' },
+      });
+
+      // Send notification to user
+      // TODO: Integrate with notification service
+      console.log(`Payment completed for order ${payload.merchant_trans_id}`);
     } catch (error) {
-      logger.error('Failed to complete payment', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        clickTransId: payload.click_trans_id,
-      });
       throw error;
     }
   }
@@ -391,18 +407,24 @@ export class ClickService {
     error?: string;
   }> {
     try {
-      // TODO: Implement status check
-      logger.info('Getting payment status', { transactionId });
-
-      return {
-        status: 'pending',
-      };
-    } catch (error) {
-      logger.error('Failed to get payment status', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        transactionId,
+      // Check transaction status in database
+      const transaction = await prisma.clickTransaction.findFirst({
+        where: { clickTransId: transactionId },
+        select: { status: true, amount: true },
       });
 
+      if (!transaction) {
+        return {
+          status: 'failed',
+          error: 'Transaction not found',
+        };
+      }
+
+      return {
+        status: transaction.status.toLowerCase() as 'pending' | 'completed' | 'failed' | 'cancelled',
+        amount: transaction.amount,
+      };
+    } catch (error) {
       return {
         status: 'failed',
         error: 'Status check failed',
