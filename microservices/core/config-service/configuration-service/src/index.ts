@@ -5,6 +5,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { config } from 'dotenv';
 import { logger } from '@shared/logger';
+import { errorHandler } from '@ultramarket/shared';
 
 config();
 
@@ -334,19 +335,7 @@ app.get('/api/config/categories/list', (req, res) => {
 });
 
 // Error handling middleware
-app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  logger.error('Config service error', {
-    error: error.message,
-    stack: error.stack,
-    path: req.path,
-    method: req.method,
-  });
-
-  res.status(500).json({
-    success: false,
-    error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
-  });
-});
+app.use(errorHandler);
 
 // 404 handler
 app.use('*', (req, res) => {

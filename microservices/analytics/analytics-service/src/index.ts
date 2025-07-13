@@ -10,6 +10,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { config } from 'dotenv';
 import winston from 'winston';
+import { errorHandler } from '@ultramarket/shared';
 
 // Load environment variables
 config();
@@ -100,13 +101,7 @@ app.get('/api/analytics/reports', (req, res) => {
 });
 
 // Error handling middleware
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  logger.error(err.stack);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: process.env.NODE_ENV === 'production' ? 'Something went wrong!' : err.message,
-  });
-});
+app.use(errorHandler);
 
 // 404 handler
 app.use('*', (req, res) => {
