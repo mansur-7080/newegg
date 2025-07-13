@@ -25,7 +25,7 @@ model Product {
   price             Decimal           @db.Decimal(10, 2)
   comparePrice      Decimal?          @db.Decimal(10, 2)
   costPrice         Decimal?          @db.Decimal(10, 2)
-  currency          String            @default("USD")
+  currency          String            @default("UZS")
   status            ProductStatus     @default(DRAFT)
   type              ProductType       @default(PHYSICAL)
   isActive          Boolean           @default(true)

@@ -203,7 +203,7 @@ const OrderSchema = new Schema<IOrder>(
       type: String,
       required: true,
       default: 'UZS',
-      enum: ['UZS', 'USD', 'RUB', 'EUR'],
+      enum: ['UZS'],
     },
     shipping: {
       type: ShippingInfoSchema,

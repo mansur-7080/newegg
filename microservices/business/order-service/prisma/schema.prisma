@@ -94,7 +94,7 @@ model Payment {
   id            String        @id @default(cuid())
   orderId       String
   amount        Decimal       @db.Decimal(10, 2)
-  currency      String        @default("USD")
+  currency      String        @default("UZS")
   method        PaymentMethod
   status        PaymentStatus @default(PENDING)
   transactionId String?

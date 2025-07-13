@@ -102,7 +102,7 @@ export const FILE_UPLOAD = {
 // Price and currency
 export const CURRENCY = {
   DEFAULT: 'UZS',
-  SUPPORTED: ['UZS', 'USD', 'RUB', 'EUR'],
+  SUPPORTED: ['UZS'],
 } as const;
 
 // Order constraints
