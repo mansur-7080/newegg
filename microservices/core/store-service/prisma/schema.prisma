@@ -1,0 +1,319 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  logo        String?
+  banner      String?
+  address     String?
+  phone       String?
+  email       String?
+  website     String?
+  
+  // Store settings
+  isActive    Boolean  @default(true)
+  isVerified  Boolean  @default(false)
+  commission  Float    @default(5.0) // Platform commission percentage
+  
+  // Social media
+  facebook    String?
+  instagram   String?
+  telegram    String?
+  
+  // Business info
+  businessLicense String?
+  taxNumber   String?
+  
+  // Owner info
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id])
+  
+  // Store statistics
+  totalProducts   Int     @default(0)
+  totalOrders     Int     @default(0)
+  totalRevenue    Decimal @default(0)
+  rating          Float?
+  reviewCount     Int     @default(0)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  products    Product[]
+  orders      Order[]
+  reviews     StoreReview[]
+  categories  StoreCategory[]
+  staff       StoreStaff[]
+  settings    StoreSetting[]
+  analytics   StoreAnalytics[]
+  
+  @@map("stores")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  phone     String?
+  avatar    String?
+  role      UserRole @default(USER)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  stores    Store[]
+  staffRoles StoreStaff[]
+  reviews   StoreReview[]
+  
+  @@map("users")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  price       Decimal
+  salePrice   Decimal?
+  sku         String   @unique
+  stock       Int      @default(0)
+  images      String[]
+  
+  // Product details
+  weight      Float?
+  dimensions  String?
+  brand       String?
+  model       String?
+  
+  // Status
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  
+  // Store relation
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  
+  // Category relation
+  categoryId  String
+  category    StoreCategory @relation(fields: [categoryId], references: [id])
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  orderItems  OrderItem[]
+  
+  @@map("products")
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  orderNumber   String      @unique
+  customerId    String
+  customerName  String
+  customerEmail String
+  customerPhone String
+  
+  // Order details
+  subtotal      Decimal
+  tax           Decimal     @default(0)
+  shipping      Decimal     @default(0)
+  discount      Decimal     @default(0)
+  total         Decimal
+  
+  // Status
+  status        OrderStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  
+  // Store relation
+  storeId       String
+  store         Store       @relation(fields: [storeId], references: [id])
+  
+  // Delivery info
+  shippingAddress String
+  deliveryDate    DateTime?
+  trackingNumber  String?
+  
+  // Timestamps
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  items         OrderItem[]
+  
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  quantity  Int
+  price     Decimal
+  total     Decimal
+  
+  // Relations
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  
+  @@map("order_items")
+}
+
+model StoreCategory {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  image       String?
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  
+  // Store relation
+  storeId     String
+  store       Store     @relation(fields: [storeId], references: [id])
+  
+  // Parent category
+  parentId    String?
+  parent      StoreCategory? @relation("CategoryParent", fields: [parentId], references: [id])
+  children    StoreCategory[] @relation("CategoryParent")
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  products    Product[]
+  
+  @@unique([storeId, slug])
+  @@map("store_categories")
+}
+
+model StoreReview {
+  id        String   @id @default(cuid())
+  rating    Int      // 1-5 stars
+  comment   String?
+  isActive  Boolean  @default(true)
+  
+  // Relations
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([storeId, userId])
+  @@map("store_reviews")
+}
+
+model StoreStaff {
+  id          String    @id @default(cuid())
+  role        StaffRole @default(STAFF)
+  permissions String[]  // JSON array of permissions
+  isActive    Boolean   @default(true)
+  
+  // Relations
+  storeId     String
+  store       Store     @relation(fields: [storeId], references: [id])
+  
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@unique([storeId, userId])
+  @@map("store_staff")
+}
+
+model StoreSetting {
+  id        String   @id @default(cuid())
+  key       String
+  value     String
+  type      String   @default("string") // string, number, boolean, json
+  
+  // Store relation
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([storeId, key])
+  @@map("store_settings")
+}
+
+model StoreAnalytics {
+  id              String   @id @default(cuid())
+  date            DateTime @db.Date
+  
+  // Daily metrics
+  views           Int      @default(0)
+  visitors        Int      @default(0)
+  orders          Int      @default(0)
+  revenue         Decimal  @default(0)
+  products_sold   Int      @default(0)
+  
+  // Store relation
+  storeId         String
+  store           Store    @relation(fields: [storeId], references: [id])
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([storeId, date])
+  @@map("store_analytics")
+}
+
+// Enums
+enum UserRole {
+  USER
+  VENDOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum StaffRole {
+  STAFF
+  MANAGER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
