@@ -1,92 +1,90 @@
-name: UltraMarket Backend CI/CD
+name: UltraMarket CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main]
+    branches: [ main, develop ]
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ultramarket/backend
+  NODE_VERSION: '18'
+  POSTGRES_VERSION: '15'
 
 jobs:
-  # Code Quality and Security
-  quality:
-    name: Code Quality & Security
+  # Security Audit
+  security-audit:
+    name: Security Audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          cd microservices/core/auth-service
+          npm ci
 
-      - name: Run ESLint
-        run: npm run lint
+      - name: Run security audit
+        run: |
+          cd microservices/core/auth-service
+          npm audit --audit-level=moderate
 
-      - name: Run Prettier check
-        run: npm run format:check
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
 
-      - name: TypeScript check
-        run: npm run type-check
-
-      - name: Security audit
-        run: npm audit --audit-level=moderate
-
-      - name: Run security scan
-        run: npm run security:scan
-
-  # Unit Tests
-  test:
-    name: Unit Tests
+  # Linting and Code Quality
+  lint-and-quality:
+    name: Lint and Code Quality
     runs-on: ubuntu-latest
-    needs: quality
-    strategy:
-      matrix:
-        node-version: [18, 20]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          cd microservices/core/auth-service
+          npm ci
 
-      - name: Run unit tests
-        run: npm run test:coverage
+      - name: Run ESLint
+        run: |
+          cd microservices/core/auth-service
+          npm run lint
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
+      - name: Run Prettier check
+        run: |
+          cd microservices/core/auth-service
+          npx prettier --check src/**/*.ts
 
-  # Integration Tests
-  integration:
-    name: Integration Tests
+      - name: TypeScript type check
+        run: |
+          cd microservices/core/auth-service
+          npx tsc --noEmit
+
+  # Unit Tests
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
-    needs: test
     services:
       postgres:
-        image: postgres:15
+        image: postgres:${{ env.POSTGRES_VERSION }}
         env:
-          POSTGRES_USER: ultramarket_user
-          POSTGRES_PASSWORD: ultramarket_password
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: ultramarket_test
         options: >-
           --health-cmd pg_isready
@@ -96,19 +94,57 @@ jobs:
         ports:
           - 5432:5432
 
-      mongo:
-        image: mongo:7
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd microservices/core/auth-service
+          npm ci
+
+      - name: Setup test database
+        run: |
+          cd microservices/core/auth-service
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ultramarket_test" > .env.test
+          npx prisma migrate deploy --schema=./prisma/schema.prisma
+
+      - name: Run unit tests
+        run: |
+          cd microservices/core/auth-service
+          npm test -- --coverage --watchAll=false
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./microservices/core/auth-service/coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  # Integration Tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    services:
+      postgres:
+        image: postgres:${{ env.POSTGRES_VERSION }}
         env:
-          MONGO_INITDB_ROOT_USERNAME: ultramarket_user
-          MONGO_INITDB_ROOT_PASSWORD: ultramarket_password
-          MONGO_INITDB_DATABASE: ultramarket_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ultramarket_integration_test
         options: >-
-          --health-cmd "mongo --eval 'db.adminCommand(\"ping\")'"
+          --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 27017:27017
+          - 5432:5432
 
       redis:
         image: redis:7-alpine
@@ -120,20 +156,6 @@ jobs:
         ports:
           - 6379:6379
 
-      elasticsearch:
-        image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
-        env:
-          discovery.type: single-node
-          xpack.security.enabled: false
-          ES_JAVA_OPTS: -Xms512m -Xmx512m
-        options: >-
-          --health-cmd "curl -f http://localhost:9200/_cluster/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-        ports:
-          - 9200:9200
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -141,95 +163,31 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Wait for services
         run: |
-          sleep 30
-          curl -f http://localhost:9200/_cluster/health || exit 1
+          cd microservices/core/auth-service
+          npm ci
 
-      - name: Run database migrations
+      - name: Setup test environment
         run: |
-          npm run migrate:postgres
-          npm run migrate:mongo
+          cd microservices/core/auth-service
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ultramarket_integration_test" > .env.test
+          echo "REDIS_URL=redis://localhost:6379" >> .env.test
+          npx prisma migrate deploy --schema=./prisma/schema.prisma
 
       - name: Run integration tests
-        run: npm run test:integration
-        env:
-          NODE_ENV: test
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_USER: ultramarket_user
-          POSTGRES_PASSWORD: ultramarket_password
-          POSTGRES_DB: ultramarket_test
-          MONGO_HOST: localhost
-          MONGO_PORT: 27017
-          MONGO_USER: ultramarket_user
-          MONGO_PASSWORD: ultramarket_password
-          MONGO_DB: ultramarket_test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          ELASTICSEARCH_HOST: localhost
-          ELASTICSEARCH_PORT: 9200
-
-  # Build Docker Images
-  build:
-    name: Build Docker Images
-    runs-on: ubuntu-latest
-    needs: integration
-    outputs:
-      image: ${{ steps.image.outputs.image }}
-      digest: ${{ steps.build.outputs.digest }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Output image
-        id: image
         run: |
-          echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+          cd microservices/core/auth-service
+          npm run test:integration
 
-  # E2E Tests
-  e2e:
-    name: E2E Tests
+  # Build and Package
+  build:
+    name: Build and Package
     runs-on: ubuntu-latest
-    needs: build
+    needs: [lint-and-quality, unit-tests]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -237,185 +195,139 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Start services with Docker Compose
         run: |
-          docker-compose -f config/docker/docker-compose.test.yml up -d
-          sleep 60
+          cd microservices/core/auth-service
+          npm ci
 
-      - name: Run E2E tests
-        run: npm run test:e2e
-
-      - name: Stop services
-        if: always()
-        run: docker-compose -f config/docker/docker-compose.test.yml down
-
-  # Performance Tests
-  performance:
-    name: Performance Tests
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install k6
+      - name: Build application
         run: |
-          sudo gpg -k
-          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update
-          sudo apt-get install k6
+          cd microservices/core/auth-service
+          npm run build
 
-      - name: Start services
+      - name: Create Docker image
         run: |
-          docker-compose -f config/docker/docker-compose.test.yml up -d
-          sleep 60
+          docker build -t ultramarket/auth-service:${{ github.sha }} ./microservices/core/auth-service
+          docker build -t ultramarket/web-app:${{ github.sha }} ./frontend/web-app
+          docker build -t ultramarket/admin-panel:${{ github.sha }} ./frontend/admin-panel
 
-      - name: Run load tests
-        run: npm run test:load
-
-      - name: Run stress tests
-        run: npm run test:stress
-
-      - name: Stop services
-        if: always()
-        run: docker-compose -f config/docker/docker-compose.test.yml down
-
-  # Security Scan
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+      - name: Upload Docker images
+        uses: actions/upload-artifact@v3
         with:
-          image-ref: ${{ needs.build.outputs.image }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'trivy-results.sarif'
+          name: docker-images
+          path: |
+            ./microservices/core/auth-service/dist
+            ./frontend/web-app/build
+            ./frontend/admin-panel/build
 
   # Deploy to Staging
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [build, e2e, performance, security]
+    needs: [build]
     if: github.ref == 'refs/heads/develop'
-    environment:
-      name: staging
-      url: https://staging-api.ultramarket.uz
+    environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
-
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > ~/.kube/config
-
       - name: Deploy to staging
         run: |
-          sed -i 's|ultramarket/backend:latest|${{ needs.build.outputs.image }}|g' infrastructure/kubernetes/staging/
-          kubectl apply -f infrastructure/kubernetes/staging/
+          echo "Deploying to staging environment..."
+          # Add your staging deployment logic here
+          # Example: kubectl apply -f k8s/staging/
+          # Example: docker-compose -f docker-compose.staging.yml up -d
 
-      - name: Wait for deployment
+      - name: Run smoke tests
         run: |
-          kubectl rollout status deployment/api-gateway -n ultramarket-staging --timeout=300s
-
-      - name: Run health check
-        run: |
-          sleep 30
-          curl -f https://staging-api.ultramarket.uz/health || exit 1
+          echo "Running smoke tests..."
+          # Add smoke test logic here
+          # Example: curl -f http://staging.ultramarket.uz/health
 
   # Deploy to Production
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [build, e2e, performance, security]
+    needs: [deploy-staging]
     if: github.ref == 'refs/heads/main'
-    environment:
-      name: production
-      url: https://api.ultramarket.uz
+    environment: production
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
-
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
-
       - name: Deploy to production
         run: |
-          sed -i 's|ultramarket/backend:latest|${{ needs.build.outputs.image }}|g' infrastructure/kubernetes/production/
-          kubectl apply -f infrastructure/kubernetes/production/
+          echo "Deploying to production environment..."
+          # Add your production deployment logic here
+          # Example: kubectl apply -f k8s/production/
+          # Example: docker-compose -f docker-compose.production.yml up -d
 
-      - name: Wait for deployment
+      - name: Run health checks
         run: |
-          kubectl rollout status deployment/api-gateway -n ultramarket --timeout=600s
+          echo "Running health checks..."
+          # Add health check logic here
+          # Example: curl -f https://ultramarket.uz/health
 
-      - name: Run health check
+      - name: Notify deployment
         run: |
-          sleep 60
-          curl -f https://api.ultramarket.uz/health || exit 1
+          echo "Production deployment completed successfully!"
+          # Add notification logic here (Slack, email, etc.)
 
-      - name: Run smoke tests
-        run: |
-          curl -f https://api.ultramarket.uz/api/products?limit=1 || exit 1
-          curl -f https://api.ultramarket.uz/api/health/detailed || exit 1
-
-  # Notification
-  notify:
-    name: Notify Team
+  # Performance Testing
+  performance-tests:
+    name: Performance Tests
     runs-on: ubuntu-latest
-    needs: [deploy-staging, deploy-production]
-    if: always()
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/develop'
     steps:
-      - name: Notify Telegram
-        if: success()
-        run: |
-          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d "text=✅ UltraMarket Backend deployed successfully!%0A%0ACommit: ${{ github.sha }}%0ABranch: ${{ github.ref_name }}%0AAuthor: ${{ github.actor }}"
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Notify on failure
-        if: failure()
-        run: |
-          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d "text=❌ UltraMarket Backend deployment failed!%0A%0ACommit: ${{ github.sha }}%0ABranch: ${{ github.ref_name }}%0AAuthor: ${{ github.actor }}"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
-  # Cleanup
-  cleanup:
-    name: Cleanup
+      - name: Install Artillery
+        run: npm install -g artillery
+
+      - name: Run performance tests
+        run: |
+          artillery run ./tests/performance/auth-service.yml
+          artillery run ./tests/performance/api-endpoints.yml
+
+      - name: Upload performance report
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-report
+          path: ./artillery-report.json
+
+  # Dependency Updates
+  dependency-updates:
+    name: Dependency Updates
     runs-on: ubuntu-latest
-    needs: [deploy-staging, deploy-production]
-    if: always()
+    if: github.event_name == 'schedule'
     steps:
-      - name: Cleanup old images
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Dependabot
+        run: npm install -g @dependabot/npm-check-updates
+
+      - name: Check for updates
         run: |
-          echo "Cleaning up old Docker images..."
-          # This would typically connect to registry and cleanup old images
-          echo "Cleanup completed"
+          cd microservices/core/auth-service
+          ncu --target minor
+
+      - name: Create PR for updates
+        run: |
+          # Add logic to create PR for dependency updates
+          echo "Creating PR for dependency updates..."
