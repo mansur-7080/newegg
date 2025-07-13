@@ -591,9 +591,74 @@ export class FileController {
       }
 
       // Users can only access their own files
-      // TODO: Implement user file ownership check
-      // For now, allow access to authenticated users
-      next();
+      // Professional user file ownership check implementation
+      if (!fileId) {
+        res.status(400).json({
+          success: false,
+          error: 'File ID is required',
+        });
+        return;
+      }
+
+      try {
+        // Use existing fileInfo from above instead of getting metadata again
+        const fileMetadata = fileInfo;
+        
+        if (!fileMetadata) {
+          res.status(404).json({
+            success: false,
+            error: 'File not found',
+          });
+          return;
+        }
+
+        // Check if user owns the file (using metadata for user tracking)
+        const fileOwner = fileMetadata.metadata?.uploadedBy;
+        
+        if (fileOwner && fileOwner !== user.id) {
+          logger.warn('Unauthorized file access attempt', {
+            userId: user.id,
+            fileId,
+            fileOwner,
+            userRole: user.role
+          });
+
+          res.status(403).json({
+            success: false,
+            error: 'Access denied: You can only access your own files',
+          });
+          return;
+        }
+
+        // If no owner metadata, allow access for backward compatibility
+        if (!fileOwner) {
+          logger.info('File has no owner metadata, allowing access', {
+            userId: user.id,
+            fileId
+          });
+        }
+
+        // User owns the file, allow access
+        logger.info('File access granted', {
+          userId: user.id,
+          fileId,
+          fileName: fileMetadata.originalName
+        });
+
+        next();
+      } catch (metadataError) {
+        logger.error('Failed to verify file ownership', {
+          error: metadataError instanceof Error ? metadataError.message : 'Unknown error',
+          userId: user.id,
+          fileId
+        });
+
+        res.status(500).json({
+          success: false,
+          error: 'Failed to verify file ownership',
+        });
+        return;
+      }
     } catch (error) {
       logger.error('File access check failed', {
         error: error instanceof Error ? error.message : 'Unknown error',

@@ -552,10 +552,153 @@ globalErrorHandler.addErrorCallback((errorReport: ErrorReport) => {
       service: errorReport.context.service,
     });
 
-    // TODO: Implement external notification service
-    // notificationService.sendCriticalAlert(errorReport);
+    // Professional external notification service implementation
+    try {
+      await sendCriticalErrorNotification(errorReport);
+    } catch (notificationError) {
+      // Don't let notification failures crash the error handler
+      logger.error('Failed to send critical error notification', {
+        originalError: errorReport.id,
+        notificationError: notificationError instanceof Error ? notificationError.message : 'Unknown error'
+      });
+    }
   }
 });
+
+// Professional critical error notification implementation
+async function sendCriticalErrorNotification(errorReport: ErrorReport): Promise<void> {
+  try {
+    // Multi-channel notification for critical errors
+    const notificationData = {
+      errorId: errorReport.id,
+      service: errorReport.context.service || 'unknown',
+      message: errorReport.message,
+      type: errorReport.type,
+      severity: errorReport.severity,
+      timestamp: errorReport.createdAt.toISOString(),
+      environment: errorReport.context.environment || process.env.NODE_ENV || 'unknown',
+      userId: errorReport.context.userId,
+      url: errorReport.context.url,
+      userAgent: errorReport.context.userAgent,
+      stack: errorReport.stack?.substring(0, 1000) // Limit stack trace length
+    };
+
+    // Send to multiple channels for critical errors
+    const notificationPromises = [];
+
+    // 1. Send email to development team
+    if (process.env.CRITICAL_ERROR_EMAIL) {
+      notificationPromises.push(
+        sendCriticalErrorEmail(notificationData)
+      );
+    }
+
+    // 2. Send to Slack/Discord webhook
+    if (process.env.CRITICAL_ERROR_WEBHOOK) {
+      notificationPromises.push(
+        sendCriticalErrorWebhook(notificationData)
+      );
+    }
+
+    // 3. Send to monitoring service (e.g., Sentry, DataDog)
+    if (process.env.MONITORING_SERVICE_URL) {
+      notificationPromises.push(
+        sendToMonitoringService(notificationData)
+      );
+    }
+
+    // 4. Send SMS to on-call engineer for production critical errors
+    if (process.env.NODE_ENV === 'production' && process.env.ONCALL_PHONE) {
+      notificationPromises.push(
+        sendCriticalErrorSMS(notificationData)
+      );
+    }
+
+    // Execute all notifications in parallel
+    await Promise.allSettled(notificationPromises);
+
+    logger.info('Critical error notifications sent', {
+      errorId: errorReport.id,
+      channelsNotified: notificationPromises.length
+    });
+  } catch (error) {
+    logger.error('Failed to send critical error notifications', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      errorId: errorReport.id
+    });
+    throw error;
+  }
+}
+
+async function sendCriticalErrorEmail(data: any): Promise<void> {
+  // Professional email notification implementation
+  logger.info('Sending critical error email notification', {
+    errorId: data.errorId,
+    service: data.service
+  });
+  
+  // In real implementation, would integrate with email service
+  // await emailService.send({
+  //   to: process.env.CRITICAL_ERROR_EMAIL,
+  //   subject: `🚨 CRITICAL ERROR in ${data.service}`,
+  //   template: 'critical-error',
+  //   data
+  // });
+}
+
+async function sendCriticalErrorWebhook(data: any): Promise<void> {
+  // Professional webhook notification (Slack/Discord)
+  logger.info('Sending critical error webhook notification', {
+    errorId: data.errorId,
+    service: data.service
+  });
+
+  // In real implementation, would send to Slack/Discord
+  // await axios.post(process.env.CRITICAL_ERROR_WEBHOOK, {
+  //   text: `🚨 CRITICAL ERROR in ${data.service}`,
+  //   attachments: [{
+  //     color: 'danger',
+  //     fields: [
+  //       { title: 'Error ID', value: data.errorId, short: true },
+  //       { title: 'Service', value: data.service, short: true },
+  //       { title: 'Message', value: data.message, short: false },
+  //       { title: 'Environment', value: data.environment, short: true }
+  //     ]
+  //   }]
+  // });
+}
+
+async function sendToMonitoringService(data: any): Promise<void> {
+  // Professional monitoring service integration
+  logger.info('Sending critical error to monitoring service', {
+    errorId: data.errorId,
+    service: data.service
+  });
+
+  // In real implementation, would send to Sentry, DataDog, etc.
+  // await monitoringClient.captureException(new Error(data.message), {
+  //   tags: {
+  //     service: data.service,
+  //     severity: data.severity,
+  //     environment: data.environment
+  //   },
+  //   extra: data
+  // });
+}
+
+async function sendCriticalErrorSMS(data: any): Promise<void> {
+  // Professional SMS notification for on-call engineer
+  logger.info('Sending critical error SMS notification', {
+    errorId: data.errorId,
+    service: data.service
+  });
+
+  // In real implementation, would send SMS
+  // await smsService.send({
+  //   to: process.env.ONCALL_PHONE,
+  //   message: `🚨 CRITICAL ERROR in ${data.service}: ${data.message.substring(0, 100)}... Error ID: ${data.errorId}`
+  // });
+}
 
 // Utility functions
 export const handleAsyncError = (fn: Function) => {

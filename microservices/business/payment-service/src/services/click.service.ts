@@ -457,11 +457,51 @@ export class ClickService {
     error?: string;
   }> {
     try {
-      // TODO: Implement status check
-      logger.info('Getting payment status', { transactionId });
+      // Professional status check implementation
+      logger.info('Getting payment status from database', { transactionId });
+
+      // Get transaction from database
+      const transaction = await this.paymentRepository.getTransactionByProviderTransactionId(
+        transactionId
+      );
+
+      if (!transaction) {
+        logger.warn('Transaction not found', { transactionId });
+        return {
+          status: 'failed',
+          error: 'Transaction not found'
+        };
+      }
+
+      // Map database status to Click status format
+      let clickStatus: 'pending' | 'completed' | 'failed' | 'cancelled';
+      
+      switch (transaction.status) {
+        case 'pending':
+          clickStatus = 'pending';
+          break;
+        case 'completed':
+          clickStatus = 'completed';
+          break;
+        case 'cancelled':
+          clickStatus = 'cancelled';
+          break;
+        case 'failed':
+        default:
+          clickStatus = 'failed';
+          break;
+      }
+
+      logger.info('Payment status retrieved', {
+        transactionId,
+        status: clickStatus,
+        amount: transaction.amount
+      });
 
       return {
-        status: 'pending',
+        status: clickStatus,
+        amount: transaction.amount,
+        error: transaction.status === 'failed' ? 'Payment failed' : undefined
       };
     } catch (error) {
       logger.error('Failed to get payment status', {

@@ -1,6 +1,8 @@
 import nodemailer from 'nodemailer';
 import { logger } from '@ultramarket/common';
 import { PrismaClient } from '@prisma/client';
+import { ISMSProvider, EskizSMSProvider, PlayMobileSMSProvider } from '../providers/sms.providers';
+import { IPushProvider, FirebasePushProvider, OneSignalPushProvider } from '../providers/push.providers';
 
 const prisma = new PrismaClient();
 
@@ -181,17 +183,26 @@ export class NotificationService {
    */
   async sendSMS(notification: SMSNotification): Promise<void> {
     try {
-      // SMS service integration (e.g., Twilio, Nexmo)
-      // For now, we'll log the SMS
+      // SMS service integration with Uzbekistan providers
       logger.info('SMS notification', {
         to: notification.to,
         message: notification.message,
         template: notification.template,
       });
 
-      // TODO: Integrate with SMS provider
-      // const smsProvider = new SMSProvider();
-      // await smsProvider.send(notification.to, notification.message);
+      // Professional SMS provider integration for Uzbekistan
+      const smsProvider = this.createSMSProvider();
+      await smsProvider.send({
+        to: notification.to,
+        message: notification.message,
+        template: notification.template,
+        data: notification.data
+      });
+
+      logger.info('SMS sent successfully', {
+        to: notification.to,
+        messageLength: notification.message.length
+      });
     } catch (error) {
       logger.error('Failed to send SMS', error);
       throw error;
@@ -203,16 +214,30 @@ export class NotificationService {
    */
   async sendPush(notification: PushNotification): Promise<void> {
     try {
-      // Push notification service integration (e.g., Firebase, OneSignal)
+      // Push notification service integration (Firebase FCM)
       logger.info('Push notification', {
         userId: notification.userId,
         title: notification.title,
         body: notification.body,
       });
 
-      // TODO: Integrate with push notification provider
-      // const pushProvider = new PushNotificationProvider();
-      // await pushProvider.send(notification);
+      // Professional push notification provider integration
+      const pushProvider = this.createPushProvider();
+      await pushProvider.send({
+        userId: notification.userId,
+        title: notification.title,
+        body: notification.body,
+        data: notification.data,
+        badge: notification.badge,
+        sound: notification.sound,
+        icon: notification.icon,
+        clickAction: notification.clickAction
+      });
+
+      logger.info('Push notification sent successfully', {
+        userId: notification.userId,
+        title: notification.title
+      });
     } catch (error) {
       logger.error('Failed to send push notification', error);
       throw error;
@@ -588,6 +613,59 @@ export class NotificationService {
       });
     } catch (error) {
       logger.error('Failed to process scheduled notifications', error);
+    }
+  }
+
+  // Professional SMS Provider Factory
+  private createSMSProvider(): ISMSProvider {
+    const provider = process.env.SMS_PROVIDER || 'eskiz'; // Default to Eskiz SMS for Uzbekistan
+    
+    switch (provider) {
+      case 'eskiz':
+        return new EskizSMSProvider({
+          email: process.env.ESKIZ_EMAIL || '',
+          password: process.env.ESKIZ_PASSWORD || '',
+          baseUrl: process.env.ESKIZ_BASE_URL || 'https://notify.eskiz.uz/api'
+        });
+      case 'playmobile':
+        return new PlayMobileSMSProvider({
+          login: process.env.PLAYMOBILE_LOGIN || '',
+          password: process.env.PLAYMOBILE_PASSWORD || '',
+          baseUrl: process.env.PLAYMOBILE_BASE_URL || 'https://send.smsxabar.uz/broker-api'
+        });
+      default:
+        return new EskizSMSProvider({
+          email: process.env.ESKIZ_EMAIL || '',
+          password: process.env.ESKIZ_PASSWORD || '',
+          baseUrl: process.env.ESKIZ_BASE_URL || 'https://notify.eskiz.uz/api'
+        });
+    }
+  }
+
+  // Professional Push Provider Factory
+  private createPushProvider(): IPushProvider {
+    const provider = process.env.PUSH_PROVIDER || 'firebase';
+    
+    switch (provider) {
+      case 'firebase':
+        return new FirebasePushProvider({
+          projectId: process.env.FIREBASE_PROJECT_ID || '',
+          privateKey: process.env.FIREBASE_PRIVATE_KEY || '',
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
+          databaseURL: process.env.FIREBASE_DATABASE_URL || ''
+        });
+      case 'onesignal':
+        return new OneSignalPushProvider({
+          appId: process.env.ONESIGNAL_APP_ID || '',
+          restApiKey: process.env.ONESIGNAL_REST_API_KEY || ''
+        });
+      default:
+        return new FirebasePushProvider({
+          projectId: process.env.FIREBASE_PROJECT_ID || '',
+          privateKey: process.env.FIREBASE_PRIVATE_KEY || '',
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
+          databaseURL: process.env.FIREBASE_DATABASE_URL || ''
+        });
     }
   }
 }

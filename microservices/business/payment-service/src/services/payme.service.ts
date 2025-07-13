@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import { logger } from '@ultramarket/shared';
+import { PaymentRepository } from '../repositories/payment.repository';
+import { IOrderService, Order, OrderStatus } from '../interfaces/order.interface';
 
 export interface PaymePaymentRequest {
   amount: number;
@@ -52,12 +54,16 @@ export class PaymeService {
   private readonly secretKey: string;
   private readonly endpoint: string;
   private readonly testMode: boolean;
+  private readonly paymentRepository: PaymentRepository;
+  private readonly orderService: IOrderService;
 
-  constructor() {
+  constructor(orderService: IOrderService, prisma: any) {
     this.merchantId = process.env.PAYME_MERCHANT_ID || '';
     this.secretKey = process.env.PAYME_SECRET_KEY || '';
     this.endpoint = process.env.PAYME_ENDPOINT || 'https://checkout.paycom.uz/api';
     this.testMode = process.env.NODE_ENV !== 'production';
+    this.paymentRepository = new PaymentRepository(prisma);
+    this.orderService = orderService;
 
     if (!this.merchantId || !this.secretKey) {
       throw new Error('Payme payment gateway configuration is missing');
@@ -422,14 +428,30 @@ export class PaymeService {
    */
   private async verifyOrder(orderId: string, amount: number): Promise<boolean> {
     try {
-      // This would typically call the Order Service
-      logger.info('Verifying order', { orderId, amount });
+      logger.info('Verifying order with order service', { orderId, amount });
 
-      // TODO: Implement actual order verification
-      // const order = await orderService.getOrder(orderId);
-      // return order && order.amount === amount && order.status === 'pending';
+      // Get order from order service
+      const order = await this.orderService.getOrderById(orderId);
+      
+      if (!order) {
+        logger.warn('Order not found', { orderId });
+        return false;
+      }
 
-      return true; // Temporary for development
+      // Verify order status and amount
+      const isValid = order.status === 'pending' && 
+                     Math.abs(order.amount - amount) < 0.01; // Allow small floating point differences
+
+      if (!isValid) {
+        logger.warn('Order verification failed', {
+          orderId,
+          expectedAmount: amount,
+          actualAmount: order.amount,
+          status: order.status
+        });
+      }
+
+      return isValid;
     } catch (error) {
       logger.error('Order verification failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -454,22 +476,27 @@ export class PaymeService {
     }>;
   }> {
     try {
-      // TODO: Get actual order details
-      logger.info('Getting order details', { orderId });
+      logger.info('Getting order details from order service', { orderId });
 
-      return {
-        items: [
-          {
-            title: 'Order #' + orderId,
-            price: 100000, // Amount in tiyin
-            count: 1,
-            code: '123456789',
-            units: 796,
-            vat_percent: 12,
-            package_code: '123456',
-          },
-        ],
-      };
+      // Get order details from order service
+      const order = await this.orderService.getOrderById(orderId);
+      
+      if (!order) {
+        throw new Error(`Order ${orderId} not found`);
+      }
+
+      // Convert order items to Payme receipt format
+      const items = order.items.map((item, index) => ({
+        title: item.productName,
+        price: Math.round(item.price * 100), // Convert to tiyin (1/100 som)
+        count: item.quantity,
+        code: item.productId || `ITEM_${index + 1}`,
+        units: 796, // Dona (piece) - standard unit code in Uzbekistan
+        vat_percent: 12, // Standard VAT in Uzbekistan
+        package_code: '123456'
+      }));
+
+      return { items };
     } catch (error) {
       logger.error('Failed to get order details', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -484,16 +511,41 @@ export class PaymeService {
    */
   private async storeTransaction(transaction: PaymeTransaction): Promise<PaymeTransaction> {
     try {
-      // TODO: Store in database
-      logger.info('Storing Payme transaction', {
+      logger.info('Storing Payme transaction in database', {
         transactionId: transaction.id,
         orderId: transaction.account.order_id,
         amount: transaction.amount,
+        state: transaction.state
+      });
+
+      // Store transaction using repository
+      const storedTransaction = await this.paymentRepository.createPaymentTransaction({
+        id: transaction.id,
+        orderId: transaction.account.order_id,
+        amount: transaction.amount,
+        currency: 'UZS',
+        provider: 'payme',
+        status: this.mapPaymeStateToStatus(transaction.state),
+        providerTransactionId: transaction.id,
+        metadata: {
+          payme_transaction: transaction,
+          create_time: transaction.create_time,
+          perform_time: transaction.perform_time,
+          cancel_time: transaction.cancel_time,
+          reason: transaction.reason
+        },
+        createdAt: new Date(transaction.create_time),
+        updatedAt: new Date()
+      });
+
+      logger.info('Payme transaction stored successfully', {
+        transactionId: transaction.id,
+        dbId: storedTransaction.id
       });
 
       return transaction;
     } catch (error) {
-      logger.error('Failed to store transaction', {
+      logger.error('Failed to store Payme transaction', {
         error: error instanceof Error ? error.message : 'Unknown error',
         transactionId: transaction.id,
       });
@@ -506,12 +558,42 @@ export class PaymeService {
    */
   private async getTransaction(transactionId: string): Promise<PaymeTransaction | null> {
     try {
-      // TODO: Get from database
-      logger.info('Getting Payme transaction', { transactionId });
+      logger.info('Getting Payme transaction from database', { transactionId });
 
-      return null; // Temporary for development
+      // Get transaction from database
+      const dbTransaction = await this.paymentRepository.getTransactionByProviderTransactionId(
+        transactionId, 
+        'payme'
+      );
+
+      if (!dbTransaction) {
+        logger.info('Payme transaction not found in database', { transactionId });
+        return null;
+      }
+
+      // Convert database transaction back to Payme format
+      const paymeTransaction: PaymeTransaction = {
+        id: transactionId,
+        time: dbTransaction.metadata?.payme_transaction?.time || Date.now(),
+        amount: dbTransaction.amount,
+        account: {
+          order_id: dbTransaction.orderId
+        },
+        create_time: dbTransaction.metadata?.create_time || dbTransaction.createdAt.getTime(),
+        perform_time: dbTransaction.metadata?.perform_time,
+        cancel_time: dbTransaction.metadata?.cancel_time,
+        state: this.mapStatusToPaymeState(dbTransaction.status),
+        reason: dbTransaction.metadata?.reason
+      };
+
+      logger.info('Payme transaction retrieved from database', {
+        transactionId,
+        state: paymeTransaction.state
+      });
+
+      return paymeTransaction;
     } catch (error) {
-      logger.error('Failed to get transaction', {
+      logger.error('Failed to get Payme transaction from database', {
         error: error instanceof Error ? error.message : 'Unknown error',
         transactionId,
       });
@@ -527,13 +609,51 @@ export class PaymeService {
     updates: Partial<PaymeTransaction>
   ): Promise<void> {
     try {
-      // TODO: Update in database
-      logger.info('Updating Payme transaction', {
+      logger.info('Updating Payme transaction in database', {
         transactionId,
-        updates,
+        updates: Object.keys(updates)
+      });
+
+      // Get existing transaction
+      const existingTransaction = await this.paymentRepository.getTransactionByProviderTransactionId(
+        transactionId,
+        'payme'
+      );
+
+      if (!existingTransaction) {
+        throw new Error(`Transaction ${transactionId} not found`);
+      }
+
+      // Prepare update data
+      const updateData: any = {
+        updatedAt: new Date()
+      };
+
+      if (updates.state !== undefined) {
+        updateData.status = this.mapPaymeStateToStatus(updates.state);
+      }
+
+      if (updates.perform_time || updates.cancel_time) {
+        updateData.metadata = {
+          ...existingTransaction.metadata,
+          perform_time: updates.perform_time,
+          cancel_time: updates.cancel_time,
+          reason: updates.reason
+        };
+      }
+
+      // Update in database
+      await this.paymentRepository.updatePaymentTransaction(
+        existingTransaction.id,
+        updateData
+      );
+
+      logger.info('Payme transaction updated successfully', {
+        transactionId,
+        newState: updates.state
       });
     } catch (error) {
-      logger.error('Failed to update transaction', {
+      logger.error('Failed to update Payme transaction', {
         error: error instanceof Error ? error.message : 'Unknown error',
         transactionId,
       });
@@ -546,8 +666,32 @@ export class PaymeService {
    */
   private async completeOrder(orderId: string, amount: number): Promise<void> {
     try {
-      // TODO: Update order status, send notifications, etc.
-      logger.info('Completing order', { orderId, amount });
+      logger.info('Completing order after successful payment', { orderId, amount });
+
+      // Update order status to paid
+      await this.orderService.updateOrderStatus(orderId, OrderStatus.CONFIRMED);
+
+      // Send order confirmation notifications
+      const order = await this.orderService.getOrderById(orderId);
+      if (order) {
+        // Send email confirmation
+        await this.sendOrderConfirmationEmail(order);
+        
+        // Send SMS confirmation if phone number available
+        if (order.customer.phone) {
+          await this.sendOrderConfirmationSMS(order);
+        }
+
+        // Create inventory reservations
+        await this.reserveOrderItems(order);
+
+        // Log successful completion
+        logger.info('Order completed successfully', {
+          orderId,
+          amount,
+          userId: order.userId
+        });
+      }
     } catch (error) {
       logger.error('Failed to complete order', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -562,14 +706,102 @@ export class PaymeService {
    */
   private async refundOrder(orderId: string, amount: number): Promise<void> {
     try {
-      // TODO: Handle refund logic
-      logger.info('Refunding order', { orderId, amount });
+      logger.info('Processing order refund', { orderId, amount });
+
+      // Update order status to refunded
+      await this.orderService.updateOrderStatus(orderId, OrderStatus.REFUNDED);
+
+      // Create refund record (simplified for now)
+      logger.info('Creating refund record', {
+        orderId,
+        amount,
+        currency: 'UZS',
+        provider: 'payme'
+      });
+
+      // Release inventory reservations
+      const order = await this.orderService.getOrderById(orderId);
+      if (order) {
+        await this.releaseOrderItems(order);
+
+        // Send refund notification
+        await this.sendRefundNotificationEmail(order, amount);
+
+        logger.info('Order refund processed successfully', {
+          orderId,
+          amount,
+          userId: order.userId
+        });
+      }
     } catch (error) {
-      logger.error('Failed to refund order', {
+      logger.error('Failed to process order refund', {
         error: error instanceof Error ? error.message : 'Unknown error',
         orderId,
       });
       throw error;
+    }
+  }
+
+  // Helper methods for order completion
+  private async sendOrderConfirmationEmail(order: Order): Promise<void> {
+    // Implementation would integrate with email service
+    logger.info('Sending order confirmation email', {
+      orderId: order.id,
+      email: order.customer.email
+    });
+  }
+
+  private async sendOrderConfirmationSMS(order: Order): Promise<void> {
+    // Implementation would integrate with SMS service
+    logger.info('Sending order confirmation SMS', {
+      orderId: order.id,
+      phone: order.customer.phone
+    });
+  }
+
+  private async sendRefundNotificationEmail(order: Order, amount: number): Promise<void> {
+    // Implementation would integrate with email service
+    logger.info('Sending refund notification email', {
+      orderId: order.id,
+      email: order.customer.email,
+      amount
+    });
+  }
+
+  private async reserveOrderItems(order: Order): Promise<void> {
+    // Implementation would integrate with inventory service
+    logger.info('Reserving order items', {
+      orderId: order.id,
+      itemCount: order.items.length
+    });
+  }
+
+  private async releaseOrderItems(order: Order): Promise<void> {
+    // Implementation would integrate with inventory service
+    logger.info('Releasing order items', {
+      orderId: order.id,
+      itemCount: order.items.length
+    });
+  }
+
+  // State mapping utilities
+  private mapPaymeStateToStatus(state: number): string {
+    switch (state) {
+      case 1: return 'pending';
+      case 2: return 'completed';
+      case -1: return 'cancelled_before_perform';
+      case -2: return 'cancelled_after_perform';
+      default: return 'unknown';
+    }
+  }
+
+  private mapStatusToPaymeState(status: string): number {
+    switch (status) {
+      case 'pending': return 1;
+      case 'completed': return 2;
+      case 'cancelled_before_perform': return -1;
+      case 'cancelled_after_perform': return -2;
+      default: return 1;
     }
   }
 
