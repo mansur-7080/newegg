@@ -1,594 +1,615 @@
+import { Request, Response } from 'express';
 import crypto from 'crypto';
 import axios from 'axios';
-import { logger } from '@ultramarket/shared';
+import { prisma } from '../config/database';
+import { logger } from '../utils/logger';
+import { AppError } from '../utils/errors';
+import { redis } from '../config/redis';
 
-export interface PaymePaymentRequest {
-  amount: number;
-  orderId: string;
-  userId: string;
-  description: string;
-  returnUrl: string;
-  cancelUrl: string;
-  merchantTransId: string;
-}
-
-export interface PaymePaymentResponse {
-  success: boolean;
-  paymentUrl?: string;
-  transactionId?: string;
-  error?: string;
-}
-
-export interface PaymeWebhookPayload {
+interface PaymeRequest {
+  id: number;
   method: string;
-  params: {
-    id?: string;
-    time?: number;
-    amount?: number;
-    account?: {
-      order_id: string;
-    };
-    reason?: number;
-  };
-  id: string;
+  params: any;
 }
 
-export interface PaymeTransaction {
-  id: string;
-  time: number;
-  amount: number;
-  account: {
-    order_id: string;
+interface PaymeResponse {
+  jsonrpc: string;
+  id: number;
+  result?: any;
+  error?: {
+    code: number;
+    message: {
+      uz: string;
+      ru: string;
+      en: string;
+    };
+    data?: any;
   };
-  create_time: number;
-  perform_time?: number;
-  cancel_time?: number;
-  state: number;
-  reason?: number;
 }
 
 export class PaymeService {
-  private readonly merchantId: string;
-  private readonly secretKey: string;
-  private readonly endpoint: string;
-  private readonly testMode: boolean;
+  private merchantId: string;
+  private secretKey: string;
+  private testMode: boolean;
 
   constructor() {
     this.merchantId = process.env.PAYME_MERCHANT_ID || '';
     this.secretKey = process.env.PAYME_SECRET_KEY || '';
-    this.endpoint = process.env.PAYME_ENDPOINT || 'https://checkout.paycom.uz/api';
     this.testMode = process.env.NODE_ENV !== 'production';
-
-    if (!this.merchantId || !this.secretKey) {
-      throw new Error('Payme payment gateway configuration is missing');
-    }
   }
 
   /**
-   * Create payment URL for Payme
+   * Main handler for Payme API requests
    */
-  async createPayment(request: PaymePaymentRequest): Promise<PaymePaymentResponse> {
+  async handlePaymeRequest(req: Request, res: Response) {
     try {
-      logger.info('Creating Payme payment', {
-        orderId: request.orderId,
-        amount: request.amount,
-        userId: request.userId,
-      });
-
-      // Create payment URL
-      const paymentUrl = this.generatePaymentUrl(request);
-
-      return {
-        success: true,
-        paymentUrl,
-        transactionId: request.merchantTransId,
-      };
-    } catch (error) {
-      logger.error('Payme payment creation failed', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        orderId: request.orderId,
-      });
-
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Payment creation failed',
-      };
-    }
-  }
-
-  /**
-   * Generate Payme payment URL
-   */
-  private generatePaymentUrl(request: PaymePaymentRequest): string {
-    const params = {
-      m: this.merchantId,
-      ac: {
-        order_id: request.orderId,
-      },
-      a: request.amount,
-      c: request.returnUrl,
-      cr: request.cancelUrl,
-    };
-
-    const encodedParams = btoa(JSON.stringify(params));
-    return `${this.endpoint}?${encodedParams}`;
-  }
-
-  /**
-   * Handle Payme webhook - CheckPerformTransaction
-   */
-  async checkPerformTransaction(payload: PaymeWebhookPayload): Promise<{
-    allow: boolean;
-    detail?: {
-      receipt_type: number;
-      items: Array<{
-        title: string;
-        price: number;
-        count: number;
-        code: string;
-        units: number;
-        vat_percent: number;
-        package_code: string;
-      }>;
-    };
-  }> {
-    try {
-      logger.info('Handling Payme CheckPerformTransaction', {
-        orderId: payload.params.account?.order_id,
-        amount: payload.params.amount,
-      });
-
-      // Verify order exists and amount matches
-      const orderValid = await this.verifyOrder(
-        payload.params.account?.order_id || '',
-        payload.params.amount || 0
-      );
-
-      if (!orderValid) {
-        logger.error('Payme order verification failed', {
-          orderId: payload.params.account?.order_id,
-          amount: payload.params.amount,
-        });
-        throw new Error('Order not found or amount mismatch');
+      const paymeRequest: PaymeRequest = req.body;
+      
+      // Validate authentication
+      if (!this.validateAuth(req)) {
+        return this.sendError(res, paymeRequest.id, -32504, 'Insufficient privileges');
       }
 
-      // Get order details for receipt
-      const orderDetails = await this.getOrderDetails(payload.params.account?.order_id || '');
+      // Route to appropriate method handler
+      let response: PaymeResponse;
+      
+      switch (paymeRequest.method) {
+        case 'CheckPerformTransaction':
+          response = await this.checkPerformTransaction(paymeRequest);
+          break;
+        case 'CreateTransaction':
+          response = await this.createTransaction(paymeRequest);
+          break;
+        case 'PerformTransaction':
+          response = await this.performTransaction(paymeRequest);
+          break;
+        case 'CancelTransaction':
+          response = await this.cancelTransaction(paymeRequest);
+          break;
+        case 'CheckTransaction':
+          response = await this.checkTransaction(paymeRequest);
+          break;
+        case 'GetStatement':
+          response = await this.getStatement(paymeRequest);
+          break;
+        default:
+          response = this.createErrorResponse(paymeRequest.id, -32601, 'Method not found');
+      }
 
-      return {
-        allow: true,
-        detail: {
-          receipt_type: 0,
-          items: orderDetails.items || [],
-        },
-      };
+      res.json(response);
     } catch (error) {
-      logger.error('Payme CheckPerformTransaction error', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        orderId: payload.params.account?.order_id,
-      });
-      throw error;
+      logger.error('Payme request error:', error);
+      this.sendError(res, req.body.id, -32400, 'Internal error');
     }
   }
 
   /**
-   * Handle Payme webhook - CreateTransaction
+   * Validate Basic Auth
    */
-  async createTransaction(payload: PaymeWebhookPayload): Promise<{
-    create_time: number;
-    transaction: string;
-    state: number;
-  }> {
+  private validateAuth(req: Request): boolean {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+      return false;
+    }
+
+    const base64Credentials = authHeader.split(' ')[1];
+    const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+    const [username, password] = credentials.split(':');
+
+    return username === 'Paycom' && password === this.secretKey;
+  }
+
+  /**
+   * Check if transaction can be performed
+   */
+  private async checkPerformTransaction(request: PaymeRequest): Promise<PaymeResponse> {
     try {
-      logger.info('Handling Payme CreateTransaction', {
-        orderId: payload.params.account?.order_id,
-        amount: payload.params.amount,
-        id: payload.params.id,
+      const { amount, account } = request.params;
+      
+      // Validate order exists and amount is correct
+      const order = await prisma.order.findUnique({
+        where: { id: account.order_id }
       });
 
+      if (!order) {
+        return this.createErrorResponse(request.id, -31050, 'Order not found');
+      }
+
+      if (order.status !== 'PENDING') {
+        return this.createErrorResponse(request.id, -31051, 'Order already processed');
+      }
+
+      if (order.totalAmount * 100 !== amount) { // Payme uses tiyin (1/100 sum)
+        return this.createErrorResponse(request.id, -31001, 'Invalid amount');
+      }
+
+      return {
+        jsonrpc: '2.0',
+        id: request.id,
+        result: {
+          allow: true,
+          detail: {
+            receipt_type: 0,
+            items: [
+              {
+                title: `Order #${order.orderNumber}`,
+                price: amount,
+                count: 1,
+                code: order.id,
+                vat_percent: 0
+              }
+            ]
+          }
+        }
+      };
+    } catch (error) {
+      logger.error('CheckPerformTransaction error:', error);
+      return this.createErrorResponse(request.id, -32400, 'Internal error');
+    }
+  }
+
+  /**
+   * Create new transaction
+   */
+  private async createTransaction(request: PaymeRequest): Promise<PaymeResponse> {
+    try {
+      const { id, time, amount, account } = request.params;
+
       // Check if transaction already exists
-      const existingTransaction = await this.getTransaction(payload.params.id || '');
-      if (existingTransaction) {
-        logger.info('Payme transaction already exists', {
-          transactionId: payload.params.id,
-        });
+      let transaction = await prisma.paymentTransaction.findUnique({
+        where: { paymeTransactionId: id }
+      });
+
+      if (transaction) {
+        if (transaction.status !== 'PENDING') {
+          return this.createErrorResponse(request.id, -31008, 'Transaction already exists');
+        }
+
         return {
-          create_time: existingTransaction.create_time,
-          transaction: existingTransaction.id,
-          state: existingTransaction.state,
+          jsonrpc: '2.0',
+          id: request.id,
+          result: {
+            create_time: transaction.createdAt.getTime(),
+            transaction: transaction.id,
+            state: 1
+          }
         };
       }
 
-      // Verify order is still available
-      const orderValid = await this.verifyOrder(
-        payload.params.account?.order_id || '',
-        payload.params.amount || 0
-      );
+      // Verify order
+      const order = await prisma.order.findUnique({
+        where: { id: account.order_id }
+      });
 
-      if (!orderValid) {
-        logger.error('Payme order verification failed during create', {
-          orderId: payload.params.account?.order_id,
-          amount: payload.params.amount,
-        });
-        throw new Error('Order not found or amount mismatch');
+      if (!order) {
+        return this.createErrorResponse(request.id, -31050, 'Order not found');
+      }
+
+      if (order.totalAmount * 100 !== amount) {
+        return this.createErrorResponse(request.id, -31001, 'Invalid amount');
       }
 
       // Create transaction
-      const transaction = await this.storeTransaction({
-        id: payload.params.id || '',
-        time: payload.params.time || Date.now(),
-        amount: payload.params.amount || 0,
-        account: payload.params.account || { order_id: '' },
-        create_time: Date.now(),
-        state: 1, // Created
+      transaction = await prisma.paymentTransaction.create({
+        data: {
+          orderId: order.id,
+          paymeTransactionId: id,
+          amount: amount / 100, // Convert from tiyin to sum
+          status: 'PENDING',
+          paymentMethod: 'PAYME',
+          metadata: {
+            time,
+            account
+          }
+        }
       });
 
-      logger.info('Payme transaction created', {
+      // Set timeout for transaction (12 hours)
+      await redis.setex(`payme:transaction:${id}`, 43200, JSON.stringify({
         transactionId: transaction.id,
-        orderId: payload.params.account?.order_id,
-      });
+        timeout: Date.now() + 43200000
+      }));
 
       return {
-        create_time: transaction.create_time,
-        transaction: transaction.id,
-        state: transaction.state,
+        jsonrpc: '2.0',
+        id: request.id,
+        result: {
+          create_time: transaction.createdAt.getTime(),
+          transaction: transaction.id,
+          state: 1
+        }
       };
     } catch (error) {
-      logger.error('Payme CreateTransaction error', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        orderId: payload.params.account?.order_id,
-      });
-      throw error;
+      logger.error('CreateTransaction error:', error);
+      return this.createErrorResponse(request.id, -32400, 'Internal error');
     }
   }
 
   /**
-   * Handle Payme webhook - PerformTransaction
+   * Perform transaction (complete payment)
    */
-  async performTransaction(payload: PaymeWebhookPayload): Promise<{
-    perform_time: number;
-    transaction: string;
-    state: number;
-  }> {
+  private async performTransaction(request: PaymeRequest): Promise<PaymeResponse> {
     try {
-      logger.info('Handling Payme PerformTransaction', {
-        transactionId: payload.params.id,
+      const { id } = request.params;
+
+      const transaction = await prisma.paymentTransaction.findUnique({
+        where: { paymeTransactionId: id },
+        include: { order: true }
       });
 
-      // Get transaction
-      const transaction = await this.getTransaction(payload.params.id || '');
       if (!transaction) {
-        logger.error('Payme transaction not found for perform', {
-          transactionId: payload.params.id,
-        });
-        throw new Error('Transaction not found');
+        return this.createErrorResponse(request.id, -31003, 'Transaction not found');
       }
 
-      // Check if already performed
-      if (transaction.state === 2) {
-        logger.info('Payme transaction already performed', {
-          transactionId: payload.params.id,
-        });
+      if (transaction.status === 'COMPLETED') {
         return {
-          perform_time: transaction.perform_time || Date.now(),
-          transaction: transaction.id,
-          state: transaction.state,
+          jsonrpc: '2.0',
+          id: request.id,
+          result: {
+            transaction: transaction.id,
+            perform_time: transaction.completedAt?.getTime() || Date.now(),
+            state: 2
+          }
         };
       }
 
-      // Perform transaction
-      const performTime = Date.now();
-      await this.updateTransaction(transaction.id, {
-        state: 2, // Performed
-        perform_time: performTime,
+      if (transaction.status !== 'PENDING') {
+        return this.createErrorResponse(request.id, -31008, 'Invalid transaction state');
+      }
+
+      // Check timeout
+      const timeoutData = await redis.get(`payme:transaction:${id}`);
+      if (timeoutData) {
+        const { timeout } = JSON.parse(timeoutData);
+        if (Date.now() > timeout) {
+          await this.cancelTransactionInternal(transaction.id, 'TIMEOUT');
+          return this.createErrorResponse(request.id, -31008, 'Transaction timeout');
+        }
+      }
+
+      // Complete transaction
+      const completedAt = new Date();
+      await prisma.$transaction(async (tx) => {
+        // Update transaction
+        await tx.paymentTransaction.update({
+          where: { id: transaction.id },
+          data: {
+            status: 'COMPLETED',
+            completedAt
+          }
+        });
+
+        // Update order status
+        await tx.order.update({
+          where: { id: transaction.orderId },
+          data: {
+            status: 'PAID',
+            paymentStatus: 'PAID',
+            paidAt: completedAt
+          }
+        });
+
+        // Create order status history
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: transaction.orderId,
+            status: 'PAID',
+            comment: 'Payment completed via Payme'
+          }
+        });
       });
 
-      // Complete order
-      await this.completeOrder(transaction.account.order_id, transaction.amount);
+      // Clear timeout
+      await redis.del(`payme:transaction:${id}`);
 
-      logger.info('Payme transaction performed', {
-        transactionId: transaction.id,
-        orderId: transaction.account.order_id,
-      });
+      // Send notifications
+      await this.sendPaymentNotifications(transaction.order);
 
       return {
-        perform_time: performTime,
-        transaction: transaction.id,
-        state: 2,
+        jsonrpc: '2.0',
+        id: request.id,
+        result: {
+          transaction: transaction.id,
+          perform_time: completedAt.getTime(),
+          state: 2
+        }
       };
     } catch (error) {
-      logger.error('Payme PerformTransaction error', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        transactionId: payload.params.id,
-      });
-      throw error;
+      logger.error('PerformTransaction error:', error);
+      return this.createErrorResponse(request.id, -32400, 'Internal error');
     }
   }
 
   /**
-   * Handle Payme webhook - CancelTransaction
+   * Cancel transaction
    */
-  async cancelTransaction(payload: PaymeWebhookPayload): Promise<{
-    cancel_time: number;
-    transaction: string;
-    state: number;
-  }> {
+  private async cancelTransaction(request: PaymeRequest): Promise<PaymeResponse> {
     try {
-      logger.info('Handling Payme CancelTransaction', {
-        transactionId: payload.params.id,
-        reason: payload.params.reason,
+      const { id, reason } = request.params;
+
+      const transaction = await prisma.paymentTransaction.findUnique({
+        where: { paymeTransactionId: id }
       });
 
-      // Get transaction
-      const transaction = await this.getTransaction(payload.params.id || '');
       if (!transaction) {
-        logger.error('Payme transaction not found for cancel', {
-          transactionId: payload.params.id,
-        });
-        throw new Error('Transaction not found');
+        return this.createErrorResponse(request.id, -31003, 'Transaction not found');
       }
 
-      // Check if already cancelled
-      if (transaction.state === -1 || transaction.state === -2) {
-        logger.info('Payme transaction already cancelled', {
-          transactionId: payload.params.id,
-        });
+      if (transaction.status === 'CANCELLED') {
         return {
-          cancel_time: transaction.cancel_time || Date.now(),
-          transaction: transaction.id,
-          state: transaction.state,
+          jsonrpc: '2.0',
+          id: request.id,
+          result: {
+            transaction: transaction.id,
+            cancel_time: transaction.cancelledAt?.getTime() || Date.now(),
+            state: -1
+          }
         };
       }
 
-      // Cancel transaction
-      const cancelTime = Date.now();
-      const newState = transaction.state === 1 ? -1 : -2; // -1 if created, -2 if performed
-
-      await this.updateTransaction(transaction.id, {
-        state: newState,
-        cancel_time: cancelTime,
-        reason: payload.params.reason,
-      });
-
-      // If transaction was performed, handle refund
-      if (transaction.state === 2) {
-        await this.refundOrder(transaction.account.order_id, transaction.amount);
-      }
-
-      logger.info('Payme transaction cancelled', {
-        transactionId: transaction.id,
-        orderId: transaction.account.order_id,
-        reason: payload.params.reason,
-      });
+      const cancelReason = this.getCancelReason(reason);
+      await this.cancelTransactionInternal(transaction.id, cancelReason);
 
       return {
-        cancel_time: cancelTime,
-        transaction: transaction.id,
-        state: newState,
+        jsonrpc: '2.0',
+        id: request.id,
+        result: {
+          transaction: transaction.id,
+          cancel_time: Date.now(),
+          state: -1
+        }
       };
     } catch (error) {
-      logger.error('Payme CancelTransaction error', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        transactionId: payload.params.id,
-      });
-      throw error;
+      logger.error('CancelTransaction error:', error);
+      return this.createErrorResponse(request.id, -32400, 'Internal error');
     }
   }
 
   /**
-   * Handle Payme webhook - CheckTransaction
+   * Check transaction status
    */
-  async checkTransaction(payload: PaymeWebhookPayload): Promise<{
-    create_time: number;
-    perform_time?: number;
-    cancel_time?: number;
-    transaction: string;
-    state: number;
-    reason?: number;
-  }> {
+  private async checkTransaction(request: PaymeRequest): Promise<PaymeResponse> {
     try {
-      logger.info('Handling Payme CheckTransaction', {
-        transactionId: payload.params.id,
+      const { id } = request.params;
+
+      const transaction = await prisma.paymentTransaction.findUnique({
+        where: { paymeTransactionId: id }
       });
 
-      // Get transaction
-      const transaction = await this.getTransaction(payload.params.id || '');
       if (!transaction) {
-        logger.error('Payme transaction not found for check', {
-          transactionId: payload.params.id,
-        });
-        throw new Error('Transaction not found');
+        return this.createErrorResponse(request.id, -31003, 'Transaction not found');
       }
 
+      let state = 0;
+      if (transaction.status === 'PENDING') state = 1;
+      else if (transaction.status === 'COMPLETED') state = 2;
+      else if (transaction.status === 'CANCELLED') state = -1;
+
       return {
-        create_time: transaction.create_time,
-        perform_time: transaction.perform_time,
-        cancel_time: transaction.cancel_time,
-        transaction: transaction.id,
-        state: transaction.state,
-        reason: transaction.reason,
+        jsonrpc: '2.0',
+        id: request.id,
+        result: {
+          create_time: transaction.createdAt.getTime(),
+          perform_time: transaction.completedAt?.getTime() || 0,
+          cancel_time: transaction.cancelledAt?.getTime() || 0,
+          transaction: transaction.id,
+          state,
+          reason: transaction.cancelReason || null
+        }
       };
     } catch (error) {
-      logger.error('Payme CheckTransaction error', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        transactionId: payload.params.id,
-      });
-      throw error;
+      logger.error('CheckTransaction error:', error);
+      return this.createErrorResponse(request.id, -32400, 'Internal error');
     }
   }
 
   /**
-   * Verify order exists and amount matches
+   * Get transactions statement
    */
-  private async verifyOrder(orderId: string, amount: number): Promise<boolean> {
+  private async getStatement(request: PaymeRequest): Promise<PaymeResponse> {
     try {
-      // This would typically call the Order Service
-      logger.info('Verifying order', { orderId, amount });
+      const { from, to } = request.params;
 
-      // TODO: Implement actual order verification
-      // const order = await orderService.getOrder(orderId);
-      // return order && order.amount === amount && order.status === 'pending';
-
-      return true; // Temporary for development
-    } catch (error) {
-      logger.error('Order verification failed', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        orderId,
+      const transactions = await prisma.paymentTransaction.findMany({
+        where: {
+          paymentMethod: 'PAYME',
+          createdAt: {
+            gte: new Date(from),
+            lte: new Date(to)
+          }
+        },
+        include: {
+          order: true
+        }
       });
-      return false;
-    }
-  }
 
-  /**
-   * Get order details for receipt
-   */
-  private async getOrderDetails(orderId: string): Promise<{
-    items: Array<{
-      title: string;
-      price: number;
-      count: number;
-      code: string;
-      units: number;
-      vat_percent: number;
-      package_code: string;
-    }>;
-  }> {
-    try {
-      // TODO: Get actual order details
-      logger.info('Getting order details', { orderId });
+      const result = transactions.map(tx => {
+        let state = 0;
+        if (tx.status === 'PENDING') state = 1;
+        else if (tx.status === 'COMPLETED') state = 2;
+        else if (tx.status === 'CANCELLED') state = -1;
 
-      return {
-        items: [
-          {
-            title: 'Order #' + orderId,
-            price: 100000, // Amount in tiyin
-            count: 1,
-            code: '123456789',
-            units: 796,
-            vat_percent: 12,
-            package_code: '123456',
+        return {
+          id: tx.paymeTransactionId,
+          time: tx.createdAt.getTime(),
+          amount: tx.amount * 100,
+          account: {
+            order_id: tx.orderId
           },
-        ],
+          create_time: tx.createdAt.getTime(),
+          perform_time: tx.completedAt?.getTime() || 0,
+          cancel_time: tx.cancelledAt?.getTime() || 0,
+          transaction: tx.id,
+          state,
+          reason: tx.cancelReason || null,
+          receivers: null
+        };
+      });
+
+      return {
+        jsonrpc: '2.0',
+        id: request.id,
+        result: {
+          transactions: result
+        }
       };
     } catch (error) {
-      logger.error('Failed to get order details', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        orderId,
-      });
-      throw error;
+      logger.error('GetStatement error:', error);
+      return this.createErrorResponse(request.id, -32400, 'Internal error');
     }
   }
 
   /**
-   * Store transaction in database
+   * Internal method to cancel transaction
    */
-  private async storeTransaction(transaction: PaymeTransaction): Promise<PaymeTransaction> {
-    try {
-      // TODO: Store in database
-      logger.info('Storing Payme transaction', {
-        transactionId: transaction.id,
-        orderId: transaction.account.order_id,
-        amount: transaction.amount,
+  private async cancelTransactionInternal(transactionId: string, reason: string) {
+    const cancelledAt = new Date();
+    
+    await prisma.$transaction(async (tx) => {
+      // Update transaction
+      await tx.paymentTransaction.update({
+        where: { id: transactionId },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt,
+          cancelReason: reason
+        }
       });
 
-      return transaction;
-    } catch (error) {
-      logger.error('Failed to store transaction', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        transactionId: transaction.id,
+      // Update order if needed
+      const transaction = await tx.paymentTransaction.findUnique({
+        where: { id: transactionId },
+        include: { order: true }
       });
-      throw error;
+
+      if (transaction && transaction.order.status === 'PAID') {
+        await tx.order.update({
+          where: { id: transaction.orderId },
+          data: {
+            status: 'CANCELLED',
+            paymentStatus: 'REFUNDED'
+          }
+        });
+
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: transaction.orderId,
+            status: 'CANCELLED',
+            comment: `Payment cancelled: ${reason}`
+          }
+        });
+      }
+    });
+
+    // Clear timeout
+    const transaction = await prisma.paymentTransaction.findUnique({
+      where: { id: transactionId }
+    });
+    if (transaction) {
+      await redis.del(`payme:transaction:${transaction.paymeTransactionId}`);
     }
   }
 
   /**
-   * Get transaction from database
+   * Send payment notifications
    */
-  private async getTransaction(transactionId: string): Promise<PaymeTransaction | null> {
+  private async sendPaymentNotifications(order: any) {
     try {
-      // TODO: Get from database
-      logger.info('Getting Payme transaction', { transactionId });
-
-      return null; // Temporary for development
-    } catch (error) {
-      logger.error('Failed to get transaction', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        transactionId,
+      // Send email notification
+      await axios.post(`${process.env.NOTIFICATION_SERVICE_URL}/api/notifications/email`, {
+        to: order.customerEmail,
+        subject: 'Payment Confirmed',
+        template: 'payment-success',
+        data: {
+          orderNumber: order.orderNumber,
+          amount: order.totalAmount,
+          paymentMethod: 'Payme'
+        }
       });
-      return null;
+
+      // Send SMS notification
+      if (order.customerPhone) {
+        await axios.post(`${process.env.NOTIFICATION_SERVICE_URL}/api/notifications/sms`, {
+          to: order.customerPhone,
+          message: `Buyurtma #${order.orderNumber} uchun to'lov qabul qilindi. Summa: ${order.totalAmount} so'm`
+        });
+      }
+    } catch (error) {
+      logger.error('Failed to send payment notifications:', error);
     }
   }
 
   /**
-   * Update transaction in database
+   * Map cancel reason codes
    */
-  private async updateTransaction(
-    transactionId: string,
-    updates: Partial<PaymeTransaction>
-  ): Promise<void> {
-    try {
-      // TODO: Update in database
-      logger.info('Updating Payme transaction', {
-        transactionId,
-        updates,
-      });
-    } catch (error) {
-      logger.error('Failed to update transaction', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        transactionId,
-      });
-      throw error;
-    }
+  private getCancelReason(code: number): string {
+    const reasons: { [key: number]: string } = {
+      1: 'TIMEOUT',
+      2: 'CUSTOMER_CANCELLED',
+      3: 'FRAUD',
+      4: 'INSUFFICIENT_FUNDS',
+      5: 'UNKNOWN'
+    };
+    return reasons[code] || 'UNKNOWN';
   }
 
   /**
-   * Complete order after successful payment
+   * Create error response
    */
-  private async completeOrder(orderId: string, amount: number): Promise<void> {
-    try {
-      // TODO: Update order status, send notifications, etc.
-      logger.info('Completing order', { orderId, amount });
-    } catch (error) {
-      logger.error('Failed to complete order', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        orderId,
-      });
-      throw error;
-    }
+  private createErrorResponse(id: number, code: number, message: string): PaymeResponse {
+    const messages: { [key: string]: { uz: string; ru: string; en: string } } = {
+      'Invalid amount': {
+        uz: "Noto'g'ri summa",
+        ru: 'Неверная сумма',
+        en: 'Invalid amount'
+      },
+      'Order not found': {
+        uz: 'Buyurtma topilmadi',
+        ru: 'Заказ не найден',
+        en: 'Order not found'
+      },
+      'Transaction not found': {
+        uz: 'Tranzaksiya topilmadi',
+        ru: 'Транзакция не найдена',
+        en: 'Transaction not found'
+      },
+      'Method not found': {
+        uz: 'Metod topilmadi',
+        ru: 'Метод не найден',
+        en: 'Method not found'
+      },
+      'Insufficient privileges': {
+        uz: 'Ruxsat etilmagan',
+        ru: 'Недостаточно прав',
+        en: 'Insufficient privileges'
+      },
+      'Internal error': {
+        uz: 'Ichki xatolik',
+        ru: 'Внутренняя ошибка',
+        en: 'Internal error'
+      }
+    };
+
+    return {
+      jsonrpc: '2.0',
+      id,
+      error: {
+        code,
+        message: messages[message] || {
+          uz: message,
+          ru: message,
+          en: message
+        }
+      }
+    };
   }
 
   /**
-   * Refund order after transaction cancellation
+   * Send error response
    */
-  private async refundOrder(orderId: string, amount: number): Promise<void> {
-    try {
-      // TODO: Handle refund logic
-      logger.info('Refunding order', { orderId, amount });
-    } catch (error) {
-      logger.error('Failed to refund order', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        orderId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Verify webhook signature
-   */
-  verifyWebhookSignature(payload: string, signature: string): boolean {
-    try {
-      const expectedSignature = crypto
-        .createHmac('sha1', this.secretKey)
-        .update(payload)
-        .digest('hex');
-
-      return expectedSignature === signature;
-    } catch (error) {
-      logger.error('Failed to verify webhook signature', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      return false;
-    }
+  private sendError(res: Response, id: number, code: number, message: string) {
+    res.json(this.createErrorResponse(id, code, message));
   }
 }
+
+export const paymeService = new PaymeService();

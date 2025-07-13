@@ -121,25 +121,29 @@ model PaymentMethod {
 
 model PaymentTransaction {
   id                     String    @id @default(cuid())
-  paymentId              String    @map("payment_id")
-  transactionType        TransactionType @map("transaction_type")
+  orderId                String    @map("order_id")
+  paymeTransactionId     String?   @unique @map("payme_transaction_id")
+  clickTransId           String?   @unique @map("click_trans_id")
   amount                 Float
   currency               String    @default("UZS")
   status                 TransactionStatus @default(PENDING)
-  gatewayTransactionId   String?   @map("gateway_transaction_id")
-  gatewayResponse        Json?     @map("gateway_response")
-  failureReason          String?   @map("failure_reason")
+  paymentMethod          String    @map("payment_method")
+  cancelReason           String?   @map("cancel_reason")
   metadata               Json?
   
   // Timestamps
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @updatedAt @map("updated_at")
   completedAt            DateTime? @map("completed_at")
-  failedAt               DateTime? @map("failed_at")
+  cancelledAt            DateTime? @map("cancelled_at")
+  
+  // Relations
+  order                  Order     @relation(fields: [orderId], references: [id])
   
   @@map("payment_transactions")
-  @@index([paymentId])
-  @@index([transactionType])
+  @@index([orderId])
+  @@index([paymeTransactionId])
+  @@index([clickTransId])
   @@index([status])
   @@index([createdAt])
 }
@@ -164,7 +168,61 @@ model PaymentAudit {
   @@index([createdAt])
 }
 
+model Order {
+  id                     String    @id @default(cuid())
+  orderNumber            String    @unique @map("order_number")
+  userId                 String    @map("user_id")
+  status                 OrderStatus @default(PENDING)
+  paymentStatus          PaymentStatus @default(PENDING) @map("payment_status")
+  totalAmount            Float     @map("total_amount")
+  currency               String    @default("UZS")
+  customerEmail          String    @map("customer_email")
+  customerPhone          String?   @map("customer_phone")
+  metadata               Json?
+  
+  // Timestamps
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  paidAt                 DateTime? @map("paid_at")
+  
+  // Relations
+  transactions           PaymentTransaction[]
+  statusHistory          OrderStatusHistory[]
+  
+  @@map("orders")
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+}
+
+model OrderStatusHistory {
+  id                     String    @id @default(cuid())
+  orderId                String    @map("order_id")
+  status                 String
+  comment                String?
+  createdAt              DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  order                  Order     @relation(fields: [orderId], references: [id])
+  
+  @@map("order_status_history")
+  @@index([orderId])
+  @@index([createdAt])
+}
+
 // Enums
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
 enum PaymentMethod {
   CLICK
   PAYME
@@ -206,8 +264,6 @@ enum TransactionType {
 
 enum TransactionStatus {
   PENDING
-  PROCESSING
   COMPLETED
-  FAILED
   CANCELLED
 }
