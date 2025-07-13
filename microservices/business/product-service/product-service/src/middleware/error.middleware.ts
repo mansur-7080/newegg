@@ -14,11 +14,13 @@ declare global {
 export class AppError extends Error {
   public statusCode: number;
   public isOperational: boolean;
+  public code: string;
 
-  constructor(message: string, statusCode: number) {
+  constructor(message: string, statusCode: number, code?: string) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = true;
+    this.code = code || getErrorCodeFromStatus(statusCode);
 
     Error.captureStackTrace(this, this.constructor);
   }
@@ -26,43 +28,49 @@ export class AppError extends Error {
 
 export class ValidationError extends AppError {
   constructor(message: string) {
-    super(message, 400);
+    super(message, 400, 'VALIDATION_ERROR');
   }
 }
 
 export class UnauthorizedError extends AppError {
   constructor(message: string = 'Unauthorized') {
-    super(message, 401);
+    super(message, 401, 'UNAUTHORIZED');
   }
 }
 
 export class ForbiddenError extends AppError {
   constructor(message: string = 'Forbidden') {
-    super(message, 403);
+    super(message, 403, 'FORBIDDEN');
   }
 }
 
 export class NotFoundError extends AppError {
   constructor(message: string = 'Resource not found') {
-    super(message, 404);
+    super(message, 404, 'NOT_FOUND');
   }
 }
 
 export class ConflictError extends AppError {
   constructor(message: string = 'Resource already exists') {
-    super(message, 409);
+    super(message, 409, 'CONFLICT');
   }
 }
 
 export class TooManyRequestsError extends AppError {
   constructor(message: string = 'Too many requests') {
-    super(message, 429);
+    super(message, 429, 'TOO_MANY_REQUESTS');
   }
 }
 
 export class InternalServerError extends AppError {
   constructor(message: string = 'Internal server error') {
-    super(message, 500);
+    super(message, 500, 'INTERNAL_SERVER_ERROR');
+  }
+}
+
+export class ServiceUnavailableError extends AppError {
+  constructor(message: string = 'Service temporarily unavailable') {
+    super(message, 503, 'SERVICE_UNAVAILABLE');
   }
 }
 
@@ -84,7 +92,7 @@ export const errorHandler = (error: Error, req: Request, res: Response, next: Ne
     statusCode = error.statusCode;
     message = error.message;
     isOperational = error.isOperational;
-    errorCode = (error as any).code || getErrorCodeFromStatus(statusCode);
+    errorCode = error.code;
   }
 
   // Handle Mongoose / MongoDB errors with detailed information
@@ -165,6 +173,35 @@ export const errorHandler = (error: Error, req: Request, res: Response, next: Ne
     isOperational = true;
   }
 
+  // Handle Prisma errors
+  else if (error.name === 'PrismaClientKnownRequestError') {
+    const prismaError = error as any;
+    switch (prismaError.code) {
+      case 'P2002':
+        statusCode = 409;
+        message = 'Resource already exists';
+        errorCode = 'DUPLICATE_ENTRY';
+        details = { field: prismaError.meta?.target?.[0] || 'unknown' };
+        break;
+      case 'P2025':
+        statusCode = 404;
+        message = 'Resource not found';
+        errorCode = 'NOT_FOUND';
+        break;
+      case 'P2003':
+        statusCode = 400;
+        message = 'Foreign key constraint failed';
+        errorCode = 'FOREIGN_KEY_CONSTRAINT';
+        break;
+      default:
+        statusCode = 400;
+        message = 'Database operation failed';
+        errorCode = 'DATABASE_ERROR';
+        details = { code: prismaError.code };
+    }
+    isOperational = true;
+  }
+
   // Log error with proper level based on severity
   const logLevel = isOperational ? 'warn' : 'error';
   logger[logLevel](`${req.method} ${req.path} - ${statusCode} ${errorCode}`, {
@@ -179,54 +216,37 @@ export const errorHandler = (error: Error, req: Request, res: Response, next: Ne
       method: req.method,
       path: req.path,
       params: req.params,
+      query: req.query,
+      body: req.body,
     },
     user: (req as any).user?.userId || 'anonymous',
     timestamp: new Date().toISOString(),
   });
 
   // Send standardized response format
-  res.status(statusCode).json({
+  const response: any = {
     success: false,
     error: {
       code: errorCode,
       message,
-      details: Object.keys(details).length > 0 ? details : undefined,
     },
     meta: {
       requestId,
       timestamp: new Date().toISOString(),
     },
-  });
-
-  // Log error
-  logger.error('Error occurred:', {
-    message: error.message,
-    stack: error.stack,
-    statusCode,
-    url: req.url,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-    userId: (req as any).user?.userId,
-    timestamp: new Date().toISOString(),
-  });
-
-  // Send error response
-  const errorResponse: any = {
-    success: false,
-    message,
-    timestamp: new Date().toISOString(),
-    path: req.path,
-    method: req.method,
   };
 
-  // Include details in development mode
-  if (process.env.NODE_ENV === 'development') {
-    errorResponse.stack = error.stack;
-    errorResponse.details = details;
+  // Include details if available
+  if (Object.keys(details).length > 0) {
+    response.error.details = details;
   }
 
-  res.status(statusCode).json(errorResponse);
+  // Include stack trace in development mode
+  if (process.env.NODE_ENV === 'development') {
+    response.error.stack = error.stack;
+  }
+
+  res.status(statusCode).json(response);
 };
 
 // Async error handler wrapper
