@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  category    String
+  ownerId     String
+  address     Json
+  contact     Json
+  businessInfo Json
+  status      String   @default("pending") // pending, active, inactive, suspended
+  rating      Float    @default(0)
+  totalSales  Int      @default(0)
+  logo        String?
+  banner      String?
+  settings    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  products Product[]
+  orders   Order[]
+  reviews  Review[]
+
+  @@map("stores")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  sku         String   @unique
+  price       Decimal  @db.Decimal(10, 2)
+  salePrice   Decimal? @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  category    String
+  subcategory String?
+  brand       String?
+  images      String[]
+  specifications Json?
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  weight      Float?
+  dimensions  Json?
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  store     Store        @relation(fields: [storeId], references: [id])
+  orderItems OrderItem[]
+  reviews   Review[]
+
+  @@map("products")
+}
+
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  userId          String
+  storeId         String
+  status          String   @default("pending") // pending, confirmed, shipped, delivered, cancelled
+  total           Decimal  @db.Decimal(10, 2)
+  subtotal        Decimal  @db.Decimal(10, 2)
+  tax             Decimal  @db.Decimal(10, 2) @default(0)
+  shipping        Decimal  @db.Decimal(10, 2) @default(0)
+  discount        Decimal  @db.Decimal(10, 2) @default(0)
+  paymentMethod   String
+  paymentStatus   String   @default("pending") // pending, paid, failed, refunded
+  shippingAddress Json
+  billingAddress  Json?
+  notes           String?
+  trackingNumber  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  store Store       @relation(fields: [storeId], references: [id])
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  storeId   String
+  rating    Int      // 1-5
+  title     String?
+  comment   String?
+  images    String[]
+  isVerified Boolean @default(false)
+  isHelpful  Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id])
+  store   Store   @relation(fields: [storeId], references: [id])
+
+  @@unique([userId, productId])
+  @@map("reviews")
+}

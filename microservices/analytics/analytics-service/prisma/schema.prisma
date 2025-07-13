@@ -10,313 +10,194 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model AnalyticsEvent {
-  id              String        @id @default(cuid())
-  userId          String?
-  sessionId       String?
-  eventType       String
-  eventName       String
-  properties      Json?
-  timestamp       DateTime      @default(now())
-  ipAddress       String?
-  userAgent       String?
-  referrer        String?
-  pageUrl         String?
-  metadata        Json?
+// Core models for analytics calculations
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  userId          String
+  storeId         String
+  status          String   @default("pending")
+  total           Decimal  @db.Decimal(10, 2)
+  subtotal        Decimal  @db.Decimal(10, 2)
+  tax             Decimal  @db.Decimal(10, 2) @default(0)
+  shipping        Decimal  @db.Decimal(10, 2) @default(0)
+  discount        Decimal  @db.Decimal(10, 2) @default(0)
+  paymentMethod   String
+  paymentStatus   String   @default("pending")
+  shippingAddress Json
+  region          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  @@index([userId])
-  @@index([sessionId])
-  @@index([eventType])
-  @@index([eventName])
-  @@index([timestamp])
+  // Relations
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  sku         String   @unique
+  price       Decimal  @db.Decimal(10, 2)
+  salePrice   Decimal? @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  category    String
+  subcategory String?
+  brand       String?
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  orderItems OrderItem[]
+  reviews    Review[]
+
+  @@map("products")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  storeId   String
+  rating    Int      // 1-5
+  title     String?
+  comment   String?
+  isVerified Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+  @@map("reviews")
+}
+
+// Analytics-specific models
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  eventType  String   // page_view, product_view, add_to_cart, purchase, etc.
+  userId     String?
+  sessionId  String
+  productId  String?
+  storeId    String?
+  category   String?
+  value      Decimal? @db.Decimal(10, 2)
+  metadata   Json?
+  userAgent  String?
+  ipAddress  String?
+  region     String?
+  createdAt  DateTime @default(now())
+
+  @@index([eventType, createdAt])
+  @@index([userId, createdAt])
+  @@index([storeId, createdAt])
   @@map("analytics_events")
 }
 
-model PageView {
-  id              String   @id @default(cuid())
-  userId          String?
-  sessionId       String?
-  pageUrl         String
-  pageTitle       String?
-  referrer        String?
-  duration        Int?     // seconds
-  timestamp       DateTime @default(now())
-  ipAddress       String?
-  userAgent       String?
-  metadata        Json?
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([pageUrl])
-  @@index([timestamp])
-  @@map("page_views")
-}
-
 model UserSession {
-  id              String   @id @default(cuid())
-  userId          String?
-  sessionId       String   @unique
-  startTime       DateTime @default(now())
-  endTime         DateTime?
-  duration        Int?     // seconds
-  pageViews       Int      @default(0)
-  events          Int      @default(0)
-  ipAddress       String?
-  userAgent       String?
-  deviceType      String?
-  browser         String?
-  os              String?
-  country         String?
-  city            String?
-  metadata        Json?
+  id           String   @id @default(cuid())
+  sessionId    String   @unique
+  userId       String?
+  startTime    DateTime @default(now())
+  endTime      DateTime?
+  duration     Int?     // in seconds
+  pageViews    Int      @default(0)
+  bounceRate   Boolean  @default(false)
+  deviceType   String?  // mobile, desktop, tablet
+  browser      String?
+  os           String?
+  country      String?
+  region       String?
+  city         String?
+  referrer     String?
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
 
-  @@index([userId])
-  @@index([sessionId])
-  @@index([startTime])
+  @@index([userId, startTime])
+  @@index([region, startTime])
   @@map("user_sessions")
 }
 
-model Conversion {
+model DailyMetrics {
   id              String   @id @default(cuid())
-  userId          String
-  sessionId       String?
-  type            ConversionType
-  value           Decimal  @db.Decimal(10, 2)
-  currency        String   @default("USD")
-  orderId         String?
-  productId       String?
-  categoryId      String?
-  timestamp       DateTime @default(now())
-  metadata        Json?
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([type])
-  @@index([timestamp])
-  @@map("conversions")
-}
-
-model Revenue {
-  id              String   @id @default(cuid())
-  userId          String?
-  orderId         String
-  amount           Decimal  @db.Decimal(10, 2)
-  currency         String   @default("USD")
-  taxAmount        Decimal  @db.Decimal(10, 2)
-  shippingAmount   Decimal  @db.Decimal(10, 2)
-  discountAmount   Decimal  @db.Decimal(10, 2)
-  netAmount        Decimal  @db.Decimal(10, 2)
-  timestamp       DateTime @default(now())
-  metadata        Json?
-
-  @@index([userId])
-  @@index([orderId])
-  @@index([timestamp])
-  @@map("revenue")
-}
-
-model ProductPerformance {
-  id              String   @id @default(cuid())
-  productId       String
-  date            DateTime @db.Date
-  views           Int      @default(0)
-  clicks           Int      @default(0)
-  addToCart       Int      @default(0)
-  purchases       Int      @default(0)
-  revenue         Decimal  @default(0) @db.Decimal(10, 2)
-  conversionRate  Decimal  @default(0) @db.Decimal(5, 2)
-  averageOrderValue Decimal @default(0) @db.Decimal(10, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([productId, date])
-  @@index([productId])
-  @@index([date])
-  @@map("product_performance")
-}
-
-model CategoryPerformance {
-  id              String   @id @default(cuid())
-  categoryId      String
-  date            DateTime @db.Date
-  views           Int      @default(0)
-  clicks           Int      @default(0)
-  addToCart       Int      @default(0)
-  purchases       Int      @default(0)
-  revenue         Decimal  @default(0) @db.Decimal(10, 2)
-  conversionRate  Decimal  @default(0) @db.Decimal(5, 2)
-  averageOrderValue Decimal @default(0) @db.Decimal(10, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([categoryId, date])
-  @@index([categoryId])
-  @@index([date])
-  @@map("category_performance")
-}
-
-model UserBehavior {
-  id              String   @id @default(cuid())
-  userId          String
-  date            DateTime @db.Date
-  sessions        Int      @default(0)
+  date            DateTime @unique @db.Date
+  totalOrders     Int      @default(0)
+  totalRevenue    Decimal  @db.Decimal(12, 2) @default(0)
+  totalUsers      Int      @default(0)
+  newUsers        Int      @default(0)
+  activeUsers     Int      @default(0)
   pageViews       Int      @default(0)
-  events          Int      @default(0)
-  orders          Int      @default(0)
-  revenue         Decimal  @default(0) @db.Decimal(10, 2)
-  averageOrderValue Decimal @default(0) @db.Decimal(10, 2)
-  retentionScore  Decimal  @default(0) @db.Decimal(5, 2)
+  sessions        Int      @default(0)
+  bounceRate      Float    @default(0)
+  conversionRate  Float    @default(0)
+  avgOrderValue   Decimal  @db.Decimal(10, 2) @default(0)
+  avgSessionTime  Int      @default(0)
+  topCategory     String?
+  topRegion       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@unique([userId, date])
-  @@index([userId])
-  @@index([date])
-  @@map("user_behavior")
+  @@map("daily_metrics")
 }
 
-model Funnel {
+model StoreMetrics {
   id              String   @id @default(cuid())
-  name            String
-  steps           Json
+  storeId         String
   date            DateTime @db.Date
-  stepCounts      Json
-  conversionRates Json
-  totalConversions Int     @default(0)
+  orders          Int      @default(0)
+  revenue         Decimal  @db.Decimal(12, 2) @default(0)
+  visitors        Int      @default(0)
+  conversionRate  Float    @default(0)
+  avgOrderValue   Decimal  @db.Decimal(10, 2) @default(0)
+  topProduct      String?
+  rating          Float    @default(0)
+  reviews         Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@unique([name, date])
-  @@index([name])
-  @@index([date])
-  @@map("funnels")
+  @@unique([storeId, date])
+  @@index([storeId, date])
+  @@map("store_metrics")
 }
 
-model Cohort {
-  id              String   @id @default(cuid())
-  name            String
-  cohortDate      DateTime @db.Date
-  period          String   // day, week, month
-  userCount       Int      @default(0)
-  retentionData   Json
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+model RegionalMetrics {
+  id             String   @id @default(cuid())
+  region         String
+  date           DateTime @db.Date
+  orders         Int      @default(0)
+  revenue        Decimal  @db.Decimal(12, 2) @default(0)
+  users          Int      @default(0)
+  sessions       Int      @default(0)
+  topCategory    String?
+  topStore       String?
+  growthRate     Float    @default(0)
+  marketShare    Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  @@unique([name, cohortDate, period])
-  @@index([name])
-  @@index([cohortDate])
-  @@map("cohorts")
-}
-
-model Report {
-  id              String        @id @default(cuid())
-  name            String
-  type            ReportType
-  description     String?
-  query           String
-  parameters      Json?
-  schedule        String?       // cron expression
-  isActive        Boolean       @default(true)
-  lastGenerated   DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  @@index([name])
-  @@index([type])
-  @@index([isActive])
-  @@map("reports")
-}
-
-model ReportExecution {
-  id              String        @id @default(cuid())
-  reportId        String
-  status          ExecutionStatus
-  startedAt       DateTime      @default(now())
-  completedAt     DateTime?
-  duration        Int?          // milliseconds
-  resultUrl       String?
-  errorMessage    String?
-  metadata        Json?
-
-  // Relations
-  report          Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
-
-  @@index([reportId])
-  @@index([status])
-  @@index([startedAt])
-  @@map("report_executions")
-}
-
-model Dashboard {
-  id              String   @id @default(cuid())
-  name            String
-  description     String?
-  layout          Json
-  widgets         Json
-  isPublic        Boolean  @default(false)
-  isActive        Boolean  @default(true)
-  createdBy       String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([name])
-  @@index([createdBy])
-  @@index([isActive])
-  @@map("dashboards")
-}
-
-model Widget {
-  id              String   @id @default(cuid())
-  dashboardId     String
-  name            String
-  type            WidgetType
-  config          Json
-  position        Json
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relations
-  dashboard       Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
-
-  @@index([dashboardId])
-  @@index([type])
-  @@index([isActive])
-  @@map("widgets")
-}
-
-// Enums
-enum ConversionType {
-  PURCHASE
-  SIGNUP
-  SUBSCRIPTION
-  DOWNLOAD
-  LEAD
-  CUSTOM
-}
-
-enum ReportType {
-  SALES
-  USER_BEHAVIOR
-  PRODUCT_PERFORMANCE
-  TRAFFIC
-  CUSTOM
-}
-
-enum ExecutionStatus {
-  PENDING
-  RUNNING
-  COMPLETED
-  FAILED
-  CANCELLED
-}
-
-enum WidgetType {
-  CHART
-  METRIC
-  TABLE
-  HEATMAP
-  FUNNEL
-  COHORT
-  CUSTOM
+  @@unique([region, date])
+  @@index([region, date])
+  @@map("regional_metrics")
 }
