@@ -49,10 +49,10 @@ RTX 5090 modeli 24GB GDDR7 xotira, RTX 5080 modeli 16GB GDDR7 xotira va RTX 5070
         {
           id: 'news-2',
           title: 'AMD yangi Ryzen 9000 protsessorlarini taqdim etdi',
-          excerpt: 'AMD kompaniyasi yangi Zen 5 arxitekturasi asosidagi Ryzen 9000 seriyasini e'lon qildi.',
+          excerpt: 'AMD kompaniyasi yangi Zen 5 arxitekturasi asosidagi Ryzen 9000 seriyasini e\'lon qildi.',
           content: `AMD kompaniyasi yangi Zen 5 arxitekturasi asosidagi Ryzen 9000 seriyali protsessorlarni taqdim etdi. Bu seriyaga Ryzen 9 9950X, Ryzen 9 9900X, Ryzen 7 9800X va Ryzen 5 9600X modellari kiradi.
 
-Yangi protsessorlar ilgari modellarga qaraganda 15% gacha tezroq ishlaydi va energiya tejamkorligi 20% ga oshgan. Barcha modellar AM5 soketiga mo'ljallangan bo'lib, DDR5 xotirani qo'llab-quvvatlaydi.`,
+Yangi protsessorlar ilgari modellarga qaraganda 15% gacha tezroq ishlaydi va energiya tejamkorligi 20% ga oshgan. Barcha modellar AM5 soketiga mo\'ljallangan bo\'lib, DDR5 xotirani qo\'llab-quvvatlaydi.`,
           image: '/images/news/ryzen-9000.jpg',
           author: 'Davron Kamolov',
           publishedAt: '2025-06-20',
@@ -63,9 +63,9 @@ Yangi protsessorlar ilgari modellarga qaraganda 15% gacha tezroq ishlaydi va ene
           id: 'news-3',
           title: 'Windows 12 operatsion tizimi rasman taqdim etildi',
           excerpt: 'Microsoft kompaniyasi Windows 12 operatsion tizimini taqdim etdi, u AI asosidagi yangi xususiyatlar bilan jihozlangan.',
-          content: `Microsoft kompaniyasi Windows 12 operatsion tizimini rasman taqdim etdi. Yangi operatsion tizim sun'iy intellekt bilan ishlashga katta e'tibor qaratgan.
+          content: `Microsoft kompaniyasi Windows 12 operatsion tizimini rasman taqdim etdi. Yangi operatsion tizim sun\'iy intellekt bilan ishlashga katta e\'tibor qaratgan.
 
-Windows 12 ning asosiy yangiliklari qatoriga Copilot+, yangi tashqi ko'rinish, tezlik va xavfsizlikni oshiradigan yangiliklar kiradi. Operatsion tizimga yangilash 2025-yil oktyabr oyidan boshlab mavjud bo'ladi.`,
+Windows 12 ning asosiy yangiliklari qatoriga Copilot+, yangi tashqi ko\'rinish, tezlik va xavfsizlikni oshiradigan yangiliklar kiradi. Operatsion tizimga yangilash 2025-yil oktyabr oyidan boshlab mavjud bo\'ladi.`,
           image: '/images/news/windows12.jpg',
           author: 'Nodira Valiyeva',
           publishedAt: '2025-06-15',
@@ -88,8 +88,8 @@ Yangi MacBook Air 13.6 va 15 dyuymli displeylar bilan, MacBook Pro esa 14 va 16 
         {
           id: 'news-5',
           title: 'Google Chrome 125 versiyasi chiqarildi',
-          excerpt: 'Google Chrome 125 versiyasi sun'iy intellekt asosidagi yangi xususiyatlar bilan yangilandi.',
-          content: `Google Chrome brauzerining 125-versiyasi chiqarildi. Yangi versiyada sun'iy intellekt asosidagi qidiruv va kontentni tahlil qilish imkoniyatlari qo'shildi.
+          excerpt: 'Google Chrome 125 versiyasi sun\'iy intellekt asosidagi yangi xususiyatlar bilan yangilandi.',
+          content: `Google Chrome brauzerining 125-versiyasi chiqarildi. Yangi versiyada sun\'iy intellekt asosidagi qidiruv va kontentni tahlil qilish imkoniyatlari qo\'shildi.
 
 Chrome 125 ning asosiy yangiliklari quyidagilar:
 - AI asosidagi "Smart Search" funksiyasi
@@ -110,7 +110,7 @@ Chrome 125 ning asosiy yangiliklari quyidagilar:
 
 Galaxy Z Fold 7 buklamda 6.2 dyumli, ochilganda esa 7.6 dyumli ekran bilan jihozlangan. Galaxy Z Flip 7 esa buklamda 3.4 dyumli tashqi ekran va ochilganda 6.7 dyumli asosiy ekranga ega.
 
-Har ikki model ham Snapdragon 8 Gen 4 protsessori bilan jihozlangan va 50MP asosiy kamera sensori bilan ta'minlangan.`,
+Har ikki model ham Snapdragon 8 Gen 4 protsessori bilan jihozlangan va 50MP asosiy kamera sensori bilan ta\'minlangan.`,
           image: '/images/news/samsung-fold7.jpg',
           author: 'Dilfuza Rahimova',
           publishedAt: '2025-05-28',
@@ -120,14 +120,14 @@ Har ikki model ham Snapdragon 8 Gen 4 protsessori bilan jihozlangan va 50MP asos
         {
           id: 'news-7',
           title: 'OpenAI GPT-6 ni taqdim etdi',
-          excerpt: 'OpenAI kompaniyasi GPT-6 sun'iy intellekt modelini taqdim etdi.',
-          content: `OpenAI kompaniyasi GPT-6 sun'iy intellekt modelini taqdim etdi. Yangi model ilgarigi GPT-4 dan sezilarli darajada kuchliroq va yangi imkoniyatlarga ega.
+          excerpt: 'OpenAI kompaniyasi GPT-6 sun\'iy intellekt modelini taqdim etdi.',
+          content: `OpenAI kompaniyasi GPT-6 sun\'iy intellekt modelini taqdim etdi. Yangi model ilgarigi GPT-4 dan sezilarli darajada kuchliroq va yangi imkoniyatlarga ega.
 
 GPT-6 ning asosiy yangiliklari:
 - 100 trillion parametrdan ortiq
 - Video va audio kontentni real vaqtda qayta ishlash
 - 1 million tokendan ortiq kontekst oynasi
-- Ko'p tilli modellar soni 200 dan ortiq
+- Ko\'p tilli modellar soni 200 dan ortiq
 
 Model hozirda ChatGPT va API orqali foydalanish mumkin.`,
           image: '/images/news/gpt6.jpg',
@@ -140,11 +140,11 @@ Model hozirda ChatGPT va API orqali foydalanish mumkin.`,
           id: 'news-8',
           title: 'Sony PlayStation 6 ni taqdim etishi kutilmoqda',
           excerpt: 'Sony PlayStation 6 ni 2026-yilning boshida taqdim etishi kutilmoqda.',
-          content: `Sony kompaniyasi PlayStation 6 konsolini 2026-yil boshida taqdim etishi kutilmoqda. Yangi konsol 8K o'yinlarni qo'llab-quvvatlashi va ilg'or ray-tracing texnologiyasi bilan jihozlanishi aytilmoqda.
+          content: `Sony kompaniyasi PlayStation 6 konsolini 2026-yil boshida taqdim etishi kutilmoqda. Yangi konsol 8K o\'yinlarni qo\'llab-quvvatlashi va ilg\'or ray-tracing texnologiyasi bilan jihozlanishi aytilmoqda.
 
-Konsol AMD bilan hamkorlikda yaratilgan maxsus protsessor va grafik kartaga ega bo'ladi. Saqlash hajmi esa 2TB SSD bilan ta'minlanadi.
+Konsol AMD bilan hamkorlikda yaratilgan maxsus protsessor va grafik kartaga ega bo\'ladi. Saqlash hajmi esa 2TB SSD bilan ta\'minlanadi.
 
-PlayStation 6 ning narxi taxminan $599-699 atrofida bo'lishi kutilmoqda.`,
+PlayStation 6 ning narxi taxminan $599-699 atrofida bo\'lishi kutilmoqda.`,
           image: '/images/news/ps6.jpg',
           author: 'Jahongir Tursunov',
           publishedAt: '2025-05-15',
