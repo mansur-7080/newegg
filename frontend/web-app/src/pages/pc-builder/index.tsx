@@ -44,7 +44,7 @@ import {
   Star,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import ProductCard from '../../components/product/ProductCard';
@@ -144,6 +144,15 @@ const PCBuilderPage = () => {
   const [buildName, setBuildName] = useState<string>('');
   const [savedBuildsDialogOpen, setSavedBuildsDialogOpen] = useState<boolean>(false);
   const [buildState, setBuildState] = useState<{ id?: string }>({});
+
+  // Add logger utility
+  const logger = {
+    info: (message: string, data?: any) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(message, data);
+      }
+    }
+  };
 
   // Fetch user's saved builds
   const { data: savedBuilds, isLoading: savedBuildsLoading } = useQuery({
@@ -324,7 +333,7 @@ const PCBuilderPage = () => {
           text: "Mana men yig'gan kompyuter konfiguratsiyasi:",
           url: shareUrl,
         })
-        .catch((error) => console.log('Share error:', error));
+        .catch((error) => logger.info('Share error', error));
     } else {
       // Fallback - copy to clipboard
       navigator.clipboard.writeText(shareUrl);

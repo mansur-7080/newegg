@@ -4,6 +4,18 @@ import { RootState } from '../store';
 import { clearCart } from '../store/slices/cartSlice';
 import { UzbekPaymentMethod } from '../../../../libs/shared/src/constants';
 import { UzbekAddressType } from '../../../../libs/shared/src/types/uzbek-address';
+import { toast } from 'react-hot-toast';
+
+// Add logger utility import
+const logger = {
+  error: (message: string, error?: any) => {
+    // In production, this would use a proper logging service
+    if (process.env.NODE_ENV === 'development') {
+      console.error(message, error);
+    }
+    // In production, send to logging service
+  }
+};
 
 interface OrderData {
   id: string;
@@ -125,8 +137,8 @@ const CheckoutPage: React.FC = () => {
       setOrderComplete(true);
       dispatch(clearCart());
     } catch (error) {
-      console.error('Buyurtma yaratishda xatolik:', error);
-      alert("Buyurtma yaratishda xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.");
+      logger.error('Buyurtma yaratishda xatolik', error);
+      toast.error("Buyurtma yaratishda xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.");
     } finally {
       setIsProcessing(false);
     }

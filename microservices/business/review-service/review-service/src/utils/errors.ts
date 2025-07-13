@@ -2,6 +2,29 @@
  * Custom Error Classes for Review Service
  */
 
+import winston from 'winston';
+
+// Configure Winston logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'review-service' },
+  transports: [
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' })
+  ]
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple()
+  }));
+}
+
 export class ApiError extends Error {
   public statusCode: number;
   public isOperational: boolean;
@@ -191,7 +214,7 @@ export const logError = (error: Error, context?: any) => {
     errorInfo.details = error.details;
   }
 
-  console.error('Error occurred:', errorInfo);
+  logger.error('Error occurred:', errorInfo);
 };
 
 // Validation error formatter

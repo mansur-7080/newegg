@@ -2,6 +2,16 @@ import React from 'react';
 import AIRecommendations from '../components/product/AIRecommendations';
 import useCartRecommendations from '../hooks/useCartRecommendations';
 import mlService from '../services/MLRecommendationService';
+import { toast } from 'react-hot-toast';
+
+// Add logger utility
+const logger = {
+  info: (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(message, data);
+    }
+  }
+};
 
 // Example Product Detail Page that integrates AI recommendations
 const ProductDetailPage: React.FC = () => {
@@ -39,7 +49,8 @@ const ProductDetailPage: React.FC = () => {
     mlService.trackProductInteraction(product.id, 'add-to-cart');
 
     // Actual add to cart logic would go here
-    console.log('Added to cart:', product.id);
+    logger.info('Added to cart', { productId: product.id });
+    toast.success('Mahsulot savatga qo\'shildi');
   };
 
   return (

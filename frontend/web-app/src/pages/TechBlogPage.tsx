@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './TechBlogPage.css';
+import { toast } from 'react-hot-toast';
+
+// Add logger utility
+const logger = {
+  error: (message: string, error?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.error(message, error);
+    }
+  }
+};
 
 interface TechArticle {
   id: string;
@@ -217,7 +227,8 @@ const TechBlogPage: React.FC = () => {
       setNews(mockNews);
       setFeaturedArticle(mockArticles.find((a) => a.featured) || mockArticles[0]);
     } catch (error) {
-      console.error('Error fetching tech content:', error);
+      logger.error('Error fetching tech content', error);
+      toast.error('Ma\'lumotlarni yuklashda xatolik yuz berdi');
     } finally {
       setLoading(false);
     }

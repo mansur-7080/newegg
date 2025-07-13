@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './UserProfilePage.css';
+import { toast } from 'react-hot-toast';
+
+// Add logger utility
+const logger = {
+  error: (message: string, error?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.error(message, error);
+    }
+  }
+};
 
 interface UserProfile {
   id: string;
@@ -209,7 +219,8 @@ const UserProfilePage: React.FC = () => {
 
       setUser(mockUser);
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      logger.error('Error loading user profile', error);
+      toast.error('Profil ma\'lumotlarini yuklashda xatolik');
     } finally {
       setLoading(false);
     }
@@ -304,7 +315,8 @@ const UserProfilePage: React.FC = () => {
 
       setBuilds(mockBuilds);
     } catch (error) {
-      console.error('Error loading user builds:', error);
+      logger.error('Error loading user builds', error);
+      toast.error('Build ma\'lumotlarini yuklashda xatolik');
     }
   };
 

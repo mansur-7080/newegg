@@ -1,296 +1,293 @@
-import { logger } from '../logging/logger';
+/**
+ * Standardized Error Classes for UltraMarket Application
+ * Provides consistent error handling across all microservices
+ */
 
-// Error codes enum
-export enum ErrorCode {
-  // Authentication & Authorization
-  UNAUTHORIZED = 'UNAUTHORIZED',
-  FORBIDDEN = 'FORBIDDEN',
-  TOKEN_EXPIRED = 'TOKEN_EXPIRED',
-  INVALID_TOKEN = 'INVALID_TOKEN',
-  TOKEN_BLACKLISTED = 'TOKEN_BLACKLISTED',
-  WEAK_JWT_SECRET = 'WEAK_JWT_SECRET',
-  MISSING_AUTH_HEADER = 'MISSING_AUTH_HEADER',
-
-  // Validation
-  VALIDATION_ERROR = 'VALIDATION_ERROR',
-  INVALID_INPUT = 'INVALID_INPUT',
-  REQUIRED_FIELD_MISSING = 'REQUIRED_FIELD_MISSING',
-  INVALID_FORMAT = 'INVALID_FORMAT',
-
-  // Database
-  DATABASE_ERROR = 'DATABASE_ERROR',
-  RECORD_NOT_FOUND = 'RECORD_NOT_FOUND',
-  DUPLICATE_RECORD = 'DUPLICATE_RECORD',
-  CONSTRAINT_VIOLATION = 'CONSTRAINT_VIOLATION',
-
-  // Business Logic
-  INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE',
-  PRODUCT_OUT_OF_STOCK = 'PRODUCT_OUT_OF_STOCK',
-  ORDER_ALREADY_PROCESSED = 'ORDER_ALREADY_PROCESSED',
-  PAYMENT_FAILED = 'PAYMENT_FAILED',
-
-  // System
-  INTERNAL_ERROR = 'INTERNAL_ERROR',
-  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
-  RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
-  FILE_UPLOAD_ERROR = 'FILE_UPLOAD_ERROR',
-
-  // External Services
-  EXTERNAL_SERVICE_ERROR = 'EXTERNAL_SERVICE_ERROR',
-  PAYMENT_GATEWAY_ERROR = 'PAYMENT_GATEWAY_ERROR',
-  SMS_SERVICE_ERROR = 'SMS_SERVICE_ERROR',
-  EMAIL_SERVICE_ERROR = 'EMAIL_SERVICE_ERROR',
+export interface ErrorDetail {
+  field?: string;
+  message: string;
+  code?: string;
 }
 
-// Base Application Error class
+export interface ErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: ErrorDetail[];
+    timestamp: string;
+    requestId?: string;
+  };
+}
+
 export class AppError extends Error {
-  public readonly statusCode: number;
-  public readonly isOperational: boolean;
-  public readonly code: string;
-  public readonly timestamp: Date;
-  public readonly context?: Record<string, any>;
+  public statusCode: number;
+  public isOperational: boolean;
+  public code: string;
+  public details?: ErrorDetail[];
 
   constructor(
+    statusCode: number,
     message: string,
-    statusCode: number = 500,
+    code: string = 'INTERNAL_ERROR',
     isOperational: boolean = true,
-    code: string = ErrorCode.INTERNAL_ERROR,
-    context?: Record<string, any>
+    details?: ErrorDetail[]
   ) {
     super(message);
-
-    this.name = this.constructor.name;
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     this.code = code;
-    this.timestamp = new Date();
-    this.context = context;
+    this.details = details;
 
-    // Capture stack trace
     Error.captureStackTrace(this, this.constructor);
-
-    // Log error creation
-    logger.error(`AppError created: ${message}`, {
-      statusCode,
-      code,
-      isOperational,
-      context,
-      stack: this.stack,
-    });
   }
 
-  // Convert to JSON for API responses
-  toJSON(): Record<string, any> {
+  toJSON(): ErrorResponse {
     return {
       success: false,
       error: {
-        message: this.message,
         code: this.code,
-        statusCode: this.statusCode,
-        timestamp: this.timestamp.toISOString(),
-        ...(this.context && { context: this.context }),
+        message: this.message,
+        details: this.details,
+        timestamp: new Date().toISOString(),
       },
     };
   }
-
-  // Get user-friendly message
-  getUserMessage(): string {
-    // Map technical errors to user-friendly messages
-    const userMessages: Record<string, string> = {
-      [ErrorCode.UNAUTHORIZED]: 'Tizimga kirish talab qilinadi',
-      [ErrorCode.FORBIDDEN]: "Sizda bu amalni bajarish uchun ruxsat yo'q",
-      [ErrorCode.TOKEN_EXPIRED]: 'Sessiya muddati tugagan, qayta kiring',
-      [ErrorCode.INVALID_TOKEN]: "Noto'g'ri token",
-      [ErrorCode.VALIDATION_ERROR]: "Kiritilgan ma'lumotlar noto'g'ri",
-      [ErrorCode.RECORD_NOT_FOUND]: "Ma'lumot topilmadi",
-      [ErrorCode.DUPLICATE_RECORD]: "Bu ma'lumot allaqachon mavjud",
-      [ErrorCode.INSUFFICIENT_BALANCE]: "Hisobda yetarli mablag' yo'q",
-      [ErrorCode.PRODUCT_OUT_OF_STOCK]: "Mahsulot qoldiqda yo'q",
-      [ErrorCode.PAYMENT_FAILED]: "To'lov amalga oshmadi",
-      [ErrorCode.RATE_LIMIT_EXCEEDED]: "Juda ko'p so'rov yuborildi, biroz kuting",
-      [ErrorCode.SERVICE_UNAVAILABLE]: 'Xizmat vaqtincha mavjud emas',
-      [ErrorCode.INTERNAL_ERROR]: 'Ichki xatolik yuz berdi',
-    };
-
-    return userMessages[this.code] || this.message;
-  }
 }
 
-// Validation Error
+// Specific error classes for different scenarios
 export class ValidationError extends AppError {
-  public readonly errors: Record<string, string[]>;
-
-  constructor(
-    errors: Record<string, string[]>,
-    message: string = 'Validation failed',
-    context?: Record<string, any>
-  ) {
-    super(message, 422, true, ErrorCode.VALIDATION_ERROR, context);
-    this.errors = errors;
-  }
-
-  toJSON(): Record<string, any> {
-    return {
-      ...super.toJSON(),
-      error: {
-        ...super.toJSON().error,
-        errors: this.errors,
-      },
-    };
+  constructor(message: string, details?: ErrorDetail[]) {
+    super(400, message, 'VALIDATION_ERROR', true, details);
   }
 }
 
-// Authentication Error
 export class AuthenticationError extends AppError {
-  constructor(
-    message: string = 'Authentication failed',
-    code: string = ErrorCode.UNAUTHORIZED,
-    context?: Record<string, any>
-  ) {
-    super(message, 401, true, code, context);
+  constructor(message: string = 'Authentication failed') {
+    super(401, message, 'AUTHENTICATION_ERROR', true);
   }
 }
 
-// Authorization Error
 export class AuthorizationError extends AppError {
-  constructor(message: string = 'Access denied', context?: Record<string, any>) {
-    super(message, 403, true, ErrorCode.FORBIDDEN, context);
+  constructor(message: string = 'Access denied') {
+    super(403, message, 'AUTHORIZATION_ERROR', true);
   }
 }
 
-// Not Found Error
 export class NotFoundError extends AppError {
-  constructor(resource: string = 'Resource', context?: Record<string, any>) {
-    super(`${resource} not found`, 404, true, ErrorCode.RECORD_NOT_FOUND, context);
+  constructor(message: string = 'Resource not found') {
+    super(404, message, 'NOT_FOUND_ERROR', true);
   }
 }
 
-// Conflict Error
 export class ConflictError extends AppError {
-  constructor(message: string = 'Resource already exists', context?: Record<string, any>) {
-    super(message, 409, true, ErrorCode.DUPLICATE_RECORD, context);
+  constructor(message: string = 'Resource conflict') {
+    super(409, message, 'CONFLICT_ERROR', true);
   }
 }
 
-// Rate Limit Error
 export class RateLimitError extends AppError {
-  constructor(message: string = 'Rate limit exceeded', context?: Record<string, any>) {
-    super(message, 429, true, ErrorCode.RATE_LIMIT_EXCEEDED, context);
+  constructor(message: string = 'Rate limit exceeded') {
+    super(429, message, 'RATE_LIMIT_ERROR', true);
   }
 }
 
-// Database Error
 export class DatabaseError extends AppError {
-  constructor(message: string = 'Database operation failed', context?: Record<string, any>) {
-    super(message, 500, true, ErrorCode.DATABASE_ERROR, context);
+  constructor(message: string = 'Database operation failed') {
+    super(500, message, 'DATABASE_ERROR', true);
   }
 }
 
-// External Service Error
 export class ExternalServiceError extends AppError {
-  constructor(
-    serviceName: string,
-    message: string = 'External service error',
-    context?: Record<string, any>
-  ) {
-    super(`${serviceName}: ${message}`, 502, true, ErrorCode.EXTERNAL_SERVICE_ERROR, {
-      serviceName,
-      ...context,
-    });
+  constructor(message: string = 'External service error') {
+    super(502, message, 'EXTERNAL_SERVICE_ERROR', true);
   }
 }
 
-// Payment Error
 export class PaymentError extends AppError {
-  constructor(message: string = 'Payment processing failed', context?: Record<string, any>) {
-    super(message, 402, true, ErrorCode.PAYMENT_FAILED, context);
+  constructor(message: string = 'Payment processing failed') {
+    super(400, message, 'PAYMENT_ERROR', true);
   }
 }
 
-// Business Logic Error
-export class BusinessLogicError extends AppError {
-  constructor(message: string, code: string, context?: Record<string, any>) {
-    super(message, 400, true, code, context);
+export class InventoryError extends AppError {
+  constructor(message: string = 'Inventory operation failed') {
+    super(400, message, 'INVENTORY_ERROR', true);
   }
 }
 
-// File Upload Error
-export class FileUploadError extends AppError {
-  constructor(message: string = 'File upload failed', context?: Record<string, any>) {
-    super(message, 400, true, ErrorCode.FILE_UPLOAD_ERROR, context);
+export class OrderError extends AppError {
+  constructor(message: string = 'Order operation failed') {
+    super(400, message, 'ORDER_ERROR', true);
   }
 }
 
-// Error factory functions
-export const createValidationError = (
-  field: string,
-  message: string,
-  context?: Record<string, any>
-): ValidationError => {
-  return new ValidationError({ [field]: [message] }, `Validation failed: ${field}`, context);
-};
+// Error codes mapping
+export const ERROR_CODES = {
+  // Validation errors
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  INVALID_INPUT: 'INVALID_INPUT',
+  MISSING_REQUIRED_FIELD: 'MISSING_REQUIRED_FIELD',
+  INVALID_FORMAT: 'INVALID_FORMAT',
 
-export const createAuthError = (
-  message: string = 'Authentication required',
-  context?: Record<string, any>
-): AuthenticationError => {
-  return new AuthenticationError(message, ErrorCode.UNAUTHORIZED, context);
-};
+  // Authentication errors
+  AUTHENTICATION_ERROR: 'AUTHENTICATION_ERROR',
+  INVALID_TOKEN: 'INVALID_TOKEN',
+  EXPIRED_TOKEN: 'EXPIRED_TOKEN',
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
 
-export const createNotFoundError = (
-  resource: string,
-  id?: string | number,
-  context?: Record<string, any>
-): NotFoundError => {
-  const message = id ? `${resource} with ID ${id} not found` : `${resource} not found`;
-  return new NotFoundError(message, { resource, id, ...context });
-};
+  // Authorization errors
+  AUTHORIZATION_ERROR: 'AUTHORIZATION_ERROR',
+  INSUFFICIENT_PERMISSIONS: 'INSUFFICIENT_PERMISSIONS',
+  ROLE_REQUIRED: 'ROLE_REQUIRED',
+
+  // Resource errors
+  NOT_FOUND_ERROR: 'NOT_FOUND_ERROR',
+  RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
+  USER_NOT_FOUND: 'USER_NOT_FOUND',
+  PRODUCT_NOT_FOUND: 'PRODUCT_NOT_FOUND',
+  ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
+
+  // Conflict errors
+  CONFLICT_ERROR: 'CONFLICT_ERROR',
+  DUPLICATE_ENTRY: 'DUPLICATE_ENTRY',
+  RESOURCE_EXISTS: 'RESOURCE_EXISTS',
+
+  // Rate limiting
+  RATE_LIMIT_ERROR: 'RATE_LIMIT_ERROR',
+  TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
+
+  // Database errors
+  DATABASE_ERROR: 'DATABASE_ERROR',
+  CONNECTION_ERROR: 'CONNECTION_ERROR',
+  QUERY_ERROR: 'QUERY_ERROR',
+  TRANSACTION_ERROR: 'TRANSACTION_ERROR',
+
+  // External service errors
+  EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
+  PAYMENT_GATEWAY_ERROR: 'PAYMENT_GATEWAY_ERROR',
+  SMS_SERVICE_ERROR: 'SMS_SERVICE_ERROR',
+  EMAIL_SERVICE_ERROR: 'EMAIL_SERVICE_ERROR',
+
+  // Business logic errors
+  PAYMENT_ERROR: 'PAYMENT_ERROR',
+  INSUFFICIENT_FUNDS: 'INSUFFICIENT_FUNDS',
+  PAYMENT_DECLINED: 'PAYMENT_DECLINED',
+
+  INVENTORY_ERROR: 'INVENTORY_ERROR',
+  OUT_OF_STOCK: 'OUT_OF_STOCK',
+  INSUFFICIENT_QUANTITY: 'INSUFFICIENT_QUANTITY',
+
+  ORDER_ERROR: 'ORDER_ERROR',
+  ORDER_CANCELLED: 'ORDER_CANCELLED',
+  ORDER_EXPIRED: 'ORDER_EXPIRED',
+
+  // System errors
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+} as const;
+
+// Error message templates
+export const ERROR_MESSAGES = {
+  // Validation
+  INVALID_EMAIL: 'Invalid email format',
+  INVALID_PHONE: 'Invalid phone number format',
+  INVALID_PASSWORD: 'Password must be at least 8 characters long',
+  MISSING_REQUIRED_FIELD: (field: string) => `${field} is required`,
+  INVALID_FORMAT: (field: string) => `Invalid ${field} format`,
+
+  // Authentication
+  INVALID_CREDENTIALS: 'Invalid email or password',
+  TOKEN_EXPIRED: 'Authentication token has expired',
+  INVALID_TOKEN: 'Invalid authentication token',
+  LOGIN_REQUIRED: 'Please log in to continue',
+
+  // Authorization
+  ACCESS_DENIED: 'You do not have permission to access this resource',
+  ROLE_REQUIRED: (role: string) => `${role} role is required`,
+  ADMIN_REQUIRED: 'Administrator access is required',
+
+  // Resources
+  USER_NOT_FOUND: 'User not found',
+  PRODUCT_NOT_FOUND: 'Product not found',
+  ORDER_NOT_FOUND: 'Order not found',
+  CART_NOT_FOUND: 'Cart not found',
+
+  // Business logic
+  OUT_OF_STOCK: 'Product is out of stock',
+  INSUFFICIENT_QUANTITY: (available: number) => `Only ${available} items available`,
+  PAYMENT_DECLINED: 'Payment was declined by the payment processor',
+  ORDER_CANCELLED: 'Order has been cancelled',
+  ORDER_EXPIRED: 'Order has expired',
+
+  // System
+  INTERNAL_ERROR: 'An internal server error occurred',
+  SERVICE_UNAVAILABLE: 'Service is temporarily unavailable',
+  EXTERNAL_SERVICE_ERROR: 'External service is currently unavailable',
+} as const;
 
 // Error handler utility
-export const handleError = (
-  error: unknown,
-  defaultMessage: string = 'An error occurred'
-): AppError => {
+export const handleError = (error: Error | AppError): ErrorResponse => {
   if (error instanceof AppError) {
-    return error;
+    return error.toJSON();
   }
 
-  if (error instanceof Error) {
-    logger.error('Unhandled error converted to AppError', {
-      originalError: error.message,
-      stack: error.stack,
-    });
+  // Handle unknown errors
+  const appError = new AppError(
+    500,
+    process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message,
+    'UNKNOWN_ERROR',
+    false
+  );
 
-    return new AppError(error.message || defaultMessage, 500, false, ErrorCode.INTERNAL_ERROR, {
-      originalError: error.message,
-    });
-  }
-
-  logger.error('Unknown error converted to AppError', {
-    error: String(error),
-  });
-
-  return new AppError(defaultMessage, 500, false, ErrorCode.INTERNAL_ERROR, {
-    originalError: String(error),
-  });
+  return appError.toJSON();
 };
 
-// Error response formatter
-export const formatErrorResponse = (error: AppError) => {
-  const response = error.toJSON();
-
-  // In production, hide sensitive information
-  if (process.env.NODE_ENV === 'production' && !error.isOperational) {
-    response.error = {
-      message: 'Internal server error',
-      code: ErrorCode.INTERNAL_ERROR,
-      statusCode: 500,
-      timestamp: error.timestamp.toISOString(),
-    };
-  }
-
-  return response;
+// Async error handler for Express middleware
+export const asyncHandler = (fn: Function) => {
+  return (req: any, res: any, next: any) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
 };
 
-// Default export
-export default AppError;
+// Error logging utility
+export const logError = (error: Error | AppError, context?: any): void => {
+  const errorInfo = {
+    message: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString(),
+    context,
+  };
+
+  if (error instanceof AppError) {
+    errorInfo['statusCode'] = error.statusCode;
+    errorInfo['code'] = error.code;
+    errorInfo['isOperational'] = error.isOperational;
+  }
+
+  // In production, this would use a proper logging service
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Error occurred:', errorInfo);
+  }
+};
+
+export default {
+  AppError,
+  ValidationError,
+  AuthenticationError,
+  AuthorizationError,
+  NotFoundError,
+  ConflictError,
+  RateLimitError,
+  DatabaseError,
+  ExternalServiceError,
+  PaymentError,
+  InventoryError,
+  OrderError,
+  ERROR_CODES,
+  ERROR_MESSAGES,
+  handleError,
+  asyncHandler,
+  logError,
+};

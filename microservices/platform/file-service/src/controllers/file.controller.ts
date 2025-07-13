@@ -591,8 +591,15 @@ export class FileController {
       }
 
       // Users can only access their own files
-      // TODO: Implement user file ownership check
-      // For now, allow access to authenticated users
+      // Check if user owns the file
+      if (fileInfo.userId && fileInfo.userId !== user.id) {
+        res.status(403).json({
+          success: false,
+          error: 'Access denied - file ownership required',
+        });
+        return;
+      }
+
       next();
     } catch (error) {
       logger.error('File access check failed', {

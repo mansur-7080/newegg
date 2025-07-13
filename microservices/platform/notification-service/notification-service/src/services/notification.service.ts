@@ -181,17 +181,14 @@ export class NotificationService {
    */
   async sendSMS(notification: SMSNotification): Promise<void> {
     try {
-      // SMS service integration (e.g., Twilio, Nexmo)
-      // For now, we'll log the SMS
+      // TODO: Integrate with SMS provider
+      // const smsProvider = new SMSProvider();
+      // await smsProvider.send(notification.to, notification.message);
       logger.info('SMS notification', {
         to: notification.to,
         message: notification.message,
         template: notification.template,
       });
-
-      // TODO: Integrate with SMS provider
-      // const smsProvider = new SMSProvider();
-      // await smsProvider.send(notification.to, notification.message);
     } catch (error) {
       logger.error('Failed to send SMS', error);
       throw error;
@@ -203,16 +200,14 @@ export class NotificationService {
    */
   async sendPush(notification: PushNotification): Promise<void> {
     try {
-      // Push notification service integration (e.g., Firebase, OneSignal)
+      // TODO: Integrate with push notification provider
+      // const pushProvider = new PushNotificationProvider();
+      // await pushProvider.send(notification);
       logger.info('Push notification', {
         userId: notification.userId,
         title: notification.title,
         body: notification.body,
       });
-
-      // TODO: Integrate with push notification provider
-      // const pushProvider = new PushNotificationProvider();
-      // await pushProvider.send(notification);
     } catch (error) {
       logger.error('Failed to send push notification', error);
       throw error;

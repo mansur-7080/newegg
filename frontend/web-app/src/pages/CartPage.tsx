@@ -4,6 +4,16 @@ import { RootState } from '../store';
 import { updateCartItem, removeFromCart, clearCart } from '../store/slices/cartSlice';
 import { UzbekPaymentMethod, formatUZSPrice } from '../../../../libs/shared/src/constants';
 import { UzbekAddressType } from '../../../../libs/shared/src/types/uzbek-address';
+import { toast } from 'react-hot-toast';
+
+// Add logger utility
+const logger = {
+  info: (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(message, data);
+    }
+  }
+};
 
 interface CartItem {
   id: string;
@@ -48,11 +58,9 @@ const CartPage: React.FC = () => {
 
   const handleProceedToCheckout = () => {
     // Checkout sahifasiga o'tish
-    console.log("Checkout ga o'tish:", {
-      items: cartItems,
-      paymentMethod: selectedPaymentMethod,
-      deliveryAddress,
-      total,
+    logger.info("Checkout ga o'tish", {
+      cartItems: cartItems.length,
+      total: total
     });
   };
 

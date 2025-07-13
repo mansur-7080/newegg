@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import { enhancedProductPrismaRoutes } from './routes/enhanced-product-prisma.routes';
+import winston from 'winston';
 
 // Initialize express app
 const app = express();
@@ -44,9 +45,35 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+// Configure Winston logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'product-service' },
+  transports: [
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' })
+  ]
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple()
+  }));
+}
+
+process.on('uncaughtException', (err) => {
+  logger.error('Unhandled error:', err);
+  process.exit(1);
+});
+
 // Start server
 app.listen(PORT, () => {
-  console.log(`Product service running on port ${PORT}`);
+  logger.info(`Product service running on port ${PORT}`);
 });
 
 export default app;

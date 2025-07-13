@@ -29,7 +29,7 @@ import {
   Build,
 } from '@mui/icons-material';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import Image from 'next/image';
 import { styled } from '@mui/system';
 import { useCart } from '../../hooks/useCart';
@@ -42,6 +42,20 @@ import SimilarProducts from '../../components/product/SimilarProducts';
 import ProductSpecifications from '../../components/product/ProductSpecifications';
 import PCBuilderCompatibility from '../../components/product/PCBuilderCompatibility';
 import { fetchProductById, fetchProductReviews, fetchSimilarProducts } from '../../services/api';
+
+// Add logger utility
+const logger = {
+  info: (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(message, data);
+    }
+  },
+  error: (message: string, error?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.error(message, error);
+    }
+  }
+};
 
 // Styled components
 const StyledPaper = styled(Paper)(({ theme }) => ({
@@ -173,7 +187,7 @@ const ProductDetailPage = () => {
           text: product.description,
           url: window.location.href,
         })
-        .catch((error) => console.log('Share error:', error));
+        .catch((error) => logger.info('Share error', error));
     } else {
       // Fallback - copy to clipboard
       navigator.clipboard.writeText(window.location.href);
@@ -501,7 +515,8 @@ const PCBuilderCompatibilitySection = ({ product }) => {
 
       setCompatibility(compatibilityResult);
     } catch (error) {
-      console.error('Error checking compatibility:', error);
+      logger.error('Error checking compatibility', error);
+      toast.error('Moslik tekshirishda xatolik');
     }
   };
 
