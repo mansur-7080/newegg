@@ -1,14 +1,14 @@
 /**
- * UltraMarket Analytics Service
- * Professional analytics and business intelligence service
+ * UltraMarket Store Service
+ * Professional multi-vendor store management microservice
  * 
  * Features:
- * - Real-time analytics dashboard
- * - Business intelligence reports
- * - Performance metrics
- * - Data visualization endpoints
- * - Predictive analytics
- * - Custom report generation
+ * - Multi-vendor store management
+ * - Store registration and verification
+ * - Store analytics and reporting
+ * - Inventory management integration
+ * - Payment processing integration
+ * - Real-time notifications
  */
 
 import express from 'express';
@@ -20,21 +20,16 @@ import { config } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { createClient } from 'redis';
 import winston from 'winston';
-import cron from 'node-cron';
-
-// Import services
-import { AnalyticsService } from './services/analytics.service';
-import { ReportService } from './services/report.service';
-import { MetricsService } from './services/metrics.service';
 
 // Import routes
+import { storeRoutes } from './routes/store.routes';
+import { vendorRoutes } from './routes/vendor.routes';
 import { analyticsRoutes } from './routes/analytics.routes';
-import { reportsRoutes } from './routes/reports.routes';
-import { dashboardRoutes } from './routes/dashboard.routes';
 
 // Import middleware
 import { errorHandler } from './middleware/error.middleware';
 import { authMiddleware } from './middleware/auth.middleware';
+import { validationMiddleware } from './middleware/validation.middleware';
 import { loggingMiddleware } from './middleware/logging.middleware';
 
 // Load environment variables
@@ -46,11 +41,6 @@ const prisma = new PrismaClient();
 const redis = createClient({
   url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
-
-// Initialize business services
-const analyticsService = new AnalyticsService(prisma, redis);
-const reportService = new ReportService(prisma, redis);
-const metricsService = new MetricsService(prisma, redis);
 
 // Configure Winston logger
 const logger = winston.createLogger({
@@ -76,7 +66,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
       imgSrc: ["'self'", 'data:', 'https:'],
       connectSrc: ["'self'"],
     },
@@ -93,7 +83,7 @@ app.use(compression());
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // Higher limit for analytics service
+  max: 100, // limit each IP to 100 requests per windowMs
   message: {
     error: 'Too many requests from this IP',
     retryAfter: 15 * 60 * 1000
@@ -119,105 +109,45 @@ app.get('/health', async (req, res) => {
     // Check Redis connection
     await redis.ping();
     
-    // Check analytics service health
-    const analyticsHealth = await analyticsService.healthCheck();
-    
     res.status(200).json({
       status: 'healthy',
-      service: 'analytics-service',
+      service: 'store-service',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       version: process.env.npm_package_version || '1.0.0',
       environment: process.env.NODE_ENV || 'development',
       database: 'connected',
-      redis: 'connected',
-      analytics: analyticsHealth
+      redis: 'connected'
     });
   } catch (error) {
     logger.error('Health check failed:', error);
     res.status(503).json({
       status: 'unhealthy',
-      service: 'analytics-service',
+      service: 'store-service',
       timestamp: new Date().toISOString(),
       error: 'Service dependencies unavailable'
     });
   }
 });
 
-// Make services available to routes
-app.locals.analyticsService = analyticsService;
-app.locals.reportService = reportService;
-app.locals.metricsService = metricsService;
-
 // API routes
+app.use('/api/stores', authMiddleware, storeRoutes);
+app.use('/api/vendors', authMiddleware, vendorRoutes);
 app.use('/api/analytics', authMiddleware, analyticsRoutes);
-app.use('/api/reports', authMiddleware, reportsRoutes);
-app.use('/api/dashboard', authMiddleware, dashboardRoutes);
-
-// Real-time analytics endpoint
-app.get('/api/realtime/metrics', authMiddleware, async (req, res) => {
-  try {
-    const realtimeMetrics = await analyticsService.getRealtimeMetrics();
-    res.json({
-      success: true,
-      data: realtimeMetrics,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Real-time metrics error:', error);
-    res.status(500).json({
-      error: 'Failed to fetch real-time metrics',
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Business intelligence endpoint
-app.get('/api/business-intelligence', authMiddleware, async (req, res) => {
-  try {
-    const { timeRange = '30d', metrics = 'all' } = req.query;
-    const biData = await analyticsService.getBusinessIntelligence(
-      timeRange as string,
-      metrics as string
-    );
-    
-    res.json({
-      success: true,
-      data: biData,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Business intelligence error:', error);
-    res.status(500).json({
-      error: 'Failed to fetch business intelligence data',
-      timestamp: new Date().toISOString()
-    });
-  }
-});
 
 // API documentation
 app.get('/api/docs', (req, res) => {
   res.json({
-    service: 'UltraMarket Analytics Service',
+    service: 'UltraMarket Store Service',
     version: '1.0.0',
-    description: 'Professional analytics and business intelligence microservice',
+    description: 'Multi-vendor store management microservice',
     endpoints: {
+      stores: '/api/stores',
+      vendors: '/api/vendors',
       analytics: '/api/analytics',
-      reports: '/api/reports',
-      dashboard: '/api/dashboard',
-      realtime: '/api/realtime/metrics',
-      businessIntelligence: '/api/business-intelligence',
       health: '/health'
     },
-    features: [
-      'Real-time analytics dashboard',
-      'Business intelligence reports',
-      'Performance metrics tracking',
-      'Data visualization endpoints',
-      'Predictive analytics',
-      'Custom report generation'
-    ],
-    documentation: 'https://docs.ultramarket.uz/analytics-service'
+    documentation: 'https://docs.ultramarket.uz/store-service'
   });
 });
 
@@ -234,28 +164,6 @@ app.use('*', (req, res) => {
   });
 });
 
-// Scheduled tasks for analytics
-cron.schedule('0 */6 * * *', async () => {
-  logger.info('Running scheduled analytics aggregation');
-  try {
-    await analyticsService.aggregateMetrics();
-    logger.info('Analytics aggregation completed successfully');
-  } catch (error) {
-    logger.error('Analytics aggregation failed:', error);
-  }
-});
-
-// Daily report generation
-cron.schedule('0 2 * * *', async () => {
-  logger.info('Running daily report generation');
-  try {
-    await reportService.generateDailyReports();
-    logger.info('Daily reports generated successfully');
-  } catch (error) {
-    logger.error('Daily report generation failed:', error);
-  }
-});
-
 // Initialize connections
 async function initializeServices() {
   try {
@@ -267,17 +175,12 @@ async function initializeServices() {
     await prisma.$connect();
     logger.info('Database connected successfully');
     
-    // Initialize analytics service
-    await analyticsService.initialize();
-    logger.info('Analytics service initialized successfully');
-    
     // Start server
-    const PORT = process.env.PORT || 3020;
+    const PORT = process.env.PORT || 3004;
     app.listen(PORT, () => {
-      logger.info(`Analytics Service running on port ${PORT}`);
+      logger.info(`Store Service running on port ${PORT}`);
       logger.info(`Health check: http://localhost:${PORT}/health`);
       logger.info(`API documentation: http://localhost:${PORT}/api/docs`);
-      logger.info(`Real-time metrics: http://localhost:${PORT}/api/realtime/metrics`);
     });
     
   } catch (error) {

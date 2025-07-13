@@ -1,0 +1,194 @@
+// UltraMarket Store Service Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  logo        String?
+  banner      String?
+  status      StoreStatus @default(PENDING)
+  ownerId     String
+  
+  // Contact information
+  email       String
+  phone       String?
+  website     String?
+  
+  // Address
+  address     String
+  city        String
+  region      String
+  country     String   @default("UZ")
+  postalCode  String?
+  
+  // Business information
+  businessLicense String?
+  taxId       String?
+  
+  // Settings
+  isActive    Boolean  @default(true)
+  isVerified  Boolean  @default(false)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  products    Product[]
+  orders      Order[]
+  analytics   StoreAnalytics[]
+  
+  @@map("stores")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal
+  salePrice   Decimal?
+  sku         String   @unique
+  category    String
+  brand       String?
+  
+  // Inventory
+  stock       Int      @default(0)
+  minStock    Int      @default(0)
+  
+  // Media
+  images      String[]
+  videos      String[]
+  
+  // SEO
+  slug        String   @unique
+  metaTitle   String?
+  metaDescription String?
+  
+  // Status
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  
+  // Store relation
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  orderItems  OrderItem[]
+  
+  @@map("products")
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique
+  status      OrderStatus @default(PENDING)
+  
+  // Customer information
+  customerId  String
+  customerEmail String
+  customerPhone String?
+  
+  // Pricing
+  subtotal    Decimal
+  tax         Decimal     @default(0)
+  shipping    Decimal     @default(0)
+  total       Decimal
+  
+  // Shipping address
+  shippingAddress Json
+  
+  // Payment
+  paymentMethod String?
+  paymentStatus PaymentStatus @default(PENDING)
+  
+  // Store relation
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  items       OrderItem[]
+  
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  quantity  Int
+  price     Decimal
+  total     Decimal
+  
+  // Relations
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  
+  @@map("order_items")
+}
+
+model StoreAnalytics {
+  id          String   @id @default(cuid())
+  date        DateTime
+  
+  // Metrics
+  totalOrders Int      @default(0)
+  totalRevenue Decimal @default(0)
+  totalProducts Int    @default(0)
+  activeProducts Int   @default(0)
+  
+  // Customer metrics
+  newCustomers Int     @default(0)
+  returningCustomers Int @default(0)
+  
+  // Store relation
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([storeId, date])
+  @@map("store_analytics")
+}
+
+enum StoreStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
