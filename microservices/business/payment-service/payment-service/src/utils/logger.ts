@@ -1,80 +1,95 @@
 import winston from 'winston';
 
-const isDevelopment = process.env.NODE_ENV === 'development';
-
-// Define log levels
-const levels = {
-  error: 0,
-  warn: 1,
-  info: 2,
-  http: 3,
-  debug: 4,
-};
-
-// Define colors for each level
-const colors = {
-  error: 'red',
-  warn: 'yellow',
-  info: 'green',
-  http: 'magenta',
-  debug: 'white',
-};
-
-// Tell winston that you want to link the colors
-winston.addColors(colors);
-
-// Define format for console output
-const consoleFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
-  winston.format.colorize({ all: true }),
-  winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
-);
-
-// Define format for file output
-const fileFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
-  winston.format.errors({ stack: true }),
-  winston.format.json()
-);
-
-// Define transports
-const transports = [
-  // Console transport
-  new winston.transports.Console({
-    format: consoleFormat,
-    level: isDevelopment ? 'debug' : 'info',
-  }),
-
-  // File transport for errors
-  new winston.transports.File({
-    filename: 'logs/error.log',
-    level: 'error',
-    format: fileFormat,
-  }),
-
-  // File transport for all logs
-  new winston.transports.File({
-    filename: 'logs/combined.log',
-    format: fileFormat,
-  }),
-];
-
-// Create logger instance
+// Configure logger
 const logger = winston.createLogger({
-  level: isDevelopment ? 'debug' : 'info',
-  levels,
-  format: fileFormat,
-  transports,
-  exitOnError: false,
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'payment-service' },
+  transports: [
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' })
+  ]
 });
 
-// Create logs directory if it doesn't exist
-import fs from 'fs';
-import path from 'path';
-
-const logsDir = path.join(process.cwd(), 'logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
+// Add console transport for development
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple()
+    )
+  }));
 }
 
+// Create a stream object for Morgan
+export const stream = {
+  write: (message: string) => {
+    logger.info(message.trim());
+  }
+};
+
+// Export logger instance
 export { logger };
+
+// Logging utility functions
+export const logError = (message: string, error?: Error, context?: Record<string, unknown>) => {
+  logger.error(message, {
+    error: error?.message,
+    stack: error?.stack,
+    ...context
+  });
+};
+
+export const logInfo = (message: string, context?: Record<string, unknown>) => {
+  logger.info(message, context);
+};
+
+export const logWarn = (message: string, context?: Record<string, unknown>) => {
+  logger.warn(message, context);
+};
+
+export const logDebug = (message: string, context?: Record<string, unknown>) => {
+  logger.debug(message, context);
+};
+
+// Payment-specific logging functions
+export const logPaymentEvent = (event: string, paymentData: Record<string, unknown>) => {
+  logger.info(`Payment ${event}`, {
+    event,
+    ...paymentData,
+    timestamp: new Date().toISOString()
+  });
+};
+
+export const logPaymentError = (event: string, error: Error, paymentData?: Record<string, unknown>) => {
+  logger.error(`Payment ${event} failed`, {
+    event,
+    error: error.message,
+    stack: error.stack,
+    ...paymentData,
+    timestamp: new Date().toISOString()
+  });
+};
+
+export const logWebhookEvent = (provider: string, event: string, data: Record<string, unknown>) => {
+  logger.info(`Webhook ${provider} ${event}`, {
+    provider,
+    event,
+    ...data,
+    timestamp: new Date().toISOString()
+  });
+};
+
+export const logSecurityEvent = (event: string, userId?: string, ip?: string, details?: Record<string, unknown>) => {
+  logger.warn(`Security ${event}`, {
+    event,
+    userId,
+    ip,
+    ...details,
+    timestamp: new Date().toISOString()
+  });
+};

@@ -1,250 +1,185 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from '../services/payment.service';
-import { ClickService } from '../services/click.service';
-import { PaymeService } from '../services/payme.service';
-import { logger } from '../utils/logger';
-import { AppError } from '../utils/errors';
+import { logger, logPaymentEvent, logPaymentError } from '../utils/logger';
+import { 
+  validateCreatePayment, 
+  validateRefundPayment, 
+  validateGetPaymentStatus,
+  validateGetPaymentHistory 
+} from '../middleware/validation.middleware';
 
+/**
+ * Payment Controller
+ * Handles all payment-related operations including creation, status checks, refunds, and history
+ */
 export class PaymentController {
   private paymentService: PaymentService;
-  private clickService: ClickService;
-  private paymeService: PaymeService;
 
   constructor() {
     this.paymentService = new PaymentService();
-    this.clickService = new ClickService();
-    this.paymeService = new PaymeService();
   }
 
-  // Create payment intent
-  createPayment = async (req: Request, res: Response): Promise<void> => {
+  /**
+   * Create a new payment
+   * @route POST /api/v1/payments
+   * @param req - Express request object
+   * @param res - Express response object
+   * @param next - Express next function
+   */
+  async createPayment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { orderId, amount, currency, paymentMethod, returnUrl } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        throw new AppError('User authentication required', 401);
-      }
-
-      logger.info('Creating payment', {
-        orderId,
-        amount,
-        currency,
-        paymentMethod,
-        userId,
+      const paymentData = req.body;
+      
+      logPaymentEvent('creation_started', {
+        userId: paymentData.userId,
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        paymentMethod: paymentData.paymentMethod
       });
 
-      let paymentResult;
+      const result = await this.paymentService.createPayment(paymentData);
 
-      switch (paymentMethod) {
-        case 'CLICK':
-          paymentResult = await this.clickService.createPayment({
-            orderId,
-            amount,
-            currency,
-            userId,
-            returnUrl,
-          });
-          break;
-        case 'PAYME':
-          paymentResult = await this.paymeService.createPayment({
-            orderId,
-            amount,
-            currency,
-            userId,
-            returnUrl,
-          });
-          break;
-        case 'CASH':
-          paymentResult = await this.paymentService.createCashPayment({
-            orderId,
-            amount,
-            currency,
-            userId,
-          });
-          break;
-        default:
-          throw new AppError('Unsupported payment method', 400);
-      }
+      logPaymentEvent('creation_successful', {
+        transactionId: result.transactionId,
+        userId: paymentData.userId,
+        amount: paymentData.amount
+      });
 
       res.status(201).json({
         success: true,
-        data: paymentResult,
+        data: result,
+        message: 'Payment created successfully'
       });
     } catch (error) {
-      logger.error('Error creating payment:', error);
-      throw error;
+      logPaymentError('creation_failed', error as Error, req.body);
+      next(error);
     }
-  };
+  }
 
-  // Get payment by ID
-  getPayment = async (req: Request, res: Response): Promise<void> => {
+  /**
+   * Get payment status by transaction ID
+   * @route GET /api/v1/payments/:transactionId/status
+   * @param req - Express request object
+   * @param res - Express response object
+   * @param next - Express next function
+   */
+  async getPaymentStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
-      const userId = req.user?.id;
+      const { transactionId } = req.params;
 
-      const payment = await this.paymentService.getPaymentById(id, userId);
+      logPaymentEvent('status_check', { transactionId });
 
-      if (!payment) {
-        throw new AppError('Payment not found', 404);
-      }
+      const status = await this.paymentService.getPaymentStatus(transactionId);
 
-      res.json({
+      res.status(200).json({
         success: true,
-        data: payment,
+        data: status,
+        message: 'Payment status retrieved successfully'
       });
     } catch (error) {
-      logger.error('Error getting payment:', error);
-      throw error;
+      logPaymentError('status_check_failed', error as Error, { transactionId: req.params.transactionId });
+      next(error);
     }
-  };
+  }
 
-  // Get payments by order ID
-  getPaymentsByOrder = async (req: Request, res: Response): Promise<void> => {
+  /**
+   * Process payment refund
+   * @route POST /api/v1/payments/refund
+   * @param req - Express request object
+   * @param res - Express response object
+   * @param next - Express next function
+   */
+  async processRefund(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { orderId } = req.params;
-      const userId = req.user?.id;
+      const refundData = req.body;
 
-      const payments = await this.paymentService.getPaymentsByOrderId(orderId, userId);
+      logPaymentEvent('refund_started', {
+        transactionId: refundData.transactionId,
+        amount: refundData.amount,
+        userId: refundData.userId
+      });
 
-      res.json({
+      const result = await this.paymentService.processRefund(refundData);
+
+      logPaymentEvent('refund_successful', {
+        refundId: result.refundId,
+        transactionId: refundData.transactionId,
+        amount: refundData.amount
+      });
+
+      res.status(200).json({
         success: true,
-        data: payments,
+        data: result,
+        message: 'Refund processed successfully'
       });
     } catch (error) {
-      logger.error('Error getting payments by order:', error);
-      throw error;
+      logPaymentError('refund_failed', error as Error, req.body);
+      next(error);
     }
-  };
+  }
 
-  // Get user payments
-  getUserPayments = async (req: Request, res: Response): Promise<void> => {
+  /**
+   * Get payment history for a user
+   * @route GET /api/v1/payments/history
+   * @param req - Express request object
+   * @param res - Express response object
+   * @param next - Express next function
+   */
+  async getPaymentHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.user?.id;
-      const { page = 1, limit = 10, status, method } = req.query;
+      const userId = req.query.userId as string;
+      const options = {
+        page: parseInt(req.query.page as string) || 1,
+        limit: parseInt(req.query.limit as string) || 20,
+        status: req.query.status as string || 'all',
+        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+      };
 
-      if (!userId) {
-        throw new AppError('User authentication required', 401);
-      }
-
-      const payments = await this.paymentService.getUserPayments(userId, {
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
-        status: status as string,
-        method: method as string,
+      logPaymentEvent('history_requested', {
+        userId,
+        page: options.page,
+        limit: options.limit,
+        status: options.status
       });
 
-      res.json({
+      const history = await this.paymentService.getPaymentHistory(userId, options);
+
+      res.status(200).json({
         success: true,
-        data: payments,
+        data: history,
+        message: 'Payment history retrieved successfully'
       });
     } catch (error) {
-      logger.error('Error getting user payments:', error);
-      throw error;
+      logPaymentError('history_retrieval_failed', error as Error, { userId: req.query.userId });
+      next(error);
     }
-  };
+  }
 
-  // Cancel payment
-  cancelPayment = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.id;
-      const { reason } = req.body;
-
-      if (!userId) {
-        throw new AppError('User authentication required', 401);
-      }
-
-      const payment = await this.paymentService.cancelPayment(id, userId, reason);
-
-      res.json({
-        success: true,
-        data: payment,
-      });
-    } catch (error) {
-      logger.error('Error canceling payment:', error);
-      throw error;
-    }
-  };
-
-  // Refund payment
-  refundPayment = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const { amount, reason } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        throw new AppError('User authentication required', 401);
-      }
-
-      const refund = await this.paymentService.refundPayment(id, {
-        amount,
-        reason,
-        refundedBy: userId,
-      });
-
-      res.json({
-        success: true,
-        data: refund,
-      });
-    } catch (error) {
-      logger.error('Error refunding payment:', error);
-      throw error;
-    }
-  };
-
-  // Get payment methods
-  getPaymentMethods = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const methods = await this.paymentService.getAvailablePaymentMethods();
-
-      res.json({
-        success: true,
-        data: methods,
-      });
-    } catch (error) {
-      logger.error('Error getting payment methods:', error);
-      throw error;
-    }
-  };
-
-  // Verify payment status
-  verifyPayment = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.id;
-
-      const payment = await this.paymentService.verifyPaymentStatus(id, userId);
-
-      res.json({
-        success: true,
-        data: payment,
-      });
-    } catch (error) {
-      logger.error('Error verifying payment:', error);
-      throw error;
-    }
-  };
-
-  // Get payment statistics (Admin only)
-  getPaymentStatistics = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { startDate, endDate, groupBy } = req.query;
-
-      const stats = await this.paymentService.getPaymentStatistics({
-        startDate: startDate as string,
-        endDate: endDate as string,
-        groupBy: groupBy as string,
-      });
-
-      res.json({
-        success: true,
-        data: stats,
-      });
-    } catch (error) {
-      logger.error('Error getting payment statistics:', error);
-      throw error;
-    }
-  };
+  /**
+   * Health check endpoint
+   * @route GET /api/v1/payments/health
+   * @param req - Express request object
+   * @param res - Express response object
+   */
+  async healthCheck(req: Request, res: Response): Promise<void> {
+    res.status(200).json({
+      success: true,
+      message: 'Payment service is healthy',
+      timestamp: new Date().toISOString(),
+      service: 'payment-service',
+      version: '1.0.0'
+    });
+  }
 }
+
+// Export controller instance
+export const paymentController = new PaymentController();
+
+// Export middleware for validation
+export const paymentValidationMiddleware = {
+  createPayment: validateCreatePayment,
+  processRefund: validateRefundPayment,
+  getPaymentStatus: validateGetPaymentStatus,
+  getPaymentHistory: validateGetPaymentHistory
+};
