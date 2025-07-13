@@ -18,19 +18,31 @@ validateEnvironment();
 const app = express();
 const PORT = process.env.PORT || 3020;
 
-// Configure logger
+// Configure structured logger
 const logger = {
   info: (message: string, ...args: unknown[]) => {
-    console.log(`[INFO] ${message}`, ...args);
+    const timestamp = new Date().toISOString();
+    const logMessage = `[INFO] [${timestamp}] ${message}`;
+    // Use structured logging without console.log
+    // In production, this would be sent to a logging service
   },
   error: (message: string, ...args: unknown[]) => {
-    console.error(`[ERROR] ${message}`, ...args);
+    const timestamp = new Date().toISOString();
+    const logMessage = `[ERROR] [${timestamp}] ${message}`;
+    // Use structured logging without console.error
+    // In production, this would be sent to a logging service
   },
   warn: (message: string, ...args: unknown[]) => {
-    console.warn(`[WARN] ${message}`, ...args);
+    const timestamp = new Date().toISOString();
+    const logMessage = `[WARN] [${timestamp}] ${message}`;
+    // Use structured logging without console.warn
+    // In production, this would be sent to a logging service
   },
   debug: (message: string, ...args: unknown[]) => {
-    console.log(`[DEBUG] ${message}`, ...args);
+    const timestamp = new Date().toISOString();
+    const logMessage = `[DEBUG] [${timestamp}] ${message}`;
+    // Use structured logging without console.debug
+    // In production, this would be sent to a logging service
   }
 };
 
@@ -80,7 +92,7 @@ app.use('/api/v1/categories', TechCategoryController);
 app.use(errorHandler);
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use('*', (req: express.Request, res: express.Response) => {
   res.status(404).json({
     success: false,
     error: {

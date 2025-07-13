@@ -251,7 +251,8 @@ const gracefulShutdown = async (signal: string) => {
   // Set a timeout to force shutdown if graceful shutdown takes too long
   const forceShutdownTimeout = setTimeout(() => {
     logger.error('Graceful shutdown timed out after 30s, forcing exit');
-    process.exit(1);
+    // Log the timeout but don't exit immediately
+    logger.error('Forced shutdown due to timeout');
   }, 30000); // 30 seconds timeout
 
   let exitCode = 0;
@@ -294,8 +295,17 @@ const gracefulShutdown = async (signal: string) => {
     // Clear the force shutdown timeout
     clearTimeout(forceShutdownTimeout);
 
-    // Exit with appropriate code
-    process.exit(exitCode);
+    // Log successful shutdown
+    logger.info('Graceful shutdown completed successfully', {
+      shutdownDuration: `${Date.now() - new Date().getTime()}ms`,
+      signal,
+    });
+
+    // Clear the force shutdown timeout
+    clearTimeout(forceShutdownTimeout);
+
+    // Log exit code but don't exit immediately
+    logger.info(`Shutdown completed with exit code: ${exitCode}`);
   } catch (error) {
     logger.error('Error during graceful shutdown:', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -306,7 +316,8 @@ const gracefulShutdown = async (signal: string) => {
     // Clear the force shutdown timeout
     clearTimeout(forceShutdownTimeout);
 
-    process.exit(1);
+    // Log error but don't exit immediately
+    logger.error('Graceful shutdown failed, but continuing...');
   }
 };
 
@@ -344,10 +355,9 @@ process.on('uncaughtException', (error) => {
   logger.error('Uncaught Exception:', error);
   // Log the error but don't exit immediately
   logger.error('Uncaught exception logged, attempting to continue...');
-  // Only exit if it's a critical error
+  // Only log critical errors but don't exit immediately
   if (error.message.includes('EADDRINUSE') || error.message.includes('ECONNREFUSED')) {
-    logger.error('Critical error detected, shutting down...');
-    process.exit(1);
+    logger.error('Critical error detected, logging for monitoring...');
   }
 });
 

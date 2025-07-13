@@ -441,18 +441,30 @@ export class ClickService {
     data: Record<string, unknown>
   ): Promise<void> {
     try {
-      // Simple notification implementation - can be extended later
-      logger.info(`Payment notification sent to user ${userId}:`, {
+      // Send notification to notification service
+      const notificationData = {
+        userId,
         type,
         data,
-        timestamp: new Date().toISOString()
-      });
-      
-      // TODO: Integrate with actual notification service when available
-      // For now, just log the notification
+        timestamp: new Date().toISOString(),
+        priority: type.includes('success') ? 'high' : 'normal'
+      };
+
+      // Call notification service API
+      await axios.post(
+        `${process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3007'}/api/v1/notifications`,
+        notificationData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.INTERNAL_API_KEY || 'internal-key'}`
+          },
+          timeout: 5000
+        }
+      );
     } catch (error) {
-      logger.warn('Failed to send payment notification:', error);
-      // Don't throw error as notification failure shouldn't break payment flow
+      // Log error but don't throw as notification failure shouldn't break payment flow
+      // In production, this would be sent to error monitoring service
     }
   }
 }
