@@ -1,10 +1,18 @@
 import { Request, Response } from 'express';
-import { logger } from '@ultramarket/shared';
+// import { logger } from '@ultramarket/shared';
 import { prisma } from '../config/database';
 import { OrderService } from '../services/orderService';
 import { PaymentService } from '../services/paymentService';
 import { NotificationService } from '../services/notificationService';
 import { OrderStatus, PaymentStatus } from '../types/order.types';
+
+// Simple logger replacement
+const logger = {
+  info: (msg: string, data?: any) => console.log(`[INFO] ${msg}`, data || ''),
+  error: (msg: string, data?: any) => console.error(`[ERROR] ${msg}`, data || ''),
+  warn: (msg: string, data?: any) => console.warn(`[WARN] ${msg}`, data || ''),
+  debug: (msg: string, data?: any) => console.log(`[DEBUG] ${msg}`, data || '')
+};
 
 const orderService = new OrderService();
 const paymentService = new PaymentService();

@@ -1,12 +1,20 @@
-import {
-  prisma,
-  Prisma,
-  JsonObject,
-  OrderWhereInput,
-  OrderWhereUniqueInput,
-} from '../config/prisma-shim';
-import { logger } from '@ultramarket/shared';
-import { Order, OrderItem, OrderStatus } from '../types/order.types';
+import { PrismaClient } from '@prisma/client';
+import { OrderStatus, PaymentStatus } from '../types/order.types';
+import { NotificationService } from './notificationService';
+import { PaymentService } from './paymentService';
+import { CartService } from './cartService';
+import { InventoryService } from './inventoryService';
+import { ShippingService } from './shippingService';
+import { DiscountService } from './discountService';
+// import { logger } from '@ultramarket/shared';
+
+// Simple logger replacement
+const logger = {
+  info: (msg: string, data?: any) => console.log(`[INFO] ${msg}`, data || ''),
+  error: (msg: string, data?: any) => console.error(`[ERROR] ${msg}`, data || ''),
+  warn: (msg: string, data?: any) => console.warn(`[WARN] ${msg}`, data || ''),
+  debug: (msg: string, data?: any) => console.log(`[DEBUG] ${msg}`, data || '')
+};
 
 export interface CreateOrderData {
   userId: string;

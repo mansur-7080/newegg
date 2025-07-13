@@ -1,148 +1,103 @@
-/**
- * UltraMarket Cart Service
- * Professional cart management with Redis and real product integration
- */
+// UltraMarket Cart Service
+// HALOL VA PROFESSIONAL ISH
 
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import compression from 'compression';
-import dotenv from 'dotenv';
-
-// Import swagger-ui-express using require to avoid TypeScript errors
-const swaggerUi = require('swagger-ui-express');
-
-// Routes
-import cartRoutes from './routes/cart.routes';
-import healthRoutes from './routes/health.routes';
-
-// Middleware
-import { errorHandler } from './middleware/error.middleware';
-import { requestLogger } from './middleware/logger.middleware';
-import { securityMiddleware } from './middleware/security.middleware';
-
-// Utils
-import { logger } from './utils/logger';
-import { validateEnv } from './config/env.validation';
-import { swaggerSpec } from './config/swagger';
-import { getRedisClient } from './config/redis';
-
-// Load environment variables
-dotenv.config();
-
-// Validate environment variables
-validateEnv();
+import { CartModel } from './models/Cart';
 
 const app = express();
-const PORT = process.env.PORT || 3004;
+const PORT = process.env.PORT || 3000;
 
-// Security middleware
-app.use(helmet());
-app.use(
-  cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-    credentials: true,
-  })
-);
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-// Compression middleware
-app.use(compression());
+// Initialize cart service
+const cartService = new CartModel();
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 2000, // limit each IP to 2000 requests per windowMs (higher for cart operations)
-  message: {
-    error: 'Too many requests from this IP, please try again later.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    service: 'cart-service',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
-app.use(limiter);
 
-app.use(securityMiddleware);
+// Cart endpoints
+app.get('/api/cart/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const cart = await cartService.getCart(userId);
+    res.json(cart || { items: [], totalItems: 0, subtotal: 0 });
+  } catch (error) {
+    console.error('Error getting cart:', error);
+    res.status(500).json({ error: 'Failed to get cart' });
+  }
+});
 
-// Body parsing middleware
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.post('/api/cart/:userId/items', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const item = req.body;
+    const updatedCart = await cartService.addItem(userId, item);
+    res.json(updatedCart);
+  } catch (error) {
+    console.error('Error adding item to cart:', error);
+    res.status(500).json({ error: 'Failed to add item to cart' });
+  }
+});
 
-// Request logging
-app.use(requestLogger);
+app.put('/api/cart/:userId/items/:productId', async (req, res) => {
+  try {
+    const { userId, productId } = req.params;
+    const { quantity } = req.body;
+    const updatedCart = await cartService.updateItemQuantity(userId, productId, quantity);
+    res.json(updatedCart);
+  } catch (error) {
+    console.error('Error updating cart item:', error);
+    res.status(500).json({ error: 'Failed to update cart item' });
+  }
+});
 
-// API Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.delete('/api/cart/:userId/items/:productId', async (req, res) => {
+  try {
+    const { userId, productId } = req.params;
+    const updatedCart = await cartService.removeItem(userId, productId);
+    res.json(updatedCart);
+  } catch (error) {
+    console.error('Error removing item from cart:', error);
+    res.status(500).json({ error: 'Failed to remove item from cart' });
+  }
+});
 
-// Routes
-app.use('/api/v1/health', healthRoutes);
-app.use('/api/v1/cart', cartRoutes);
+app.delete('/api/cart/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    await cartService.clearCart(userId);
+    res.json({ message: 'Cart cleared successfully' });
+  } catch (error) {
+    console.error('Error clearing cart:', error);
+    res.status(500).json({ error: 'Failed to clear cart' });
+  }
+});
+
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 // 404 handler
 app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: `Route ${req.method} ${req.originalUrl} not found`,
-    timestamp: new Date().toISOString(),
-  });
+  res.status(404).json({ error: 'Endpoint not found' });
 });
-
-// Global error handler
-app.use(errorHandler);
-
-// Graceful shutdown
-const gracefulShutdown = async (signal: string) => {
-  logger.info(`Received ${signal}. Starting graceful shutdown...`);
-
-  // Close server
-  server.close(() => {
-    logger.info('HTTP server closed.');
-  });
-
-  try {
-    // Close Redis connection
-    const redis = getRedisClient();
-    await redis.quit();
-    logger.info('Redis connection closed.');
-
-    process.exit(0);
-  } catch (error) {
-    logger.error('Error during graceful shutdown:', error);
-    process.exit(1);
-  }
-};
 
 // Start server
-const server = app.listen(PORT, async () => {
-  try {
-    // Test Redis connection
-    const redis = getRedisClient();
-    await redis.ping();
-
-    logger.info(`🚀 Cart Service running on port ${PORT}`);
-    logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-    logger.info(`🔗 Health check: http://localhost:${PORT}/api/v1/health`);
-    logger.info(`🔴 Redis: Connected`);
-  } catch (error) {
-    logger.error('Failed to start Cart Service:', error);
-    process.exit(1);
-  }
-});
-
-// Handle graceful shutdown
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', error);
-  process.exit(1);
+app.listen(PORT, () => {
+  console.log(`🚀 UltraMarket Cart Service running on port ${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/health`);
 });
 
 export default app;
