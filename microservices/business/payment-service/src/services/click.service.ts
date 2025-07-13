@@ -287,21 +287,70 @@ export class ClickService {
    */
   private async verifyOrder(merchantTransId: string, amount: number): Promise<boolean> {
     try {
-      // This would typically call the Order Service
-      // For now, we'll simulate the check
       logger.info('Verifying order', { merchantTransId, amount });
 
-      // TODO: Implement actual order verification
-      // const order = await orderService.getOrderByTransactionId(merchantTransId);
-      // return order && order.amount === amount && order.status === 'pending';
+      // Real order verification implementation
+      const order = await this.getOrderFromDatabase(merchantTransId);
+      if (!order) {
+        logger.error('Order not found', { merchantTransId });
+        return false;
+      }
 
-      return true; // Temporary for development
+      // Verify order status
+      if (order.status !== 'pending') {
+        logger.error('Order is not in pending status', { 
+          merchantTransId, 
+          status: order.status 
+        });
+        return false;
+      }
+
+      // Verify order amount
+      if (order.totalAmount !== amount) {
+        logger.error('Order amount mismatch', { 
+          merchantTransId, 
+          expected: order.totalAmount, 
+          actual: amount 
+        });
+        return false;
+      }
+
+      return true;
     } catch (error) {
       logger.error('Order verification failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
         merchantTransId,
       });
       return false;
+    }
+  }
+
+  /**
+   * Get order from database
+   */
+  private async getOrderFromDatabase(orderId: string): Promise<any> {
+    try {
+      // This would typically call the Order Service API
+      // For now, we'll simulate the database call
+      const response = await fetch(`${process.env.ORDER_SERVICE_URL}/api/v1/orders/${orderId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.INTERNAL_API_KEY}`,
+        },
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return await response.json();
+    } catch (error) {
+      logger.error('Failed to get order from database', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        orderId,
+      });
+      return null;
     }
   }
 
@@ -322,7 +371,20 @@ export class ClickService {
     merchantPrepareId: string
   ): Promise<void> {
     try {
-      // TODO: Store in database
+      // Real database storage implementation
+      const transactionData = {
+        clickTransId: payload.click_trans_id,
+        merchantTransId: payload.merchant_trans_id,
+        merchantPrepareId,
+        amount: payload.amount,
+        status: 'prepared',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Store in database
+      await this.saveTransactionToDatabase(transactionData);
+
       logger.info('Storing prepare transaction', {
         clickTransId: payload.click_trans_id,
         merchantTransId: payload.merchant_trans_id,
@@ -339,6 +401,34 @@ export class ClickService {
   }
 
   /**
+   * Save transaction to database
+   */
+  private async saveTransactionToDatabase(transactionData: any): Promise<void> {
+    try {
+      // This would typically use Prisma or another ORM
+      // For now, we'll simulate the database call
+      const response = await fetch(`${process.env.PAYMENT_SERVICE_URL}/api/v1/transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.INTERNAL_API_KEY}`,
+        },
+        body: JSON.stringify(transactionData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save transaction to database');
+      }
+    } catch (error) {
+      logger.error('Failed to save transaction to database', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        transactionData,
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Verify prepare transaction exists
    */
   private async verifyPrepareTransaction(
@@ -346,13 +436,16 @@ export class ClickService {
     merchantPrepareId: string
   ): Promise<boolean> {
     try {
-      // TODO: Check in database
+      // Real database check implementation
+      const transaction = await this.getTransactionFromDatabase(clickTransId, merchantPrepareId);
+      
       logger.info('Verifying prepare transaction', {
         clickTransId,
         merchantPrepareId,
+        found: !!transaction,
       });
 
-      return true; // Temporary for development
+      return !!transaction;
     } catch (error) {
       logger.error('Failed to verify prepare transaction', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -363,15 +456,68 @@ export class ClickService {
   }
 
   /**
+   * Get transaction from database
+   */
+  private async getTransactionFromDatabase(clickTransId: string, merchantPrepareId: string): Promise<any> {
+    try {
+      // This would typically use Prisma or another ORM
+      // For now, we'll simulate the database call
+      const response = await fetch(`${process.env.PAYMENT_SERVICE_URL}/api/v1/transactions/${clickTransId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.INTERNAL_API_KEY}`,
+        },
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const transaction = await response.json();
+      
+      // Verify merchant prepare ID matches
+      if (transaction.merchantPrepareId !== merchantPrepareId) {
+        return null;
+      }
+
+      return transaction;
+    } catch (error) {
+      logger.error('Failed to get transaction from database', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        clickTransId,
+      });
+      return null;
+    }
+  }
+
+  /**
    * Complete payment
    */
   private async completePayment(payload: ClickWebhookPayload): Promise<void> {
     try {
-      // TODO: Update order status, send notifications, etc.
+      // Real payment completion implementation
       logger.info('Completing payment', {
         clickTransId: payload.click_trans_id,
         merchantTransId: payload.merchant_trans_id,
         amount: payload.amount,
+      });
+
+      // Update transaction status
+      await this.updateTransactionStatus(payload.click_trans_id, 'completed');
+
+      // Update order status
+      await this.updateOrderStatus(payload.merchant_trans_id, 'paid');
+
+      // Send payment confirmation notification
+      await this.sendPaymentNotification(payload.merchant_trans_id, 'completed');
+
+      // Update inventory
+      await this.updateInventory(payload.merchant_trans_id);
+
+      logger.info('Payment completed successfully', {
+        clickTransId: payload.click_trans_id,
+        merchantTransId: payload.merchant_trans_id,
       });
     } catch (error) {
       logger.error('Failed to complete payment', {
@@ -379,6 +525,112 @@ export class ClickService {
         clickTransId: payload.click_trans_id,
       });
       throw error;
+    }
+  }
+
+  /**
+   * Update transaction status
+   */
+  private async updateTransactionStatus(clickTransId: string, status: string): Promise<void> {
+    try {
+      const response = await fetch(`${process.env.PAYMENT_SERVICE_URL}/api/v1/transactions/${clickTransId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.INTERNAL_API_KEY}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update transaction status');
+      }
+    } catch (error) {
+      logger.error('Failed to update transaction status', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        clickTransId,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Update order status
+   */
+  private async updateOrderStatus(orderId: string, status: string): Promise<void> {
+    try {
+      const response = await fetch(`${process.env.ORDER_SERVICE_URL}/api/v1/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.INTERNAL_API_KEY}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update order status');
+      }
+    } catch (error) {
+      logger.error('Failed to update order status', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        orderId,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Send payment notification
+   */
+  private async sendPaymentNotification(orderId: string, status: string): Promise<void> {
+    try {
+      const response = await fetch(`${process.env.NOTIFICATION_SERVICE_URL}/api/v1/notifications/payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.INTERNAL_API_KEY}`,
+        },
+        body: JSON.stringify({
+          orderId,
+          status,
+          type: 'payment_confirmation',
+        }),
+      });
+
+      if (!response.ok) {
+        logger.warn('Failed to send payment notification', { orderId, status });
+      }
+    } catch (error) {
+      logger.error('Failed to send payment notification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        orderId,
+      });
+    }
+  }
+
+  /**
+   * Update inventory
+   */
+  private async updateInventory(orderId: string): Promise<void> {
+    try {
+      const response = await fetch(`${process.env.INVENTORY_SERVICE_URL}/api/v1/inventory/update-from-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.INTERNAL_API_KEY}`,
+        },
+        body: JSON.stringify({ orderId }),
+      });
+
+      if (!response.ok) {
+        logger.warn('Failed to update inventory', { orderId });
+      }
+    } catch (error) {
+      logger.error('Failed to update inventory', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        orderId,
+      });
     }
   }
 
@@ -391,11 +643,20 @@ export class ClickService {
     error?: string;
   }> {
     try {
-      // TODO: Implement status check
+      // Real status check implementation
       logger.info('Getting payment status', { transactionId });
 
+      const transaction = await this.getTransactionFromDatabase(transactionId, '');
+      if (!transaction) {
+        return {
+          status: 'failed',
+          error: 'Transaction not found',
+        };
+      }
+
       return {
-        status: 'pending',
+        status: transaction.status,
+        amount: transaction.amount,
       };
     } catch (error) {
       logger.error('Failed to get payment status', {

@@ -422,20 +422,69 @@ export class PaymeService {
    */
   private async verifyOrder(orderId: string, amount: number): Promise<boolean> {
     try {
-      // This would typically call the Order Service
+      // Real order verification implementation
       logger.info('Verifying order', { orderId, amount });
 
-      // TODO: Implement actual order verification
-      // const order = await orderService.getOrder(orderId);
-      // return order && order.amount === amount && order.status === 'pending';
+      const order = await this.getOrderFromDatabase(orderId);
+      if (!order) {
+        logger.error('Order not found', { orderId });
+        return false;
+      }
 
-      return true; // Temporary for development
+      // Verify order status
+      if (order.status !== 'pending') {
+        logger.error('Order is not in pending status', { 
+          orderId, 
+          status: order.status 
+        });
+        return false;
+      }
+
+      // Verify order amount
+      if (order.totalAmount !== amount) {
+        logger.error('Order amount mismatch', { 
+          orderId, 
+          expected: order.totalAmount, 
+          actual: amount 
+        });
+        return false;
+      }
+
+      return true;
     } catch (error) {
       logger.error('Order verification failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
         orderId,
       });
       return false;
+    }
+  }
+
+  /**
+   * Get order from database
+   */
+  private async getOrderFromDatabase(orderId: string): Promise<any> {
+    try {
+      // This would typically call the Order Service API
+      const response = await fetch(`${process.env.ORDER_SERVICE_URL}/api/v1/orders/${orderId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.INTERNAL_API_KEY}`,
+        },
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return await response.json();
+    } catch (error) {
+      logger.error('Failed to get order from database', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        orderId,
+      });
+      return null;
     }
   }
 

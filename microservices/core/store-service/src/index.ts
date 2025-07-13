@@ -1,6 +1,6 @@
 /**
- * UltraMarket Analytics Service
- * Professional analytics and business intelligence service
+ * UltraMarket Store Service
+ * Professional multi-vendor marketplace management service
  */
 
 import express from 'express';
@@ -13,8 +13,11 @@ import { createClient } from 'redis';
 import dotenv from 'dotenv';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
-import { analyticsRoutes } from './routes/analytics.routes';
-import { reportsRoutes } from './routes/reports.routes';
+import { authMiddleware } from './middleware/authMiddleware';
+import { validationMiddleware } from './middleware/validationMiddleware';
+import { storeRoutes } from './routes/store.routes';
+import { vendorRoutes } from './routes/vendor.routes';
+import { marketplaceRoutes } from './routes/marketplace.routes';
 import { healthRoutes } from './routes/health.routes';
 import { swaggerSetup } from './config/swagger';
 import { validateEnv } from './config/env.validation';
@@ -26,7 +29,7 @@ dotenv.config();
 validateEnv();
 
 const app = express();
-const PORT = process.env.PORT || 3020;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3004;
 
 // Initialize database clients
 export const prisma = new PrismaClient({
@@ -92,8 +95,9 @@ app.use((req, res, next) => {
 });
 
 // API Routes
-app.use('/api/v1/analytics', analyticsRoutes);
-app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/stores', storeRoutes);
+app.use('/api/v1/vendors', vendorRoutes);
+app.use('/api/v1/marketplace', marketplaceRoutes);
 app.use('/health', healthRoutes);
 
 // Swagger documentation
@@ -147,7 +151,7 @@ const startServer = async () => {
 
     // Start HTTP server
     app.listen(PORT, () => {
-      logger.info(`🚀 Analytics Service running on port ${PORT}`);
+      logger.info(`🚀 Store Service running on port ${PORT}`);
       logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
       logger.info(`🏥 Health Check: http://localhost:${PORT}/health`);
     });

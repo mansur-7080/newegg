@@ -181,17 +181,24 @@ export class NotificationService {
    */
   async sendSMS(notification: SMSNotification): Promise<void> {
     try {
-      // SMS service integration (e.g., Twilio, Nexmo)
-      // For now, we'll log the SMS
-      logger.info('SMS notification', {
+      // Real SMS integration with Twilio
+      const twilio = require('twilio');
+      const client = twilio(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+      );
+
+      await client.messages.create({
+        body: notification.message,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to: notification.to,
+      });
+
+      logger.info('SMS sent successfully', {
         to: notification.to,
         message: notification.message,
         template: notification.template,
       });
-
-      // TODO: Integrate with SMS provider
-      // const smsProvider = new SMSProvider();
-      // await smsProvider.send(notification.to, notification.message);
     } catch (error) {
       logger.error('Failed to send SMS', error);
       throw error;
@@ -203,16 +210,52 @@ export class NotificationService {
    */
   async sendPush(notification: PushNotification): Promise<void> {
     try {
-      // Push notification service integration (e.g., Firebase, OneSignal)
-      logger.info('Push notification', {
+      // Real push notification integration with Firebase
+      const admin = require('firebase-admin');
+      
+      // Get user's FCM token
+      const user = await prisma.user.findUnique({
+        where: { id: notification.userId },
+        select: { fcmToken: true },
+      });
+
+      if (!user?.fcmToken) {
+        logger.warn('User has no FCM token', { userId: notification.userId });
+        return;
+      }
+
+      // Send push notification
+      const message = {
+        token: user.fcmToken,
+        notification: {
+          title: notification.title,
+          body: notification.body,
+        },
+        data: notification.data || {},
+        android: {
+          notification: {
+            sound: notification.sound || 'default',
+            icon: notification.icon || 'ic_notification',
+            clickAction: notification.clickAction,
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              badge: notification.badge || 1,
+              sound: notification.sound || 'default',
+            },
+          },
+        },
+      };
+
+      await admin.messaging().send(message);
+
+      logger.info('Push notification sent successfully', {
         userId: notification.userId,
         title: notification.title,
         body: notification.body,
       });
-
-      // TODO: Integrate with push notification provider
-      // const pushProvider = new PushNotificationProvider();
-      // await pushProvider.send(notification);
     } catch (error) {
       logger.error('Failed to send push notification', error);
       throw error;

@@ -242,6 +242,100 @@ export class GlobalErrorHandler {
   }
 
   /**
+   * Notify external services about critical errors
+   */
+  private async notifyExternalService(errorReport: ErrorReport): Promise<void> {
+    try {
+      // Send to monitoring service (e.g., Sentry, DataDog)
+      if (process.env.SENTRY_DSN) {
+        const Sentry = require('@sentry/node');
+        Sentry.captureException(new Error(errorReport.message), {
+          tags: {
+            errorId: errorReport.id,
+            service: errorReport.context.service,
+            severity: errorReport.severity,
+          },
+          extra: {
+            context: errorReport.context,
+            metadata: errorReport.metadata,
+          },
+        });
+      }
+
+      // Send to notification service
+      if (process.env.NOTIFICATION_SERVICE_URL) {
+        await fetch(`${process.env.NOTIFICATION_SERVICE_URL}/api/v1/notifications/critical-error`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.INTERNAL_API_KEY}`,
+          },
+          body: JSON.stringify({
+            errorId: errorReport.id,
+            message: errorReport.message,
+            severity: errorReport.severity,
+            service: errorReport.context.service,
+            context: errorReport.context,
+            metadata: errorReport.metadata,
+          }),
+        });
+      }
+
+      // Send to Slack/Discord for immediate attention
+      if (process.env.SLACK_WEBHOOK_URL) {
+        await fetch(process.env.SLACK_WEBHOOK_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text: `🚨 Critical Error Alert`,
+            attachments: [
+              {
+                color: 'danger',
+                fields: [
+                  {
+                    title: 'Error ID',
+                    value: errorReport.id,
+                    short: true,
+                  },
+                  {
+                    title: 'Service',
+                    value: errorReport.context.service,
+                    short: true,
+                  },
+                  {
+                    title: 'Message',
+                    value: errorReport.message,
+                    short: false,
+                  },
+                  {
+                    title: 'Severity',
+                    value: errorReport.severity,
+                    short: true,
+                  },
+                ],
+                footer: 'UltraMarket Error Monitoring',
+                ts: Math.floor(Date.now() / 1000),
+              },
+            ],
+          }),
+        });
+      }
+
+      logger.info('External notification sent', {
+        errorId: errorReport.id,
+        service: errorReport.context.service,
+      });
+    } catch (error) {
+      logger.error('Failed to send external notification', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorId: errorReport.id,
+      });
+    }
+  }
+
+  /**
    * Try to recover from error
    */
   async tryRecover(error: Error, context: ErrorContext): Promise<any> {
@@ -552,8 +646,8 @@ globalErrorHandler.addErrorCallback((errorReport: ErrorReport) => {
       service: errorReport.context.service,
     });
 
-    // TODO: Implement external notification service
-    // notificationService.sendCriticalAlert(errorReport);
+    // Real external notification service implementation
+    this.notifyExternalService(errorReport);
   }
 });
 
