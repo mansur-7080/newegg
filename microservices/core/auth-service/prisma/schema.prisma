@@ -22,6 +22,13 @@ model User {
   isPhoneVerified Boolean   @default(false)
   status          UserStatus @default(ACTIVE)
   lastLoginAt     DateTime?
+  
+  // MFA fields
+  mfaEnabled      Boolean   @default(false)
+  mfaMethod       MFAMethod?
+  mfaSecret       String?
+  backupCodes     Json?     // Array of backup codes
+  
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -30,6 +37,7 @@ model User {
   passwordResets  PasswordReset[]
   auditLogs       AuditLog[]
   securityLogs    SecurityLog[]
+  mfaTokens       MFAToken[]
 
   @@map("users")
 }
@@ -58,6 +66,21 @@ model PasswordReset {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_resets")
+}
+
+model MFAToken {
+  id        String   @id @default(cuid())
+  userId    String
+  type      MFAMethod
+  token     String
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mfa_tokens")
 }
 
 model AuditLog {
@@ -122,4 +145,12 @@ enum UserStatus {
   BANNED
 
   @@map("user_status")
+}
+
+enum MFAMethod {
+  TOTP
+  SMS
+  EMAIL
+
+  @@map("mfa_method")
 } 

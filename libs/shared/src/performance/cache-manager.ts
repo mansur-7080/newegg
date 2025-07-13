@@ -4,7 +4,19 @@
  */
 
 import { createClient, RedisClientType } from 'redis';
-import { logger } from '../logging/logger';
+
+// Simple logger implementation
+const logger = {
+  info: (message: string, meta?: any) => {
+    console.log(`[INFO] ${message}`, meta ? JSON.stringify(meta) : '');
+  },
+  error: (message: string, meta?: any) => {
+    console.error(`[ERROR] ${message}`, meta ? JSON.stringify(meta) : '');
+  },
+  debug: (message: string, meta?: any) => {
+    console.debug(`[DEBUG] ${message}`, meta ? JSON.stringify(meta) : '');
+  }
+};
 
 export interface CacheOptions {
   ttl?: number; // Time to live in seconds
@@ -28,7 +40,7 @@ export class CacheManager {
       url: redisUrl || process.env.REDIS_URL || 'redis://localhost:6379',
     });
 
-    this.redis.on('error', (err) => {
+    this.redis.on('error', (err: any) => {
       logger.error('Redis connection error:', err);
     });
 
@@ -230,8 +242,9 @@ export class CacheManager {
       const keys = await this.redis.keys(pattern);
       if (keys.length > 0) {
         await this.redis.del(keys);
-        logger.info('Cache invalidated by pattern', { pattern, count: keys.length });
       }
+      
+      logger.info('Cache invalidated by pattern', { pattern, count: keys.length });
     } catch (error) {
       logger.error('Failed to invalidate cache pattern:', error);
       throw error;
