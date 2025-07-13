@@ -6,6 +6,7 @@
 
 import { logger } from '../utils/logger';
 import { AdvancedCacheService } from '../utils/advanced-cache.service';
+import { InputValidator, ValidationError } from '../utils/input-validator';
 import { performance } from 'perf_hooks';
 import prisma from '../lib/prisma';
 
@@ -177,33 +178,37 @@ export class EnhancedProductService {
   }
 
   /**
-   * Get products with pagination and filtering
+   * ENHANCED: Get products with input validation and sanitization
    * @param options Query options for filtering and pagination
    */
   async getProducts(options: ProductQueryOptions = {}) {
     const start = performance.now();
-    const {
-      page = 1,
-      limit = 20,
-      sortBy = 'createdAt',
-      sortOrder = 'DESC',
-      filters = {},
-      includeInactive = false,
-    } = options;
-
-    const skip = (page - 1) * limit;
-
-    // Generate cache key based on query parameters
-    const cacheKey = this.generateCacheKey('products', {
-      page,
-      limit,
-      sortBy,
-      sortOrder,
-      filters,
-      includeInactive,
-    });
 
     try {
+      // ENHANCED: Validate and sanitize input
+      const validatedFilters = options.filters ? InputValidator.validateAndSanitize(options.filters, 'filters') : {};
+      
+      const {
+        page = 1,
+        limit = 20,
+        sortBy = 'createdAt',
+        sortOrder = 'DESC',
+        filters = {},
+        includeInactive = false,
+      } = { ...options, filters: validatedFilters };
+
+      const skip = (page - 1) * limit;
+
+      // Generate cache key based on query parameters
+      const cacheKey = this.generateCacheKey('products', {
+        page,
+        limit,
+        sortBy,
+        sortOrder,
+        filters,
+        includeInactive,
+      });
+
       // Try to get from cache first
       if (this.cacheService) {
         const cachedResult = await this.cacheService.get(cacheKey);
@@ -213,141 +218,150 @@ export class EnhancedProductService {
         }
       }
 
-      // Build where conditions for SQL
-      let whereClause = '1=1'; // Always true base condition
-      const whereParams: any[] = [];
+      // Build WHERE clause for filtering
+      const whereConditions: string[] = [];
+      const queryParams: any[] = [];
 
-      // Always filter out inactive products unless specifically included
       if (!includeInactive) {
-        whereClause += ' AND is_active = true';
+        whereConditions.push('is_active = true');
       }
 
-      // Apply filters
       if (filters.categoryId) {
-        whereClause += ' AND category_id = ?';
-        whereParams.push(filters.categoryId);
+        whereConditions.push('category_id = ?');
+        queryParams.push(filters.categoryId);
       }
 
       if (filters.vendorId) {
-        whereClause += ' AND vendor_id = ?';
-        whereParams.push(filters.vendorId);
+        whereConditions.push('vendor_id = ?');
+        queryParams.push(filters.vendorId);
       }
 
-      if (filters.status) {
-        whereClause += ' AND status = ?';
-        whereParams.push(filters.status);
-      }
-
-      if (filters.type) {
-        whereClause += ' AND type = ?';
-        whereParams.push(filters.type);
-      }
-
-      if (filters.isActive !== undefined) {
-        whereClause += ' AND is_active = ?';
-        whereParams.push(filters.isActive);
-      }
-
-      if (filters.isFeatured !== undefined) {
-        whereClause += ' AND is_featured = ?';
-        whereParams.push(filters.isFeatured);
-      }
-
-      if (filters.isBestSeller !== undefined) {
-        whereClause += ' AND is_best_seller = ?';
-        whereParams.push(filters.isBestSeller);
-      }
-
-      if (filters.isNewArrival !== undefined) {
-        whereClause += ' AND is_new_arrival = ?';
-        whereParams.push(filters.isNewArrival);
-      }
-
-      if (filters.isOnSale !== undefined) {
-        whereClause += ' AND is_on_sale = ?';
-        whereParams.push(filters.isOnSale);
-      }
-
-      // Price range filter
       if (filters.minPrice !== undefined) {
-        whereClause += ' AND price >= ?';
-        whereParams.push(filters.minPrice);
+        whereConditions.push('price >= ?');
+        queryParams.push(filters.minPrice);
       }
 
       if (filters.maxPrice !== undefined) {
-        whereClause += ' AND price <= ?';
-        whereParams.push(filters.maxPrice);
+        whereConditions.push('price <= ?');
+        queryParams.push(filters.maxPrice);
       }
 
-      // Text search
+      if (filters.status) {
+        whereConditions.push('status = ?');
+        queryParams.push(filters.status);
+      }
+
+      if (filters.type) {
+        whereConditions.push('type = ?');
+        queryParams.push(filters.type);
+      }
+
+      if (filters.isFeatured !== undefined) {
+        whereConditions.push('is_featured = ?');
+        queryParams.push(filters.isFeatured);
+      }
+
+      if (filters.isBestSeller !== undefined) {
+        whereConditions.push('is_best_seller = ?');
+        queryParams.push(filters.isBestSeller);
+      }
+
+      if (filters.isNewArrival !== undefined) {
+        whereConditions.push('is_new_arrival = ?');
+        queryParams.push(filters.isNewArrival);
+      }
+
+      if (filters.isOnSale !== undefined) {
+        whereConditions.push('is_on_sale = ?');
+        queryParams.push(filters.isOnSale);
+      }
+
       if (filters.search) {
-        whereClause += ' AND (name ILIKE ? OR description ILIKE ? OR sku ILIKE ? OR brand ILIKE ?)';
-        const searchPattern = `%${filters.search}%`;
-        whereParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+        whereConditions.push(`
+          (name ILIKE ? OR description ILIKE ? OR brand ILIKE ? OR model ILIKE ?)
+        `);
+        const searchTerm = `%${filters.search}%`;
+        queryParams.push(searchTerm, searchTerm, searchTerm, searchTerm);
       }
 
-      // Tags filter
       if (filters.tags && filters.tags.length > 0) {
-        whereClause += ' AND tags ?| array[' + filters.tags.map(() => '?').join(',') + ']';
-        whereParams.push(...filters.tags);
+        whereConditions.push('tags ?| ?');
+        queryParams.push(filters.tags);
       }
 
-      // Execute query and count in parallel for better performance
-      const productsQuery = `
-        SELECT p.*, 
-               c.name as category_name,
-               c.slug as category_slug
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+      // Build ORDER BY clause
+      const orderByClause = `ORDER BY ${sortBy} ${sortOrder}`;
+
+      // Execute query with pagination
+      const query = `
+        SELECT 
+          p.*,
+          c.name as category_name,
+          c.slug as category_slug,
+          v.name as vendor_name,
+          v.email as vendor_email
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
-        WHERE ${whereClause}
-        ORDER BY ${sortBy || 'created_at'} ${sortOrder || 'DESC'}
-        LIMIT ${limit} OFFSET ${skip}
+        LEFT JOIN vendors v ON p.vendor_id = v.id
+        ${whereClause}
+        ${orderByClause}
+        LIMIT ? OFFSET ?
       `;
 
       const countQuery = `
         SELECT COUNT(*) as total
-        FROM products
-        WHERE ${whereClause}
+        FROM products p
+        ${whereClause}
       `;
 
-      // Use Prisma's raw query capabilities
-      const [productsResult, countResult] = await Promise.all([
-        prisma.$queryRawUnsafe(productsQuery, ...whereParams),
-        prisma.$queryRawUnsafe(countQuery, ...whereParams),
+      // Execute queries in parallel
+      const [products, countResult] = await Promise.all([
+        prisma.$queryRawUnsafe(query, ...queryParams, limit, skip),
+        prisma.$queryRawUnsafe(countQuery, ...queryParams),
       ]);
 
-      const products = productsResult as Product[];
-      const total = parseInt((countResult as any)[0].total, 10);
-      const totalPages = Math.ceil(total / limit);
+      const total = (countResult as any[])[0]?.total || 0;
 
-      // Process products to match expected format
-      const processedProducts = await this.enrichProducts(products);
+      // Enrich products with additional data
+      const enrichedProducts = await this.enrichProducts(products as Product[]);
 
       const result = {
-        products: processedProducts,
-        total,
-        page,
-        limit,
-        totalPages,
+        products: enrichedProducts,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: page * limit < total,
+          hasPrevPage: page > 1,
+        },
+        filters: validatedFilters,
       };
 
-      // Cache results
+      // Cache the result
       if (this.cacheService) {
-        await this.cacheService.set(
-          cacheKey,
-          result,
-          300, // 5 minutes TTL
-          ['products', `page:${page}`, 'list']
-        );
+        await this.cacheService.set(cacheKey, result, 300); // 5 minutes cache
       }
 
       const duration = performance.now() - start;
-      logger.debug(`getProducts completed in ${duration.toFixed(2)}ms`);
+      logger.info(`Products query completed in ${duration.toFixed(2)}ms`, {
+        count: enrichedProducts.length,
+        total,
+        page,
+        limit,
+      });
 
       return result;
     } catch (error) {
-      logger.error('Error getting products:', error);
-      throw new ProductError('Failed to retrieve products', 'PRODUCT_FETCH_ERROR', 500);
+      if (error instanceof ValidationError) {
+        logger.error('Input validation error in getProducts', { error });
+        throw new ProductError(error.message, 'VALIDATION_ERROR', 400);
+      }
+
+      logger.error('Error fetching products:', error);
+      throw new ProductError('Failed to fetch products', 'PRODUCT_FETCH_ERROR', 500);
     }
   }
 
@@ -650,19 +664,22 @@ export class EnhancedProductService {
   }
 
   /**
-   * Create a new product
+   * ENHANCED: Create a new product with input validation
    * @param data Product data
    */
   async createProduct(data: ProductCreateData) {
     const start = performance.now();
 
     try {
+      // ENHANCED: Validate and sanitize input data
+      const validatedData = InputValidator.validateAndSanitize(data, 'create');
+
       // Check if SKU already exists
       const existingSku = await prisma.$queryRawUnsafe(
         `
         SELECT id FROM products WHERE sku = ?
       `,
-        data.sku
+        validatedData.sku
       );
 
       if (existingSku && (existingSku as any[]).length > 0) {
@@ -670,12 +687,12 @@ export class EnhancedProductService {
       }
 
       // Check if slug exists if provided
-      if (data.slug) {
+      if (validatedData.slug) {
         const existingSlug = await prisma.$queryRawUnsafe(
           `
           SELECT id FROM products WHERE slug = ?
         `,
-          data.slug
+          validatedData.slug
         );
 
         if (existingSlug && (existingSlug as any[]).length > 0) {
@@ -684,11 +701,11 @@ export class EnhancedProductService {
       }
 
       // Generate slug if not provided
-      const slug = data.slug || this.generateSlug(data.name);
+      const slug = validatedData.slug || this.generateSlug(validatedData.name);
 
       // Use a transaction for data consistency
       const product = await prisma.$transaction(async (tx) => {
-        // Insert the product
+        // Insert the product with validated data
         const insertResult = await tx.$queryRawUnsafe(
           `
           INSERT INTO products (
@@ -716,42 +733,42 @@ export class EnhancedProductService {
           )
           RETURNING *
         `,
-          data.name,
+          validatedData.name,
           slug,
-          data.description,
-          data.shortDescription,
-          data.sku,
-          data.barcode,
-          data.brand,
-          data.model,
-          data.weight,
-          JSON.stringify(data.dimensions || null),
-          data.price,
-          data.comparePrice,
-          data.costPrice,
-          data.currency || 'USD',
-          data.status || 'DRAFT',
-          data.type || 'PHYSICAL',
-          data.categoryId,
-          data.vendorId,
-          JSON.stringify(data.attributes || null),
-          JSON.stringify(data.specifications || null),
-          data.warranty,
-          data.returnPolicy,
-          data.shippingInfo,
-          JSON.stringify(data.tags || []),
-          data.isActive !== undefined ? data.isActive : true,
-          data.isFeatured || false,
-          data.isBestSeller || false,
-          data.isNewArrival || false,
-          data.isOnSale || false,
-          data.salePercentage,
-          data.saleStartDate,
-          data.saleEndDate,
-          data.metaTitle,
-          data.metaDescription,
-          JSON.stringify(data.metaKeywords || []),
-          data.publishedAt
+          validatedData.description,
+          validatedData.shortDescription,
+          validatedData.sku,
+          validatedData.barcode,
+          validatedData.brand,
+          validatedData.model,
+          validatedData.weight,
+          JSON.stringify(validatedData.dimensions || null),
+          validatedData.price,
+          validatedData.comparePrice,
+          validatedData.costPrice,
+          validatedData.currency || 'USD',
+          validatedData.status || 'DRAFT',
+          validatedData.type || 'PHYSICAL',
+          validatedData.categoryId,
+          validatedData.vendorId,
+          JSON.stringify(validatedData.attributes || null),
+          JSON.stringify(validatedData.specifications || null),
+          validatedData.warranty,
+          validatedData.returnPolicy,
+          validatedData.shippingInfo,
+          JSON.stringify(validatedData.tags || []),
+          validatedData.isActive !== undefined ? validatedData.isActive : true,
+          validatedData.isFeatured || false,
+          validatedData.isBestSeller || false,
+          validatedData.isNewArrival || false,
+          validatedData.isOnSale || false,
+          validatedData.salePercentage,
+          validatedData.saleStartDate,
+          validatedData.saleEndDate,
+          validatedData.metaTitle,
+          validatedData.metaDescription,
+          JSON.stringify(validatedData.metaKeywords || []),
+          validatedData.publishedAt
         );
 
         const newProduct = (insertResult as any[])[0];
@@ -766,8 +783,8 @@ export class EnhancedProductService {
           )
         `,
           newProduct.id,
-          data.price,
-          data.currency || 'USD'
+          validatedData.price,
+          validatedData.currency || 'USD'
         );
 
         return newProduct;
@@ -783,6 +800,11 @@ export class EnhancedProductService {
 
       return product;
     } catch (error) {
+      if (error instanceof ValidationError) {
+        logger.error('Input validation error in createProduct', { error });
+        throw new ProductError(error.message, 'VALIDATION_ERROR', 400);
+      }
+
       if (error instanceof ProductError) throw error;
 
       logger.error('Error creating product:', error);
@@ -791,7 +813,7 @@ export class EnhancedProductService {
   }
 
   /**
-   * Update an existing product
+   * ENHANCED: Update an existing product with input validation
    * @param id Product ID
    * @param data Update data
    */
@@ -799,6 +821,9 @@ export class EnhancedProductService {
     const start = performance.now();
 
     try {
+      // ENHANCED: Validate and sanitize input data
+      const validatedData = InputValidator.validateAndSanitize(data, 'update');
+
       // Check if product exists
       const existingProductResult = await prisma.$queryRawUnsafe(
         `
@@ -814,12 +839,12 @@ export class EnhancedProductService {
       const existingProduct = (existingProductResult as any[])[0];
 
       // Check if SKU is being changed and if new SKU exists
-      if (data.sku && data.sku !== existingProduct.sku) {
+      if (validatedData.sku && validatedData.sku !== existingProduct.sku) {
         const existingSkuResult = await prisma.$queryRawUnsafe(
           `
           SELECT id FROM products WHERE sku = ? AND id != ?
         `,
-          data.sku,
+          validatedData.sku,
           id
         );
 
@@ -829,12 +854,12 @@ export class EnhancedProductService {
       }
 
       // Check if slug is being changed and if new slug exists
-      if (data.slug && data.slug !== existingProduct.slug) {
+      if (validatedData.slug && validatedData.slug !== existingProduct.slug) {
         const existingSlugResult = await prisma.$queryRawUnsafe(
           `
           SELECT id FROM products WHERE slug = ? AND id != ?
         `,
-          data.slug,
+          validatedData.slug,
           id
         );
 
@@ -845,195 +870,195 @@ export class EnhancedProductService {
 
       // Track if price is being updated
       const isPriceUpdate =
-        data.price !== undefined && Number(data.price) !== Number(existingProduct.price);
+        validatedData.price !== undefined && Number(validatedData.price) !== Number(existingProduct.price);
 
       // Build update SQL parts
       const updates: string[] = [];
       const values: any[] = [];
 
       // Only include fields that are provided
-      if (data.name !== undefined) {
+      if (validatedData.name !== undefined) {
         updates.push('name = ?');
-        values.push(data.name);
+        values.push(validatedData.name);
       }
 
-      if (data.slug !== undefined) {
+      if (validatedData.slug !== undefined) {
         updates.push('slug = ?');
-        values.push(data.slug);
-      } else if (data.name !== undefined && !data.slug) {
+        values.push(validatedData.slug);
+      } else if (validatedData.name !== undefined && !validatedData.slug) {
         // Auto-update slug if name changes but slug wasn't explicitly set
         updates.push('slug = ?');
-        values.push(this.generateSlug(data.name));
+        values.push(this.generateSlug(validatedData.name));
       }
 
-      if (data.description !== undefined) {
+      if (validatedData.description !== undefined) {
         updates.push('description = ?');
-        values.push(data.description);
+        values.push(validatedData.description);
       }
 
-      if (data.shortDescription !== undefined) {
+      if (validatedData.shortDescription !== undefined) {
         updates.push('short_description = ?');
-        values.push(data.shortDescription);
+        values.push(validatedData.shortDescription);
       }
 
-      if (data.sku !== undefined) {
+      if (validatedData.sku !== undefined) {
         updates.push('sku = ?');
-        values.push(data.sku);
+        values.push(validatedData.sku);
       }
 
-      if (data.barcode !== undefined) {
+      if (validatedData.barcode !== undefined) {
         updates.push('barcode = ?');
-        values.push(data.barcode);
+        values.push(validatedData.barcode);
       }
 
-      if (data.brand !== undefined) {
+      if (validatedData.brand !== undefined) {
         updates.push('brand = ?');
-        values.push(data.brand);
+        values.push(validatedData.brand);
       }
 
-      if (data.model !== undefined) {
+      if (validatedData.model !== undefined) {
         updates.push('model = ?');
-        values.push(data.model);
+        values.push(validatedData.model);
       }
 
-      if (data.weight !== undefined) {
+      if (validatedData.weight !== undefined) {
         updates.push('weight = ?');
-        values.push(data.weight);
+        values.push(validatedData.weight);
       }
 
-      if (data.dimensions !== undefined) {
+      if (validatedData.dimensions !== undefined) {
         updates.push('dimensions = ?');
-        values.push(JSON.stringify(data.dimensions));
+        values.push(JSON.stringify(validatedData.dimensions));
       }
 
-      if (data.price !== undefined) {
+      if (validatedData.price !== undefined) {
         updates.push('price = ?');
-        values.push(data.price);
+        values.push(validatedData.price);
       }
 
-      if (data.comparePrice !== undefined) {
+      if (validatedData.comparePrice !== undefined) {
         updates.push('compare_price = ?');
-        values.push(data.comparePrice);
+        values.push(validatedData.comparePrice);
       }
 
-      if (data.costPrice !== undefined) {
+      if (validatedData.costPrice !== undefined) {
         updates.push('cost_price = ?');
-        values.push(data.costPrice);
+        values.push(validatedData.costPrice);
       }
 
-      if (data.currency !== undefined) {
+      if (validatedData.currency !== undefined) {
         updates.push('currency = ?');
-        values.push(data.currency);
+        values.push(validatedData.currency);
       }
 
-      if (data.status !== undefined) {
+      if (validatedData.status !== undefined) {
         updates.push('status = ?');
-        values.push(data.status);
+        values.push(validatedData.status);
       }
 
-      if (data.type !== undefined) {
+      if (validatedData.type !== undefined) {
         updates.push('type = ?');
-        values.push(data.type);
+        values.push(validatedData.type);
       }
 
-      if (data.categoryId !== undefined) {
+      if (validatedData.categoryId !== undefined) {
         updates.push('category_id = ?');
-        values.push(data.categoryId);
+        values.push(validatedData.categoryId);
       }
 
-      if (data.vendorId !== undefined) {
+      if (validatedData.vendorId !== undefined) {
         updates.push('vendor_id = ?');
-        values.push(data.vendorId);
+        values.push(validatedData.vendorId);
       }
 
-      if (data.attributes !== undefined) {
+      if (validatedData.attributes !== undefined) {
         updates.push('attributes = ?');
-        values.push(JSON.stringify(data.attributes));
+        values.push(JSON.stringify(validatedData.attributes));
       }
 
-      if (data.specifications !== undefined) {
+      if (validatedData.specifications !== undefined) {
         updates.push('specifications = ?');
-        values.push(JSON.stringify(data.specifications));
+        values.push(JSON.stringify(validatedData.specifications));
       }
 
-      if (data.warranty !== undefined) {
+      if (validatedData.warranty !== undefined) {
         updates.push('warranty = ?');
-        values.push(data.warranty);
+        values.push(validatedData.warranty);
       }
 
-      if (data.returnPolicy !== undefined) {
+      if (validatedData.returnPolicy !== undefined) {
         updates.push('return_policy = ?');
-        values.push(data.returnPolicy);
+        values.push(validatedData.returnPolicy);
       }
 
-      if (data.shippingInfo !== undefined) {
+      if (validatedData.shippingInfo !== undefined) {
         updates.push('shipping_info = ?');
-        values.push(data.shippingInfo);
+        values.push(validatedData.shippingInfo);
       }
 
-      if (data.tags !== undefined) {
+      if (validatedData.tags !== undefined) {
         updates.push('tags = ?');
-        values.push(JSON.stringify(data.tags));
+        values.push(JSON.stringify(validatedData.tags));
       }
 
-      if (data.isActive !== undefined) {
+      if (validatedData.isActive !== undefined) {
         updates.push('is_active = ?');
-        values.push(data.isActive);
+        values.push(validatedData.isActive);
       }
 
-      if (data.isFeatured !== undefined) {
+      if (validatedData.isFeatured !== undefined) {
         updates.push('is_featured = ?');
-        values.push(data.isFeatured);
+        values.push(validatedData.isFeatured);
       }
 
-      if (data.isBestSeller !== undefined) {
+      if (validatedData.isBestSeller !== undefined) {
         updates.push('is_best_seller = ?');
-        values.push(data.isBestSeller);
+        values.push(validatedData.isBestSeller);
       }
 
-      if (data.isNewArrival !== undefined) {
+      if (validatedData.isNewArrival !== undefined) {
         updates.push('is_new_arrival = ?');
-        values.push(data.isNewArrival);
+        values.push(validatedData.isNewArrival);
       }
 
-      if (data.isOnSale !== undefined) {
+      if (validatedData.isOnSale !== undefined) {
         updates.push('is_on_sale = ?');
-        values.push(data.isOnSale);
+        values.push(validatedData.isOnSale);
       }
 
-      if (data.salePercentage !== undefined) {
+      if (validatedData.salePercentage !== undefined) {
         updates.push('sale_percentage = ?');
-        values.push(data.salePercentage);
+        values.push(validatedData.salePercentage);
       }
 
-      if (data.saleStartDate !== undefined) {
+      if (validatedData.saleStartDate !== undefined) {
         updates.push('sale_start_date = ?');
-        values.push(data.saleStartDate);
+        values.push(validatedData.saleStartDate);
       }
 
-      if (data.saleEndDate !== undefined) {
+      if (validatedData.saleEndDate !== undefined) {
         updates.push('sale_end_date = ?');
-        values.push(data.saleEndDate);
+        values.push(validatedData.saleEndDate);
       }
 
-      if (data.metaTitle !== undefined) {
+      if (validatedData.metaTitle !== undefined) {
         updates.push('meta_title = ?');
-        values.push(data.metaTitle);
+        values.push(validatedData.metaTitle);
       }
 
-      if (data.metaDescription !== undefined) {
+      if (validatedData.metaDescription !== undefined) {
         updates.push('meta_description = ?');
-        values.push(data.metaDescription);
+        values.push(validatedData.metaDescription);
       }
 
-      if (data.metaKeywords !== undefined) {
+      if (validatedData.metaKeywords !== undefined) {
         updates.push('meta_keywords = ?');
-        values.push(JSON.stringify(data.metaKeywords));
+        values.push(JSON.stringify(validatedData.metaKeywords));
       }
 
-      if (data.publishedAt !== undefined) {
+      if (validatedData.publishedAt !== undefined) {
         updates.push('published_at = ?');
-        values.push(data.publishedAt);
+        values.push(validatedData.publishedAt);
       }
 
       // Add updated_at timestamp
@@ -1073,9 +1098,9 @@ export class EnhancedProductService {
             )
           `,
             id,
-            data.price,
+            validatedData.price,
             product.currency,
-            Number(data.price) > Number(existingProduct.price) ? 'increase' : 'decrease',
+            Number(validatedData.price) > Number(existingProduct.price) ? 'increase' : 'decrease',
             'Price update'
           );
         }
@@ -1103,6 +1128,11 @@ export class EnhancedProductService {
 
       return updatedProduct;
     } catch (error) {
+      if (error instanceof ValidationError) {
+        logger.error('Input validation error in updateProduct', { error });
+        throw new ProductError(error.message, 'VALIDATION_ERROR', 400);
+      }
+
       if (error instanceof ProductError) throw error;
 
       logger.error(`Error updating product ${id}:`, error);
