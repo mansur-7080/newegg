@@ -1,10 +1,345 @@
 import { Request, Response } from 'express';
+import { ProductService, ProductFilters, ProductQueryOptions } from '../services/product.service';
+import { logger } from '../utils/logger';
+
+const productService = new ProductService();
 
 export class TechProductController {
   static async getProducts(req: Request, res: Response) {
     try {
-      // Mock data - in real implementation, fetch from database
-      const products = [
+      // Parse query parameters
+      const filters: ProductFilters = {
+        categoryId: req.query.categoryId as string,
+        brandId: req.query.brandId as string,
+        minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
+        maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
+        inStock: req.query.inStock === 'true',
+        search: req.query.q as string,
+      };
+
+      const options: ProductQueryOptions = {
+        page: req.query.page ? Number(req.query.page) : 1,
+        limit: req.query.limit ? Number(req.query.limit) : 20,
+        sortBy: req.query.sortBy as string || 'createdAt',
+        sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'desc',
+        include: {
+          category: true,
+          brand: true,
+          images: true,
+          specifications: true,
+        },
+      };
+
+      const result = await productService.getProducts(filters, options);
+
+      res.json({
+        success: true,
+        data: result.products,
+        pagination: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          totalPages: result.totalPages,
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to fetch products', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch products',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  static async searchProducts(req: Request, res: Response) {
+    try {
+      const { q, category, minPrice, maxPrice } = req.query;
+
+      const filters: ProductFilters = {
+        search: q as string,
+        categoryId: category as string,
+        minPrice: minPrice ? Number(minPrice) : undefined,
+        maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      };
+
+      const options: ProductQueryOptions = {
+        page: req.query.page ? Number(req.query.page) : 1,
+        limit: req.query.limit ? Number(req.query.limit) : 20,
+        include: {
+          category: true,
+          brand: true,
+          images: true,
+        },
+      };
+
+      const result = await productService.getProducts(filters, options);
+
+      res.json({
+        success: true,
+        data: result.products,
+        pagination: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          totalPages: result.totalPages,
+        },
+        query: q,
+      });
+    } catch (error) {
+      logger.error('Failed to search products', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to search products',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  static async filterProducts(req: Request, res: Response) {
+    try {
+      const filters: ProductFilters = {
+        categoryId: req.body.categoryId,
+        brandId: req.body.brandId,
+        minPrice: req.body.minPrice,
+        maxPrice: req.body.maxPrice,
+        inStock: req.body.inStock,
+        featured: req.body.featured,
+      };
+
+      const options: ProductQueryOptions = {
+        page: req.body.page || 1,
+        limit: req.body.limit || 20,
+        sortBy: req.body.sortBy || 'createdAt',
+        sortOrder: req.body.sortOrder || 'desc',
+        include: {
+          category: true,
+          brand: true,
+          images: true,
+          specifications: true,
+        },
+      };
+
+      const result = await productService.getProducts(filters, options);
+
+      res.json({
+        success: true,
+        data: result.products,
+        pagination: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          totalPages: result.totalPages,
+        },
+        appliedFilters: filters,
+      });
+    } catch (error) {
+      logger.error('Failed to filter products', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to filter products',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  static async getProduct(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const product = await productService.getProductById(id, {
+        category: true,
+        brand: true,
+        images: true,
+        specifications: true,
+        reviews: true,
+      });
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          error: 'Product not found',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: product,
+      });
+    } catch (error) {
+      logger.error('Failed to get product', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get product',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  static async getProductBySlug(req: Request, res: Response) {
+    try {
+      const { slug } = req.params;
+
+      const product = await productService.getProductBySlug(slug, {
+        category: true,
+        brand: true,
+        images: true,
+        specifications: true,
+        reviews: true,
+      });
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          error: 'Product not found',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: product,
+      });
+    } catch (error) {
+      logger.error('Failed to get product by slug', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get product by slug',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  static async createProduct(req: Request, res: Response) {
+    try {
+      const product = await productService.createProduct(req.body);
+
+      res.status(201).json({
+        success: true,
+        data: product,
+        message: 'Product created successfully',
+      });
+    } catch (error) {
+      logger.error('Failed to create product', error);
+      res.status(400).json({
+        success: false,
+        error: 'Failed to create product',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  static async updateProduct(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const updateData = { ...req.body, id };
+
+      const product = await productService.updateProduct(updateData);
+
+      res.json({
+        success: true,
+        data: product,
+        message: 'Product updated successfully',
+      });
+    } catch (error) {
+      logger.error('Failed to update product', error);
+      res.status(400).json({
+        success: false,
+        error: 'Failed to update product',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  static async deleteProduct(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      await productService.deleteProduct(id);
+
+      res.json({
+        success: true,
+        message: 'Product deleted successfully',
+      });
+    } catch (error) {
+      logger.error('Failed to delete product', error);
+      res.status(400).json({
+        success: false,
+        error: 'Failed to delete product',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  static async getFeaturedProducts(req: Request, res: Response) {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : 10;
+      const products = await productService.getFeaturedProducts(limit);
+
+      res.json({
+        success: true,
+        data: products,
+      });
+    } catch (error) {
+      logger.error('Failed to get featured products', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get featured products',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  static async getTopRatedProducts(req: Request, res: Response) {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : 10;
+      const products = await productService.getTopRatedProducts(limit);
+
+      res.json({
+        success: true,
+        data: products,
+      });
+    } catch (error) {
+      logger.error('Failed to get top rated products', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get top rated products',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  // Legacy mock methods for backward compatibility
+  static async getDetailedSpecs(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const product = await productService.getProductById(id, {
+        specifications: true,
+      });
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          error: 'Product not found',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          productId: product.id,
+          specifications: product.specifications,
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to get detailed specs', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get detailed specs',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
         {
           id: 'intel-i5-13600k',
           name: 'Intel Core i5-13600K',

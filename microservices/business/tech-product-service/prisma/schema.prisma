@@ -1,0 +1,290 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  image       String?
+  parentId    String?
+  parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  products    Product[]
+  filters     CategoryFilter[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("categories")
+}
+
+model Brand {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  logo        String?
+  website     String?
+  country     String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("brands")
+}
+
+model Product {
+  id              String            @id @default(cuid())
+  name            String
+  slug            String            @unique
+  description     String?
+  shortDescription String?
+  sku             String            @unique
+  barcode         String?
+  price           Decimal           @db.Decimal(10, 2)
+  salePrice       Decimal?          @db.Decimal(10, 2)
+  currency        String            @default("UZS")
+  stock           Int               @default(0)
+  minStock        Int               @default(0)
+  status          ProductStatus     @default(ACTIVE)
+  featured        Boolean           @default(false)
+  
+  // Relations
+  categoryId      String
+  category        Category          @relation(fields: [categoryId], references: [id])
+  brandId         String
+  brand           Brand             @relation(fields: [brandId], references: [id])
+  
+  // Media
+  images          ProductImage[]
+  videos          ProductVideo[]
+  
+  // Specifications
+  specifications  ProductSpecification[]
+  
+  // Reviews and ratings
+  reviews         ProductReview[]
+  rating          Decimal?          @db.Decimal(3, 2)
+  reviewCount     Int               @default(0)
+  
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  metaKeywords    String?
+  
+  // Tracking
+  views           Int               @default(0)
+  sales           Int               @default(0)
+  
+  // Compatibility
+  compatibleWith  ProductCompatibility[] @relation("ProductCompatible")
+  compatibleProducts ProductCompatibility[] @relation("CompatibleProduct")
+  
+  // PC Builder
+  pcBuilds        PCBuildProduct[]
+  
+  // Price history
+  priceHistory    ProductPriceHistory[]
+  priceAlerts     ProductPriceAlert[]
+  
+  // Timestamps
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+
+  @@map("products")
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  altText   String?
+  isPrimary Boolean @default(false)
+  order     Int     @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("product_images")
+}
+
+model ProductVideo {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  title     String?
+  duration  Int?
+  order     Int     @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("product_videos")
+}
+
+model ProductSpecification {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  value     String
+  unit      String?
+  group     String?
+  order     Int     @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("product_specifications")
+}
+
+model ProductReview {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  userName  String
+  userEmail String
+  rating    Int
+  title     String?
+  comment   String?
+  pros      String[]
+  cons      String[]
+  verified  Boolean @default(false)
+  helpful   Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("product_reviews")
+}
+
+model ProductCompatibility {
+  id               String  @id @default(cuid())
+  productId        String
+  product          Product @relation("ProductCompatible", fields: [productId], references: [id], onDelete: Cascade)
+  compatibleId     String
+  compatibleProduct Product @relation("CompatibleProduct", fields: [compatibleId], references: [id], onDelete: Cascade)
+  compatibilityType String
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  @@unique([productId, compatibleId])
+  @@map("product_compatibility")
+}
+
+model PCBuild {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  userId      String?
+  userName    String?
+  isPublic    Boolean          @default(false)
+  budget      Decimal?         @db.Decimal(10, 2)
+  purpose     String[]
+  
+  // Performance scores
+  gameScore        Int?
+  productivityScore Int?
+  powerConsumption Int?
+  
+  // Build components
+  products    PCBuildProduct[]
+  
+  // Stats
+  views       Int              @default(0)
+  likes       Int              @default(0)
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("pc_builds")
+}
+
+model PCBuildProduct {
+  id        String  @id @default(cuid())
+  buildId   String
+  build     PCBuild @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  category  String
+  quantity  Int     @default(1)
+  price     Decimal @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  @@unique([buildId, productId])
+  @@map("pc_build_products")
+}
+
+model CategoryFilter {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name       String
+  type       FilterType
+  options    String[]
+  required   Boolean  @default(false)
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@map("category_filters")
+}
+
+model ProductPriceHistory {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price     Decimal  @db.Decimal(10, 2)
+  salePrice Decimal? @db.Decimal(10, 2)
+  source    String   @default("system")
+  createdAt DateTime @default(now())
+
+  @@map("product_price_history")
+}
+
+model ProductPriceAlert {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId      String
+  userEmail   String
+  targetPrice Decimal  @db.Decimal(10, 2)
+  isActive    Boolean  @default(true)
+  triggered   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  triggeredAt DateTime?
+
+  @@map("product_price_alerts")
+}
+
+model Benchmark {
+  id          String @id @default(cuid())
+  productId   String
+  testName    String
+  score       Int
+  unit        String?
+  description String?
+  source      String?
+  createdAt   DateTime @default(now())
+
+  @@map("benchmarks")
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  OUT_OF_STOCK
+  DISCONTINUED
+}
+
+enum FilterType {
+  SELECT
+  RANGE
+  CHECKBOX
+  RADIO
+}
