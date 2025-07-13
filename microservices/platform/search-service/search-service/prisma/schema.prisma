@@ -1,194 +1,465 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
+// This is the complete Prisma schema for Search Service
+// Generator and datasource configuration
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-model SearchLog {
-  id              String   @id @default(cuid())
-  query           String
-  userId          String?
-  sessionId       String?
-  filters         Json?
-  sortBy          String?
-  sortOrder       String?
-  page            Int      @default(1)
-  limit           Int      @default(20)
-  totalResults    Int      @default(0)
-  responseTime    Int?     // milliseconds
-  ipAddress       String?
-  userAgent       String?
-  referrer        String?
-  clickedResults  String[] // Array of clicked product IDs
-  createdAt       DateTime @default(now())
-
-  @@index([query])
-  @@index([userId])
-  @@index([sessionId])
-  @@index([createdAt])
-  @@map("search_logs")
-}
-
-model SearchSuggestion {
-  id              String   @id @default(cuid())
-  query           String
-  suggestion      String
-  type            SuggestionType
-  weight          Int      @default(1)
-  isActive        Boolean  @default(true)
-  clickCount      Int      @default(0)
-  conversionCount Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([query])
-  @@index([suggestion])
-  @@index([type])
-  @@index([weight])
-  @@map("search_suggestions")
-}
-
-model SearchAnalytics {
-  id              String   @id @default(cuid())
-  date            DateTime @db.Date
-  query           String
-  totalSearches   Int      @default(0)
-  uniqueSearches  Int      @default(0)
-  totalClicks     Int      @default(0)
-  totalConversions Int     @default(0)
-  averageResponseTime Int  @default(0)
-  zeroResults     Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([date, query])
-  @@index([date])
-  @@index([query])
-  @@map("search_analytics")
-}
-
-model SearchIndex {
-  id              String   @id @default(cuid())
-  entityType      String   // product, category, brand, etc.
-  entityId        String
-  data            Json
-  indexedAt       DateTime @default(now())
-  lastUpdated     DateTime @updatedAt
-
-  @@unique([entityType, entityId])
-  @@index([entityType])
-  @@index([entityId])
-  @@index([indexedAt])
-  @@map("search_index")
-}
-
-model SearchSynonym {
-  id              String   @id @default(cuid())
-  term            String
-  synonyms        String[]
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([term])
-  @@index([isActive])
-  @@map("search_synonyms")
-}
-
-model SearchFilter {
-  id              String   @id @default(cuid())
-  name            String   @unique
-  type            FilterType
-  field           String
-  label           String
-  options         Json?
-  defaultValue    String?
-  isActive        Boolean  @default(true)
-  sortOrder       Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([name])
-  @@index([type])
-  @@index([isActive])
-  @@index([sortOrder])
-  @@map("search_filters")
-}
-
-model SearchFacet {
-  id              String   @id @default(cuid())
-  field           String
-  value           String
-  count           Int      @default(0)
-  isActive        Boolean  @default(true)
-  lastUpdated     DateTime @updatedAt
-
-  @@unique([field, value])
-  @@index([field])
-  @@index([value])
-  @@index([count])
-  @@map("search_facets")
-}
-
-model SearchTrend {
-  id              String   @id @default(cuid())
-  query           String
-  period          String   // daily, weekly, monthly
-  date            DateTime @db.Date
-  searchCount     Int      @default(0)
-  clickCount      Int      @default(0)
-  conversionCount Int      @default(0)
-  trend           TrendDirection @default(STABLE)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([query, period, date])
-  @@index([query])
-  @@index([period])
-  @@index([date])
-  @@map("search_trends")
-}
-
-model SearchPopularity {
-  id              String   @id @default(cuid())
-  query           String
-  popularity      Int      @default(0)
-  category        String?
-  isTrending      Boolean  @default(false)
-  lastUpdated     DateTime @updatedAt
-
-  @@unique([query])
-  @@index([query])
-  @@index([popularity])
-  @@index([isTrending])
-  @@map("search_popularity")
+  url      = env("SEARCH_DATABASE_URL")
 }
 
 // Enums
 enum SuggestionType {
-  AUTOCOMPLETE
-  SPELLING_CORRECTION
-  POPULAR_SEARCH
-  RELATED_SEARCH
-  TRENDING_SEARCH
+  PRODUCT
+  CATEGORY
+  BRAND
+  STORE
+  QUERY_COMPLETION
+  TRENDING
+  PERSONALIZED
 }
 
 enum FilterType {
-  RANGE
-  MULTISELECT
-  SINGLESELECT
-  BOOLEAN
-  DATE_RANGE
+  PRICE_RANGE
+  CATEGORY
+  BRAND
+  RATING
+  AVAILABILITY
+  LOCATION
+  FEATURES
+  CONDITION
+}
+
+enum SearchType {
+  PRODUCT
+  STORE
+  CATEGORY
+  BRAND
+  GLOBAL
+}
+
+enum IndexStatus {
+  PENDING
+  INDEXING
+  INDEXED
+  FAILED
+  OUTDATED
 }
 
 enum TrendDirection {
-  RISING
-  FALLING
+  UP
+  DOWN
   STABLE
+  NEW
+}
+
+// Models
+model SearchQuery {
+  id              String     @id @default(cuid())
+  query           String
+  normalizedQuery String     // Cleaned and normalized version
+  userId          String?
+  sessionId       String?
+  storeId         String?    // If search is store-specific
+  
+  // Search Parameters
+  searchType      SearchType @default(GLOBAL)
+  filters         Json?      // Applied filters
+  sortBy          String?    // price, rating, popularity, etc.
+  sortOrder       String?    // asc, desc
+  page            Int        @default(1)
+  limit           Int        @default(20)
+  
+  // Results
+  totalResults    Int        @default(0)
+  resultIds       String[]   // Array of result IDs
+  responseTime    Int?       // milliseconds
+  
+  // User Context
+  ipAddress       String?
+  userAgent       String?
+  deviceType      String?    // mobile, desktop, tablet
+  location        Json?      // {country, city, coordinates}
+  referrer        String?
+  
+  // Engagement
+  clickedResults  String[]   // IDs of clicked results
+  clickPosition   Int[]      // Positions of clicked results
+  timeToFirstClick Int?      // milliseconds
+  sessionDuration Int?       // seconds
+  
+  // Quality Metrics
+  hasResults      Boolean    @default(true)
+  userSatisfied   Boolean?   // Based on engagement
+  bounced         Boolean    @default(false)
+  
+  // Timestamps
+  searchedAt      DateTime   @default(now())
+  createdAt       DateTime   @default(now())
+
+  @@index([query])
+  @@index([normalizedQuery])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([searchedAt])
+  @@index([hasResults])
+  @@map("search_queries")
+}
+
+model SearchSuggestion {
+  id              String         @id @default(cuid())
+  query           String
+  suggestion      String
+  type            SuggestionType
+  category        String?
+  weight          Float          @default(1.0)
+  priority        Int            @default(0)
+  
+  // Context
+  storeId         String?        // Store-specific suggestions
+  language        String         @default("uz")
+  region          String?
+  
+  // Performance Metrics
+  impressions     Int            @default(0)
+  clicks          Int            @default(0)
+  conversions     Int            @default(0)
+  ctr             Float          @default(0) // Click-through rate
+  conversionRate  Float          @default(0)
+  
+  // Status
+  isActive        Boolean        @default(true)
+  isPromoted      Boolean        @default(false)
+  
+  // Metadata
+  metadata        Json?
+  
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  lastUsedAt      DateTime?
+
+  @@index([query])
+  @@index([suggestion])
+  @@index([type])
+  @@index([isActive])
+  @@index([weight])
+  @@map("search_suggestions")
+}
+
+model SearchIndex {
+  id            String      @id @default(cuid())
+  entityId      String      // Product, Store, Category ID
+  entityType    String      // "product", "store", "category"
+  storeId       String?
+  
+  // Searchable Content
+  title         String
+  description   String?
+  keywords      String[]
+  tags          String[]
+  categories    String[]
+  
+  // Search Metadata
+  searchText    String      // Combined searchable text
+  popularity    Float       @default(0)
+  quality       Float       @default(0)
+  availability  Boolean     @default(true)
+  
+  // Pricing (for products)
+  price         Decimal?    @db.Decimal(10, 2)
+  originalPrice Decimal?    @db.Decimal(10, 2)
+  currency      String?     @default("UZS")
+  
+  // Location (for stores)
+  location      Json?       // {lat, lng, address}
+  
+  // Status
+  status        IndexStatus @default(PENDING)
+  isActive      Boolean     @default(true)
+  
+  // Timestamps
+  indexedAt     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([entityId, entityType])
+  @@index([entityType])
+  @@index([searchText])
+  @@index([popularity])
+  @@index([price])
+  @@index([isActive])
+  @@map("search_index")
+}
+
+model SearchFilter {
+  id            String     @id @default(cuid())
+  name          String
+  displayName   String
+  type          FilterType
+  category      String?    // Product category this filter applies to
+  
+  // Filter Configuration
+  options       Json?      // Available filter options
+  minValue      Float?     // For range filters
+  maxValue      Float?     // For range filters
+  unit          String?    // For numeric filters (UZS, GB, etc.)
+  
+  // Behavior
+  isMultiSelect Boolean    @default(false)
+  isRequired    Boolean    @default(false)
+  sortOrder     Int        @default(0)
+  
+  // Usage Stats
+  usageCount    Int        @default(0)
+  
+  // Status
+  isActive      Boolean    @default(true)
+  
+  // Timestamps
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([type])
+  @@index([category])
+  @@index([isActive])
+  @@map("search_filters")
+}
+
+model SearchFacet {
+  id            String   @id @default(cuid())
+  query         String
+  facetName     String   // "brand", "category", "price_range"
+  facetValue    String   // "Apple", "Smartphones", "100000-200000"
+  count         Int      @default(0)
+  
+  // Context
+  storeId       String?
+  categoryId    String?
+  
+  // Timestamps
+  date          DateTime @db.Date
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([query, facetName, facetValue, date])
+  @@index([query])
+  @@index([facetName])
+  @@index([date])
+  @@map("search_facets")
+}
+
+model SearchTrend {
+  id            String         @id @default(cuid())
+  query         String
+  period        String         // "hour", "day", "week", "month"
+  searchCount   Int            @default(0)
+  uniqueUsers   Int            @default(0)
+  
+  // Trend Analysis
+  trend         TrendDirection @default(STABLE)
+  growthRate    Float          @default(0) // Percentage
+  
+  // Context
+  region        String?
+  category      String?
+  
+  // Time Period
+  periodStart   DateTime
+  periodEnd     DateTime
+  
+  // Timestamps
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([query, period, periodStart])
+  @@index([query])
+  @@index([period])
+  @@index([searchCount])
+  @@index([trend])
+  @@map("search_trends")
+}
+
+model SearchPopularity {
+  id            String   @id @default(cuid())
+  entityId      String   // Product, Store, Category ID
+  entityType    String   // "product", "store", "category"
+  
+  // Popularity Metrics
+  searchCount   Int      @default(0)
+  clickCount    Int      @default(0)
+  viewCount     Int      @default(0)
+  conversionCount Int    @default(0)
+  
+  // Calculated Scores
+  popularityScore Float  @default(0)
+  trendingScore   Float  @default(0)
+  qualityScore    Float  @default(0)
+  
+  // Time Period
+  date          DateTime @db.Date
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([entityId, entityType, date])
+  @@index([entityType])
+  @@index([popularityScore])
+  @@index([date])
+  @@map("search_popularity")
+}
+
+model SearchSynonym {
+  id            String   @id @default(cuid())
+  term          String   // Original term
+  synonym       String   // Synonym
+  type          String   @default("bidirectional") // "bidirectional", "oneway"
+  weight        Float    @default(1.0)
+  
+  // Context
+  category      String?
+  language      String   @default("uz")
+  
+  // Usage
+  usageCount    Int      @default(0)
+  
+  // Status
+  isActive      Boolean  @default(true)
+  isAutoGenerated Boolean @default(false)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([term])
+  @@index([synonym])
+  @@index([isActive])
+  @@map("search_synonyms")
+}
+
+model SearchAnalytics {
+  id                String   @id @default(cuid())
+  date              DateTime @db.Date
+  
+  // Overall Metrics
+  totalSearches     Int      @default(0)
+  uniqueSearchers   Int      @default(0)
+  avgResponseTime   Float    @default(0)
+  
+  // Query Metrics
+  totalQueries      Int      @default(0)
+  uniqueQueries     Int      @default(0)
+  noResultQueries   Int      @default(0)
+  noResultRate      Float    @default(0)
+  
+  // Engagement Metrics
+  totalClicks       Int      @default(0)
+  clickThroughRate  Float    @default(0)
+  avgClickPosition  Float    @default(0)
+  bounceRate        Float    @default(0)
+  
+  // Conversion Metrics
+  searchConversions Int      @default(0)
+  conversionRate    Float    @default(0)
+  revenue           Decimal? @db.Decimal(12, 2)
+  
+  // Top Data
+  topQueries        Json?    // Array of {query, count}
+  topNoResultQueries Json?   // Array of {query, count}
+  topFilters        Json?    // Array of {filter, count}
+  
+  // Device/Location
+  deviceBreakdown   Json?    // {mobile: 60, desktop: 40}
+  locationBreakdown Json?    // {tashkent: 50, samarkand: 30}
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([date])
+  @@map("search_analytics")
+}
+
+model SearchSession {
+  id              String   @id @default(cuid())
+  sessionId       String   @unique
+  userId          String?
+  
+  // Session Info
+  startTime       DateTime @default(now())
+  endTime         DateTime?
+  duration        Int?     // seconds
+  queryCount      Int      @default(0)
+  
+  // User Context
+  ipAddress       String?
+  userAgent       String?
+  deviceType      String?
+  location        Json?
+  
+  // Engagement
+  totalClicks     Int      @default(0)
+  conversions     Int      @default(0)
+  bounced         Boolean  @default(false)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([startTime])
+  @@map("search_sessions")
+}
+
+model SearchPersonalization {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // User Preferences
+  preferredCategories String[]
+  preferredBrands     String[]
+  priceRange          Json?    // {min: 0, max: 1000000}
+  preferredStores     String[]
+  
+  // Search Behavior
+  commonQueries       String[]
+  clickPatterns       Json?    // Click position preferences
+  conversionPatterns  Json?    // What leads to purchases
+  
+  // Personalization Scores
+  categoryScores      Json?    // {electronics: 0.8, clothing: 0.3}
+  brandScores         Json?    // {apple: 0.9, samsung: 0.7}
+  
+  // Timestamps
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([userId])
+  @@map("search_personalization")
+}
+
+model SearchConfiguration {
+  id                    String  @id @default(cuid())
+  key                   String  @unique
+  value                 String
+  type                  String  @default("string") // string, number, boolean, json
+  description           String?
+  category              String? // "relevance", "performance", "ui"
+  
+  // Validation
+  validationRules       Json?
+  
+  // Status
+  isActive              Boolean @default(true)
+  requiresRestart       Boolean @default(false)
+  
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("search_configuration")
 }
