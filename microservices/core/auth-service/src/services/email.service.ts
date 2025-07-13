@@ -3,15 +3,78 @@
  * Professional email sending with templates and queue management
  */
 
+import nodemailer from 'nodemailer';
+import handlebars from 'handlebars';
+import fs from 'fs';
+import path from 'path';
 import { logger } from '../utils/logger';
 import { JWTService } from './jwt.service';
 import { prisma } from '../index';
 
 export class EmailService {
   private jwtService: JWTService;
+  private transporter: nodemailer.Transporter;
+  private templates: Map<string, HandlebarsTemplateDelegate> = new Map();
 
   constructor() {
     this.jwtService = new JWTService();
+    this.initializeTransporter();
+    this.loadTemplates();
+  }
+
+  /**
+   * Initialize email transporter
+   */
+  private initializeTransporter(): void {
+    const emailConfig = {
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASSWORD || '',
+      },
+    };
+
+    this.transporter = nodemailer.createTransport(emailConfig);
+
+    // Verify connection configuration
+    this.transporter.verify((error, success) => {
+      if (error) {
+        logger.error('SMTP configuration error:', error);
+      } else {
+        logger.info('SMTP server ready for email sending');
+      }
+    });
+  }
+
+  /**
+   * Load email templates
+   */
+  private loadTemplates(): void {
+    try {
+      const templatesDir = path.join(__dirname, '..', 'templates', 'email');
+      
+      const templateFiles = [
+        'verification.hbs',
+        'password-reset.hbs',
+        'welcome.hbs'
+      ];
+
+      templateFiles.forEach(filename => {
+        const templatePath = path.join(templatesDir, filename);
+        if (fs.existsSync(templatePath)) {
+          const templateContent = fs.readFileSync(templatePath, 'utf8');
+          const templateName = filename.replace('.hbs', '');
+          this.templates.set(templateName, handlebars.compile(templateContent));
+          logger.info(`Email template loaded: ${templateName}`);
+        } else {
+          logger.warn(`Email template not found: ${templatePath}`);
+        }
+      });
+    } catch (error) {
+      logger.error('Failed to load email templates:', error);
+    }
   }
 
   /**
@@ -40,31 +103,25 @@ export class EmailService {
         },
       });
 
-      // In a real implementation, you would send an actual email here
-      // For now, we'll just log the verification link
+      // Generate verification link
       const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
 
-      logger.info('Email verification sent', {
-        email,
-        firstName,
-        verificationLink,
-        userId: user.id,
+      // Send email using template
+      await this.sendTemplatedEmail({
+        to: email,
+        subject: 'Email Manzilni Tasdiqlang - UltraMarket',
+        template: 'verification',
+        data: {
+          firstName,
+          verificationLink
+        }
       });
 
-      // TODO: Implement actual email sending with nodemailer or similar
-      // Example:
-      // await this.sendEmail({
-      //   to: email,
-      //   subject: 'Verify your email address',
-      //   template: 'email-verification',
-      //   data: {
-      //     firstName,
-      //     verificationLink,
-      //   },
-      // });
-
-      console.log(`📧 Email Verification Link for ${firstName} (${email}):`);
-      console.log(`🔗 ${verificationLink}`);
+      logger.info('Email verification sent successfully', {
+        email,
+        firstName,
+        userId: user.id,
+      });
     } catch (error) {
       logger.error('Failed to send verification email', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -85,25 +142,21 @@ export class EmailService {
     try {
       const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
-      logger.info('Password reset email sent', {
-        email,
-        firstName,
-        resetLink,
+      // Send email using template
+      await this.sendTemplatedEmail({
+        to: email,
+        subject: 'Parolni Tiklash - UltraMarket',
+        template: 'password-reset',
+        data: {
+          firstName,
+          resetLink
+        }
       });
 
-      // TODO: Implement actual email sending
-      // await this.sendEmail({
-      //   to: email,
-      //   subject: 'Reset your password',
-      //   template: 'password-reset',
-      //   data: {
-      //     firstName,
-      //     resetLink,
-      //   },
-      // });
-
-      console.log(`📧 Password Reset Link for ${firstName} (${email}):`);
-      console.log(`🔗 ${resetLink}`);
+      logger.info('Password reset email sent successfully', {
+        email,
+        firstName,
+      });
     } catch (error) {
       logger.error('Failed to send password reset email', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -118,22 +171,23 @@ export class EmailService {
    */
   async sendWelcomeEmail(email: string, firstName: string): Promise<void> {
     try {
-      logger.info('Welcome email sent', {
+      const platformUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+      // Send email using template
+      await this.sendTemplatedEmail({
+        to: email,
+        subject: 'Xush kelibsiz - UltraMarket!',
+        template: 'welcome',
+        data: {
+          firstName,
+          platformUrl
+        }
+      });
+
+      logger.info('Welcome email sent successfully', {
         email,
         firstName,
       });
-
-      // TODO: Implement actual email sending
-      // await this.sendEmail({
-      //   to: email,
-      //   subject: 'Welcome to UltraMarket!',
-      //   template: 'welcome',
-      //   data: {
-      //     firstName,
-      //   },
-      // });
-
-      console.log(`📧 Welcome Email sent to ${firstName} (${email})`);
     } catch (error) {
       logger.error('Failed to send welcome email', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -153,16 +207,31 @@ export class EmailService {
     firstName?: string
   ): Promise<void> {
     try {
-      logger.info('Notification email sent', {
+      // Send plain text email for notifications
+      await this.transporter.sendMail({
+        from: `"UltraMarket" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+        to: email,
+        subject: subject,
+        text: message,
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2>UltraMarket</h2>
+            ${firstName ? `<p>Assalomu alaykum ${firstName},</p>` : '<p>Assalomu alaykum,</p>'}
+            <p>${message}</p>
+            <hr>
+            <p style="font-size: 12px; color: #666;">
+              Bu avtomatik xabar. Iltimos, javob bermang.<br>
+              UltraMarket jamoasi
+            </p>
+          </div>
+        `
+      });
+
+      logger.info('Notification email sent successfully', {
         email,
         subject,
         firstName,
       });
-
-      // TODO: Implement actual email sending
-      console.log(`📧 Notification Email to ${firstName || 'User'} (${email}):`);
-      console.log(`📌 Subject: ${subject}`);
-      console.log(`💬 Message: ${message}`);
     } catch (error) {
       logger.error('Failed to send notification email', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -174,45 +243,100 @@ export class EmailService {
   }
 
   /**
-   * Private method to send email (placeholder for actual implementation)
+   * Send templated email
    */
-  private async sendEmail(options: {
+  private async sendTemplatedEmail(options: {
     to: string;
     subject: string;
     template: string;
     data: any;
+    attachments?: Array<{
+      filename: string;
+      content: Buffer | string;
+      contentType?: string;
+    }>;
   }): Promise<void> {
-    // TODO: Implement with nodemailer, SendGrid, or similar
-    // Example with nodemailer:
-    /*
-    const transporter = nodemailer.createTransporter({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-      },
-    });
+    try {
+      const template = this.templates.get(options.template);
+      if (!template) {
+        throw new Error(`Email template not found: ${options.template}`);
+      }
 
-    const html = await this.renderTemplate(options.template, options.data);
+      const html = template(options.data);
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM,
-      to: options.to,
-      subject: options.subject,
-      html,
-    });
-    */
+      const mailOptions: nodemailer.SendMailOptions = {
+        from: `"UltraMarket" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+        to: options.to,
+        subject: options.subject,
+        html: html,
+        attachments: options.attachments
+      };
 
-    logger.debug('Email sent (placeholder)', options);
+      const result = await this.transporter.sendMail(mailOptions);
+
+      logger.info('Templated email sent successfully', {
+        to: options.to,
+        subject: options.subject,
+        template: options.template,
+        messageId: result.messageId
+      });
+    } catch (error) {
+      logger.error('Failed to send templated email', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        to: options.to,
+        template: options.template
+      });
+      throw error;
+    }
   }
 
   /**
-   * Render email template (placeholder)
+   * Test email configuration
    */
-  private async renderTemplate(templateName: string, data: any): Promise<string> {
-    // TODO: Implement template rendering with handlebars, ejs, or similar
-    return `<h1>Email Template: ${templateName}</h1><pre>${JSON.stringify(data, null, 2)}</pre>`;
+  async testEmailConfiguration(): Promise<boolean> {
+    try {
+      await this.transporter.verify();
+      logger.info('Email configuration test successful');
+      return true;
+    } catch (error) {
+      logger.error('Email configuration test failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Send bulk emails (for marketing, etc.)
+   */
+  async sendBulkEmails(
+    recipients: Array<{ email: string; firstName?: string }>,
+    subject: string,
+    template: string,
+    data: any
+  ): Promise<{ sent: number; failed: number; errors: any[] }> {
+    const results = { sent: 0, failed: 0, errors: [] as any[] };
+
+    for (const recipient of recipients) {
+      try {
+        await this.sendTemplatedEmail({
+          to: recipient.email,
+          subject,
+          template,
+          data: {
+            ...data,
+            firstName: recipient.firstName || 'Mijoz'
+          }
+        });
+        results.sent++;
+      } catch (error) {
+        results.failed++;
+        results.errors.push({
+          email: recipient.email,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    logger.info('Bulk email sending completed', results);
+    return results;
   }
 }

@@ -271,6 +271,54 @@ services:
       - /app/node_modules
     command: npm run dev
 
+  # Store Service
+  store-service:
+    build:
+      context: .
+      dockerfile: microservices/core/store-service/Dockerfile.dev
+    container_name: ultramarket-store-service
+    ports:
+      - '3007:3007'
+    environment:
+      - NODE_ENV=development
+      - PORT=3007
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ultramarket_dev
+      - REDIS_URL=redis://redis:6379
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - ultramarket-network
+    volumes:
+      - ./microservices/core/store-service:/app
+      - /app/node_modules
+    command: npm run dev
+
+  # Analytics Service
+  analytics-service:
+    build:
+      context: .
+      dockerfile: microservices/analytics/analytics-service/Dockerfile.dev
+    container_name: ultramarket-analytics-service
+    ports:
+      - '3020:3020'
+    environment:
+      - NODE_ENV=development
+      - PORT=3020
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ultramarket_dev
+      - REDIS_URL=redis://redis:6379
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - ultramarket-network
+    volumes:
+      - ./microservices/analytics/analytics-service:/app
+      - /app/node_modules
+    command: npm run dev
+
   # Cart Service
   cart-service:
     build:

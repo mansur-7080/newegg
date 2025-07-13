@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xush kelibsiz - UltraMarket</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+        .title {
+            color: #1f2937;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .btn {
+            display: inline-block;
+            background: #16a34a;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .btn:hover {
+            background: #15803d;
+        }
+        .features {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .feature-item {
+            margin: 10px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+        .feature-item:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #16a34a;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 14px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🎉 UltraMarket</div>
+            <h1 class="title">Xush kelibsiz!</h1>
+        </div>
+        
+        <div class="content">
+            <p>Assalomu alaykum <strong>{{firstName}}</strong>,</p>
+            
+            <p>UltraMarket platformasiga muvaffaqiyatli ro'yxatdan o'tganingiz bilan tabriklaymiz! Siz endi O'zbekistonning eng yirik onlayn bozorining a'zosisiz.</p>
+            
+            <div class="features">
+                <h3>Bizning platformamizda:</h3>
+                <div class="feature-item">Minglab sifatli mahsulotlar</div>
+                <div class="feature-item">Tezkor va ishonchli yetkazib berish</div>
+                <div class="feature-item">Xavfsiz to'lov tizimlari (Click, Payme, Apelsin)</div>
+                <div class="feature-item">24/7 mijozlar xizmati</div>
+                <div class="feature-item">Maxsus chegirmalar va takliflar</div>
+                <div class="feature-item">Kompyuter yig'ish xizmati</div>
+            </div>
+            
+            <p>Xaridni boshlash uchun quyidagi tugmani bosing:</p>
+            
+            <div style="text-align: center;">
+                <a href="{{platformUrl}}" class="btn">Xaridni Boshlash</a>
+            </div>
+            
+            <p><strong>Maslahat:</strong> Profilingizni to'ldiring va sevimli mahsulotlaringizni saqlang. Shunday qilib, siz uchun maxsus takliflar tayyorlaymiz!</p>
+            
+            <p>Savollaringiz bo'lsa, bizning yordam markazimizga murojaat qiling yoki support@ultramarket.uz ga yozing.</p>
+        </div>
+        
+        <div class="footer">
+            <p>Hurmat bilan,<br>UltraMarket jamoasi</p>
+            <p>Bu avtomatik xabar. Iltimos, javob bermang.</p>
+            <p>Bizni ijtimoiy tarmoqlarda kuzatib boring:</p>
+            <p>Telegram: @ultramarket_uz | Instagram: @ultramarket.uz</p>
+        </div>
+    </div>
+</body>
+</html>

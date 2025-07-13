@@ -33,19 +33,27 @@ export interface ClickWebhookPayload {
   sign_string: string;
 }
 
+import { IOrderService } from '../interfaces/order.interface';
+import { PaymentRepository } from '../repositories/payment.repository';
+import { PaymentStatus } from '../models/payment.model';
+
 export class ClickService {
   private readonly merchantId: string;
   private readonly serviceId: string;
   private readonly secretKey: string;
   private readonly userId: string;
   private readonly baseUrl: string;
+  private readonly orderService: IOrderService;
+  private readonly paymentRepository: PaymentRepository;
 
-  constructor() {
+  constructor(orderService: IOrderService, paymentRepository: PaymentRepository) {
     this.merchantId = process.env.CLICK_MERCHANT_ID || '';
     this.serviceId = process.env.CLICK_SERVICE_ID || '';
     this.secretKey = process.env.CLICK_SECRET_KEY || '';
     this.userId = process.env.CLICK_USER_ID || '';
     this.baseUrl = process.env.CLICK_ENDPOINT || 'https://api.click.uz/v2';
+    this.orderService = orderService;
+    this.paymentRepository = paymentRepository;
 
     if (!this.merchantId || !this.serviceId || !this.secretKey || !this.userId) {
       throw new Error('Click payment gateway configuration is missing');
@@ -287,15 +295,34 @@ export class ClickService {
    */
   private async verifyOrder(merchantTransId: string, amount: number): Promise<boolean> {
     try {
-      // This would typically call the Order Service
-      // For now, we'll simulate the check
       logger.info('Verifying order', { merchantTransId, amount });
 
-      // TODO: Implement actual order verification
-      // const order = await orderService.getOrderByTransactionId(merchantTransId);
-      // return order && order.amount === amount && order.status === 'pending';
+      // Real order verification implementation
+      const order = await this.orderService.getOrderByTransactionId(merchantTransId);
+      
+      if (!order) {
+        logger.warn('Order not found', { merchantTransId });
+        return false;
+      }
 
-      return true; // Temporary for development
+      if (order.amount !== amount) {
+        logger.warn('Order amount mismatch', { 
+          merchantTransId, 
+          expectedAmount: order.amount, 
+          receivedAmount: amount 
+        });
+        return false;
+      }
+
+      if (order.status !== 'pending' && order.status !== 'confirmed') {
+        logger.warn('Order status invalid for payment', { 
+          merchantTransId, 
+          status: order.status 
+        });
+        return false;
+      }
+
+      return true;
     } catch (error) {
       logger.error('Order verification failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -322,8 +349,14 @@ export class ClickService {
     merchantPrepareId: string
   ): Promise<void> {
     try {
-      // TODO: Store in database
-      logger.info('Storing prepare transaction', {
+      // Real database implementation
+      await this.paymentRepository.storePrepareTransaction(
+        payload.merchant_trans_id,
+        payload.click_trans_id,
+        merchantPrepareId
+      );
+      
+      logger.info('Prepare transaction stored successfully', {
         clickTransId: payload.click_trans_id,
         merchantTransId: payload.merchant_trans_id,
         merchantPrepareId,
@@ -346,13 +379,19 @@ export class ClickService {
     merchantPrepareId: string
   ): Promise<boolean> {
     try {
-      // TODO: Check in database
-      logger.info('Verifying prepare transaction', {
+      // Real database verification
+      const isValid = await this.paymentRepository.verifyPrepareTransaction(
+        clickTransId,
+        merchantPrepareId
+      );
+
+      logger.info('Prepare transaction verification result', {
         clickTransId,
         merchantPrepareId,
+        isValid
       });
 
-      return true; // Temporary for development
+      return isValid;
     } catch (error) {
       logger.error('Failed to verify prepare transaction', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -367,11 +406,38 @@ export class ClickService {
    */
   private async completePayment(payload: ClickWebhookPayload): Promise<void> {
     try {
-      // TODO: Update order status, send notifications, etc.
-      logger.info('Completing payment', {
+      // Update payment transaction status
+      const transaction = await this.paymentRepository.getTransactionByProviderTransactionId(
+        payload.click_trans_id
+      );
+
+      if (!transaction) {
+        throw new Error('Transaction not found');
+      }
+
+      // Update transaction to completed
+      await this.paymentRepository.updateTransactionStatus(
+        transaction.id,
+        PaymentStatus.COMPLETED,
+        {
+          clickTransId: payload.click_trans_id,
+          clickPaydocId: payload.click_paydoc_id,
+          completedAt: new Date()
+        }
+      );
+
+      // Update order status
+      await this.orderService.updateOrderPaymentStatus(
+        transaction.orderId,
+        'paid',
+        transaction.id
+      );
+
+      logger.info('Payment completed successfully', {
         clickTransId: payload.click_trans_id,
         merchantTransId: payload.merchant_trans_id,
         amount: payload.amount,
+        orderId: transaction.orderId
       });
     } catch (error) {
       logger.error('Failed to complete payment', {

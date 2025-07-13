@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Tasdiqlash - UltraMarket</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+        .title {
+            color: #1f2937;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .btn {
+            display: inline-block;
+            background: #2563eb;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .btn:hover {
+            background: #1d4ed8;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .link {
+            word-break: break-all;
+            color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">UltraMarket</div>
+            <h1 class="title">Email Manzilni Tasdiqlang</h1>
+        </div>
+        
+        <div class="content">
+            <p>Assalomu alaykum <strong>{{firstName}}</strong>,</p>
+            
+            <p>UltraMarket platformasiga xush kelibsiz! Hisobingizni faollashtirish uchun email manzilingizni tasdiqlashingiz kerak.</p>
+            
+            <p>Quyidagi tugmani bosib email manzilingizni tasdiqlang:</p>
+            
+            <div style="text-align: center;">
+                <a href="{{verificationLink}}" class="btn">Email ni Tasdiqlash</a>
+            </div>
+            
+            <p>Agar tugma ishlamasa, quyidagi havolani brauzeringizga nusxalang:</p>
+            <p class="link">{{verificationLink}}</p>
+            
+            <p><strong>Muhim:</strong> Bu havola 24 soat davomida amal qiladi.</p>
+            
+            <p>Agar siz bu hisobni yaratmagan bo'lsangiz, bu xabarni e'tiborsiz qoldiring.</p>
+        </div>
+        
+        <div class="footer">
+            <p>Hurmat bilan,<br>UltraMarket jamoasi</p>
+            <p>Bu avtomatik xabar. Iltimos, javob bermang.</p>
+            <p>Yordam kerak bo'lsa: support@ultramarket.uz</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -176,7 +176,7 @@ async function initializeServices() {
     logger.info('Database connected successfully');
     
     // Start server
-    const PORT = process.env.PORT || 3004;
+    const PORT = process.env.PORT || 3007;
     app.listen(PORT, () => {
       logger.info(`Store Service running on port ${PORT}`);
       logger.info(`Health check: http://localhost:${PORT}/health`);
