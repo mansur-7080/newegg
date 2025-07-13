@@ -5,6 +5,7 @@ import { AppError } from '../shared';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import db from '../lib/database';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // Mock repositories
 jest.mock('../repositories/product-repository');

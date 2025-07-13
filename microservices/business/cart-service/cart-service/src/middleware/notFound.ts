@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 interface AppError extends Error {
   statusCode?: number;

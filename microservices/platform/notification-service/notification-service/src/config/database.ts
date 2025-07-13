@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 let prisma: PrismaClient;
 
@@ -85,7 +86,7 @@ export const disconnectDatabase = async () => {
 
 export const getDatabaseClient = () => {
   if (!prisma) {
-    throw new Error('Database not connected. Call connectDatabase() first.');
+    throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database not connected. Call connectDatabase() first.', ErrorCode.INTERNAL_ERROR);
   }
   return prisma;
 };

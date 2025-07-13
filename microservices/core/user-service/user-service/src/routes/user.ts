@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { UserController } from '../controllers/user.controller';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 const router = Router();
 const userController = new UserController();

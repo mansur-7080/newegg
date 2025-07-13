@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma-shim';
 import { logger } from '@ultramarket/shared';
 import { PaymentStatus, PaymentMethod, Payment } from '../types/order.types';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface PaymentDetails {
   method: PaymentMethod;
@@ -30,11 +31,11 @@ export class PaymentService {
       });
 
       if (!order) {
-        throw new Error('Order not found');
+        throw new ResourceNotFoundError('Resource', 'Order not found');
       }
 
       if (order.paymentStatus === 'COMPLETED') {
-        throw new Error('Payment already completed');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Payment already completed', ErrorCode.INTERNAL_ERROR);
       }
 
       // Create payment record
@@ -92,11 +93,11 @@ export class PaymentService {
       });
 
       if (!order) {
-        throw new Error('Order not found');
+        throw new ResourceNotFoundError('Resource', 'Order not found');
       }
 
       if (order.paymentStatus !== 'COMPLETED') {
-        throw new Error('Order payment not completed');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Order payment not completed', ErrorCode.INTERNAL_ERROR);
       }
 
       // Create refund payment record
@@ -177,7 +178,7 @@ export class PaymentService {
 
     // Simulate 95% success rate
     if (Math.random() < 0.05) {
-      throw new Error('Payment gateway error');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Payment gateway error', ErrorCode.INTERNAL_ERROR);
     }
   }
 
@@ -187,7 +188,7 @@ export class PaymentService {
 
     // Simulate 98% success rate for refunds
     if (Math.random() < 0.02) {
-      throw new Error('Refund processing error');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Refund processing error', ErrorCode.INTERNAL_ERROR);
     }
   }
 }

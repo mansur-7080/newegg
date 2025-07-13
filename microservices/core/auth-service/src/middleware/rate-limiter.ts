@@ -1,3 +1,4 @@
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 /**
  * Rate Limiter Middleware
  * Professional rate limiting with Redis support
@@ -78,7 +79,7 @@ export class RateLimiter {
         windowMs,
       });
 
-      throw new Error('Rate limit exceeded');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Rate limit exceeded', ErrorCode.INTERNAL_ERROR);
     }
 
     // Increment counter

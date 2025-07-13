@@ -3,6 +3,7 @@ import { body, query, validationResult } from 'express-validator';
 import { ProductService } from '../services/product.service';
 import { logger, AppError } from '../shared';
 import { 
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
   CreateProductDto,
   UpdateProductDto,
   ProductQueryParams,

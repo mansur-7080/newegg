@@ -1,5 +1,6 @@
 import axios from 'axios';
 import crypto from 'crypto';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface UzbekPaymentRequest {
   amount: number;
@@ -41,7 +42,7 @@ export class UzbekPaymentService {
       case 'humo':
         return this.processCardPayment(request);
       default:
-        throw new Error(`Unsupported payment method: ${request.method}`);
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Unsupported payment method: ${request.method}', ErrorCode.INTERNAL_ERROR);
     }
   }
 

@@ -1,5 +1,6 @@
 import axios, { AxiosResponse } from 'axios';
 import { logger } from '../utils/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface SMSData {
   to: string;
@@ -73,7 +74,7 @@ export class SMSService {
       // Validate phone number format
       const phoneNumber = this.normalizePhoneNumber(smsData.to);
       if (!this.isValidUzbekPhoneNumber(phoneNumber)) {
-        throw new Error('Invalid Uzbekistan phone number format');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Invalid Uzbekistan phone number format', ErrorCode.INTERNAL_ERROR);
       }
 
       // Try ESKIZ first (usually more reliable)
@@ -113,7 +114,7 @@ export class SMSService {
       }
 
       // Both providers failed
-      throw new Error('All SMS providers failed');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'All SMS providers failed', ErrorCode.INTERNAL_ERROR);
     } catch (error) {
       logger.error('SMS sending failed:', error);
       return {
@@ -235,7 +236,7 @@ export class SMSService {
 
         logger.info('ESKIZ token refreshed successfully');
       } else {
-        throw new Error('Failed to get ESKIZ token');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Failed to get ESKIZ token', ErrorCode.INTERNAL_ERROR);
       }
     } catch (error) {
       logger.error('Failed to refresh ESKIZ token:', error);
@@ -333,7 +334,7 @@ export class SMSService {
       } else if (provider === 'Play Mobile') {
         return await this.getPlayMobileDeliveryStatus(messageId);
       } else {
-        throw new Error('Unknown SMS provider');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Unknown SMS provider', ErrorCode.INTERNAL_ERROR);
       }
     } catch (error) {
       logger.error('Failed to get delivery status:', error);

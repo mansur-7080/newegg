@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { logger } from '@ultramarket/common';
 import { PrismaClient } from '@prisma/client';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 const prisma = new PrismaClient();
 
@@ -146,7 +147,7 @@ export class NotificationService {
     try {
       const template = this.templates.get(notification.template);
       if (!template) {
-        throw new Error(`Email template '${notification.template}' not found`);
+        throw new ResourceNotFoundError('Resource', `Email template '${notification.template}' not found`);
       }
 
       const subject = this.renderTemplate(template.subject, notification.data);

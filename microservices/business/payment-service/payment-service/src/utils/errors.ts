@@ -1,3 +1,4 @@
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;

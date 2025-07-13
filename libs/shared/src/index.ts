@@ -40,3 +40,8 @@ export {
 } from './validation';
 // Export securityHeaders and other middleware as needed
 export { securityHeaders, xssProtection, sqlInjectionProtection } from './middleware/security';
+
+// Error handling exports
+export { errorHandler, asyncHandler, StandardizedErrorHandler } from './middleware/errorHandler';
+export * from './errors';
+export * from './types/api-responses';

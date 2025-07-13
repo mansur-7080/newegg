@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface IReview extends Document {
   id: string;
@@ -403,7 +404,7 @@ ReviewSchema.methods.addFlag = function (userId: string, reason: string, descrip
   // Check if user already flagged this review
   const existingFlag = this.flags.find((flag) => flag.userId === userId);
   if (existingFlag) {
-    throw new Error('User has already flagged this review');
+    throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'User has already flagged this review', ErrorCode.INTERNAL_ERROR);
   }
 
   this.flags.push({

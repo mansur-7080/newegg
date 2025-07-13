@@ -1,6 +1,7 @@
 import ProductDatabase from '../database/ProductDatabase';
 import { IProduct, ICategory, IReview } from '../models';
 import { logger } from '@ultramarket/shared';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface ProductFilters {
   category?: string;
@@ -56,7 +57,7 @@ export class ProductService {
       // Check if SKU already exists
       const existingProducts = await this.database.getAllProducts({ sku: productData.sku }, 1, 1);
       if (existingProducts.products.length > 0) {
-        throw new Error('Product with this SKU already exists');
+        throw new BusinessRuleViolationError('Product with this SKU already exists');
       }
 
       // Set default values
@@ -89,7 +90,7 @@ export class ProductService {
       const product = await this.database.getProductById(id);
 
       if (!product) {
-        throw new Error('Product not found');
+        throw new ResourceNotFoundError('Resource', 'Product not found');
       }
 
       return this.transformProduct(product);
@@ -104,7 +105,7 @@ export class ProductService {
       const product = await this.database.getProductBySku(sku);
 
       if (!product) {
-        throw new Error('Product not found');
+        throw new ResourceNotFoundError('Resource', 'Product not found');
       }
 
       return this.transformProduct(product);
@@ -126,7 +127,7 @@ export class ProductService {
           existingProducts.products.length > 0 &&
           existingProducts.products[0]._id.toString() !== id
         ) {
-          throw new Error('Product with this SKU already exists');
+          throw new BusinessRuleViolationError('Product with this SKU already exists');
         }
       }
 
@@ -141,7 +142,7 @@ export class ProductService {
       const product = await this.database.updateProduct(id, updates);
 
       if (!product) {
-        throw new Error('Product not found');
+        throw new ResourceNotFoundError('Resource', 'Product not found');
       }
 
       logger.info(`Product service: Updated product ${product._id}`);
@@ -157,7 +158,7 @@ export class ProductService {
       const success = await this.database.deleteProduct(id);
 
       if (!success) {
-        throw new Error('Product not found');
+        throw new ResourceNotFoundError('Resource', 'Product not found');
       }
 
       logger.info(`Product service: Deleted product ${id}`);
@@ -239,7 +240,7 @@ export class ProductService {
 
       const newQuantity = product.quantity + quantity;
       if (newQuantity < 0) {
-        throw new Error('Insufficient inventory');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Insufficient inventory', ErrorCode.INTERNAL_ERROR);
       }
 
       const updatedProduct = await this.updateProduct(id, {
@@ -315,7 +316,7 @@ export class ProductService {
       }
 
       if (!category) {
-        throw new Error('Category not found');
+        throw new ResourceNotFoundError('Resource', 'Category not found');
       }
 
       return category;

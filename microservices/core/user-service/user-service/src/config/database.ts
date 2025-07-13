@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // Prisma client instance
 export const prisma = new PrismaClient({
@@ -29,7 +30,7 @@ export const config = {
     url:
       process.env['DATABASE_URL'] ||
       (() => {
-        throw new Error('DATABASE_URL environment variable is required');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'DATABASE_URL environment variable is required', ErrorCode.INTERNAL_ERROR);
       })(),
     host: process.env['DB_HOST'] || 'localhost',
     port: parseInt(process.env['DB_PORT'] || '5432'),
@@ -37,7 +38,7 @@ export const config = {
     password:
       process.env['DB_PASSWORD'] ||
       (() => {
-        throw new Error('DB_PASSWORD environment variable is required');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'DB_PASSWORD environment variable is required', ErrorCode.INTERNAL_ERROR);
       })(),
     database: process.env['DB_NAME'] || 'ultramarket_users',
   },
@@ -45,21 +46,21 @@ export const config = {
     url:
       process.env['REDIS_URL'] ||
       (() => {
-        throw new Error('REDIS_URL environment variable is required');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'REDIS_URL environment variable is required', ErrorCode.INTERNAL_ERROR);
       })(),
     host: process.env['REDIS_HOST'] || 'localhost',
     port: parseInt(process.env['REDIS_PORT'] || '6379'),
     password:
       process.env['REDIS_PASSWORD'] ||
       (() => {
-        throw new Error('REDIS_PASSWORD environment variable is required');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'REDIS_PASSWORD environment variable is required', ErrorCode.INTERNAL_ERROR);
       })(),
   },
   jwt: {
     secret:
       process.env['JWT_SECRET'] ||
       (() => {
-        throw new Error('JWT_SECRET environment variable is required (minimum 32 characters)');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'JWT_SECRET environment variable is required (minimum 32 characters)', ErrorCode.INTERNAL_ERROR);
       })(),
     expiresIn: process.env['JWT_EXPIRES_IN'] || '24h',
     refreshExpiresIn: process.env['JWT_REFRESH_EXPIRES_IN'] || '7d',

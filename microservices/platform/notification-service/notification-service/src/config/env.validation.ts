@@ -1,4 +1,5 @@
 import joi from 'joi';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 const envSchema = joi
   .object({
@@ -64,7 +65,7 @@ export const validateEnv = () => {
   const { error, value } = envSchema.validate(process.env);
 
   if (error) {
-    throw new Error(`Environment validation error: ${error.message}`);
+    throw new ValidationError('Environment validation error: ${error.message}');
   }
 
   return value;

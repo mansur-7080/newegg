@@ -1,3 +1,4 @@
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 /**
  * Email Service
  * Professional email sending with templates and queue management
@@ -25,7 +26,7 @@ export class EmailService {
       });
 
       if (!user) {
-        throw new Error('User not found');
+        throw new ResourceNotFoundError('Resource', 'User not found');
       }
 
       // Generate verification token

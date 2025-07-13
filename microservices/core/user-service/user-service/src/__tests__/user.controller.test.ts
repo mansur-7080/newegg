@@ -5,6 +5,7 @@ import { ValidationError } from '../../../libs/shared/src/validation';
 import { UserRole } from '../types/auth';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // Mock dependencies
 jest.mock('../repositories/userRepository');
@@ -597,7 +598,7 @@ describe('UserController', () => {
 
     it('should return 401 for invalid refresh token', async () => {
       mockJwt.verify.mockImplementation(() => {
-        throw new Error('Invalid token');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Invalid token', ErrorCode.INTERNAL_ERROR);
       });
 
       await userController.refreshToken(mockRequest as Request, mockResponse as Response, mockNext);

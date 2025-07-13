@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { logger } from '@ultramarket/shared/logging/logger';
 import { getJWTManager } from '@ultramarket/shared/auth/jwt-manager';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 /**
  * Authenticate JWT token middleware
@@ -154,6 +155,6 @@ export const validateToken = async (token: string): Promise<any> => {
     const jwtManager = getJWTManager();
     return await jwtManager.verifyToken(token, 'access');
   } catch (error) {
-    throw new Error('Invalid token');
+    throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Invalid token', ErrorCode.INTERNAL_ERROR);
   }
 };

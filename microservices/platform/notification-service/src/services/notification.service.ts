@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotificationEntity } from '../entities/notification.entity';
 import { NotificationTemplate } from '../entities/notification-template.entity';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface NotificationData {
   type: 'email' | 'sms' | 'push';
@@ -152,7 +153,7 @@ export class NotificationService {
       }
 
       if (!sent) {
-        throw new Error('Barcha SMS provayderlar ishlamadi');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Barcha SMS provayderlar ishlamadi', ErrorCode.INTERNAL_ERROR);
       }
 
       notification.status = 'sent';
@@ -202,7 +203,7 @@ export class NotificationService {
     );
 
     if (response.data.status !== 'success') {
-      throw new Error(`ESKIZ SMS xatolik: ${response.data.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'ESKIZ SMS xatolik: ${response.data.message}', ErrorCode.INTERNAL_ERROR);
     }
   }
 
@@ -236,7 +237,7 @@ export class NotificationService {
     );
 
     if (response.status !== 200) {
-      throw new Error(`Play Mobile SMS xatolik: ${response.statusText}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Play Mobile SMS xatolik: ${response.statusText}', ErrorCode.INTERNAL_ERROR);
     }
   }
 
@@ -268,7 +269,7 @@ export class NotificationService {
       );
 
       if (response.data.success !== 1) {
-        throw new Error(`Push notification xatolik: ${JSON.stringify(response.data)}`);
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Push notification xatolik: ${JSON.stringify(response.data)}', ErrorCode.INTERNAL_ERROR);
       }
 
       notification.status = 'sent';
@@ -305,7 +306,7 @@ export class NotificationService {
     });
 
     if (!template) {
-      throw new Error(`Template topilmadi: ${templateName} (${type})`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Template topilmadi: ${templateName} (${type})', ErrorCode.INTERNAL_ERROR);
     }
 
     return template;

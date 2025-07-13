@@ -1,5 +1,6 @@
 import { Client } from '@elastic/elasticsearch';
 import { logger } from '@ultramarket/shared';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface SearchQuery {
   query?: string;
@@ -303,7 +304,7 @@ export class ElasticsearchService {
         error: error instanceof Error ? error.message : 'Unknown error',
         query: searchQuery,
       });
-      throw new Error('Search operation failed');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Search operation failed', ErrorCode.INTERNAL_ERROR);
     }
   }
 

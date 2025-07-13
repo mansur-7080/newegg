@@ -1,5 +1,6 @@
 import * as Joi from 'joi';
 import { logger } from '../utils/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 /**
  * Professional environment validation schema for Auth Service
@@ -145,7 +146,7 @@ export const validateEnv = (): Record<string, any> => {
         service: 'auth-service',
       });
 
-      throw new Error(`Environment validation failed: ${error.message}`);
+      throw new ValidationError('Environment validation failed: ${error.message}');
     }
 
     // Check for insecure defaults in production
@@ -183,7 +184,7 @@ export const validateEnv = (): Record<string, any> => {
           });
         });
 
-        throw new Error('Security configuration error: Default secrets used in production');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Security configuration error: Default secrets used in production', ErrorCode.INTERNAL_ERROR);
       }
     }
 

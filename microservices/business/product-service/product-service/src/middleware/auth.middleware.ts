@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UnauthorizedError, ForbiddenError } from './error.middleware';
 import { logger } from '../utils/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -23,7 +24,7 @@ export const validateToken = (req: AuthenticatedRequest, res: Response, next: Ne
     const token = authHeader.substring(7);
 
     if (!process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET not configured');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'JWT_SECRET not configured', ErrorCode.INTERNAL_ERROR);
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;

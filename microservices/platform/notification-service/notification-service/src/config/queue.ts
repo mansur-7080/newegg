@@ -1,5 +1,6 @@
 import amqp from 'amqplib';
 import { logger } from '../utils/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 let connection: amqp.Connection;
 let channel: amqp.Channel;
@@ -54,7 +55,7 @@ export const initializeQueues = async () => {
 export const publishToQueue = async (queueName: string, message: any) => {
   try {
     if (!channel) {
-      throw new Error('Queue not initialized. Call initializeQueues() first.');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Queue not initialized. Call initializeQueues() first.', ErrorCode.INTERNAL_ERROR);
     }
 
     const messageBuffer = Buffer.from(JSON.stringify(message));
@@ -86,7 +87,7 @@ export const consumeFromQueue = async (
 ) => {
   try {
     if (!channel) {
-      throw new Error('Queue not initialized. Call initializeQueues() first.');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Queue not initialized. Call initializeQueues() first.', ErrorCode.INTERNAL_ERROR);
     }
 
     await channel.consume(queueName, async (msg) => {
@@ -144,7 +145,7 @@ export const closeQueues = async () => {
 export const getQueueStats = async (queueName: string) => {
   try {
     if (!channel) {
-      throw new Error('Queue not initialized. Call initializeQueues() first.');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Queue not initialized. Call initializeQueues() first.', ErrorCode.INTERNAL_ERROR);
     }
 
     const queueInfo = await channel.checkQueue(queueName);

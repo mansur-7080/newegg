@@ -3,6 +3,7 @@ import { CategoryRepository } from '../repositories/category-repository';
 import { AppError } from '../shared';
 import { Prisma } from '@prisma/client';
 import db from '../lib/database';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // Mock repository
 jest.mock('../repositories/category-repository');

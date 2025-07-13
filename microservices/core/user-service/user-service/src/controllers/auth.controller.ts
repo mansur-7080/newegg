@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import { AppError } from '../middleware/errorHandler';
 import { EmailService } from '../services/email.service';
 import { RedisService } from '../services/redis.service';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export class AuthController {
   private emailService: EmailService;

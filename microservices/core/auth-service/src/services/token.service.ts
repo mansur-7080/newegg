@@ -1,3 +1,4 @@
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 /**
  * UltraMarket Auth Service - Token Service
  * Professional JWT token management
@@ -53,7 +54,7 @@ export class TokenService {
       const refreshSecret = process.env.JWT_REFRESH_SECRET;
 
       if (!secret || !refreshSecret) {
-        throw new Error('JWT secrets are not configured');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'JWT secrets are not configured', ErrorCode.INTERNAL_ERROR);
       }
 
       // Generate access token
@@ -105,7 +106,7 @@ export class TokenService {
     try {
       const secret = process.env.JWT_SECRET;
       if (!secret) {
-        throw new Error('JWT_SECRET is not configured');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'JWT_SECRET is not configured', ErrorCode.INTERNAL_ERROR);
       }
 
       const decoded = jwt.verify(token, secret, {
@@ -143,7 +144,7 @@ export class TokenService {
     try {
       const secret = process.env.JWT_REFRESH_SECRET;
       if (!secret) {
-        throw new Error('JWT_REFRESH_SECRET is not configured');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'JWT_REFRESH_SECRET is not configured', ErrorCode.INTERNAL_ERROR);
       }
 
       const decoded = jwt.verify(token, secret, {
@@ -410,7 +411,7 @@ export class TokenService {
 
       const secret = process.env.JWT_SECRET;
       if (!secret) {
-        throw new Error('JWT_SECRET is not configured');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'JWT_SECRET is not configured', ErrorCode.INTERNAL_ERROR);
       }
 
       const token = jwt.sign(payload, secret, {
@@ -444,7 +445,7 @@ export class TokenService {
     try {
       const secret = process.env.JWT_SECRET;
       if (!secret) {
-        throw new Error('JWT_SECRET is not configured');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'JWT_SECRET is not configured', ErrorCode.INTERNAL_ERROR);
       }
 
       const decoded = jwt.verify(token, secret, {

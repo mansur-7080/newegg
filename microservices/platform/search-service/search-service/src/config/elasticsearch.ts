@@ -1,6 +1,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { logger } from '../utils/logger';
 import { getEnvConfig } from './env.validation';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 let client: Client;
 
@@ -51,7 +52,7 @@ export const connectElasticsearch = async (): Promise<Client> => {
 
 export const getElasticsearchClient = (): Client => {
   if (!client) {
-    throw new Error('Elasticsearch client not initialized. Call connectElasticsearch first.');
+    throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Elasticsearch client not initialized. Call connectElasticsearch first.', ErrorCode.INTERNAL_ERROR);
   }
   return client;
 };

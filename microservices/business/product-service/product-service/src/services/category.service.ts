@@ -4,6 +4,7 @@ import { ICategory } from '../models/product.model';
 import { logger, AppError } from '../shared';
 import slugify from 'slugify';
 import db from '../lib/database';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // DTOs for category operations
 export interface CreateCategoryDto {

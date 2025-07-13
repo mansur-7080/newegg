@@ -1,6 +1,7 @@
 import { logger } from '@ultramarket/shared';
 import { UserService } from './userService';
 import { TokenService } from './tokenService';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export class AuthService {
   private userService: UserService;
@@ -86,7 +87,7 @@ export class AuthService {
       // Check if user already exists
       const existingUser = await this.userService.findByEmail(userData.email);
       if (existingUser) {
-        throw new Error('User with this email already exists');
+        throw new BusinessRuleViolationError('User with this email already exists');
       }
 
       // Hash password
@@ -202,7 +203,7 @@ export class AuthService {
     try {
       const user = await this.userService.findById(userId);
       if (!user) {
-        throw new Error('User not found');
+        throw new ResourceNotFoundError('Resource', 'User not found');
       }
 
       return user;
@@ -245,14 +246,14 @@ export class AuthService {
       // Get user
       const user = await this.userService.findById(userId);
       if (!user) {
-        throw new Error('User not found');
+        throw new ResourceNotFoundError('Resource', 'User not found');
       }
 
       // Verify current password
       const bcrypt = require('bcryptjs');
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
       if (!isCurrentPasswordValid) {
-        throw new Error('Current password is incorrect');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Current password is incorrect', ErrorCode.INTERNAL_ERROR);
       }
 
       // Hash new password

@@ -4,6 +4,7 @@ import { NotificationController } from '../controllers/notification.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { rateLimitMiddleware } from '../middleware/rateLimit.middleware';
 import { validateRequest } from '../middleware/validation.middleware';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 const router = Router();
 const notificationController = new NotificationController();
@@ -65,7 +66,7 @@ const scheduleNotificationValidation = [
     .isISO8601()
     .custom((value) => {
       if (new Date(value) <= new Date()) {
-        throw new Error('Scheduled date must be in the future');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Scheduled date must be in the future', ErrorCode.INTERNAL_ERROR);
       }
       return true;
     }),

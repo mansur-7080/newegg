@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UnauthorizedError, ForbiddenError } from '../utils/errors';
 import { logger } from '../utils/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // Extend Request interface to include user
 declare global {
@@ -53,7 +54,7 @@ export const authMiddleware = async (
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
       logger.error('JWT_SECRET environment variable is not set');
-      throw new Error('Server configuration error');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Server configuration error', ErrorCode.INTERNAL_ERROR);
     }
 
     // Verify token

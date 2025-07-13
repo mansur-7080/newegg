@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '@ultramarket/shared/logging/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface Category {
   id: string;
@@ -134,7 +135,7 @@ export class CategoryService {
       });
 
       if (existingCategory) {
-        throw new Error('Category with this slug already exists');
+        throw new BusinessRuleViolationError('Category with this slug already exists');
       }
 
       // Check if parent category exists
@@ -144,7 +145,7 @@ export class CategoryService {
         });
 
         if (!parentCategory) {
-          throw new Error('Parent category not found');
+          throw new ResourceNotFoundError('Resource', 'Parent category not found');
         }
       }
 
@@ -187,7 +188,7 @@ export class CategoryService {
       });
 
       if (!existingCategory) {
-        throw new Error('Category not found');
+        throw new ResourceNotFoundError('Resource', 'Category not found');
       }
 
       // Check if slug already exists (if being updated)
@@ -197,7 +198,7 @@ export class CategoryService {
         });
 
         if (slugExists) {
-          throw new Error('Category with this slug already exists');
+          throw new BusinessRuleViolationError('Category with this slug already exists');
         }
       }
 
@@ -208,12 +209,12 @@ export class CategoryService {
         });
 
         if (!parentCategory) {
-          throw new Error('Parent category not found');
+          throw new ResourceNotFoundError('Resource', 'Parent category not found');
         }
 
         // Prevent circular references
         if (data.parentId === id) {
-          throw new Error('Category cannot be its own parent');
+          throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Category cannot be its own parent', ErrorCode.INTERNAL_ERROR);
         }
       }
 
@@ -250,7 +251,7 @@ export class CategoryService {
       });
 
       if (!existingCategory) {
-        throw new Error('Category not found');
+        throw new ResourceNotFoundError('Resource', 'Category not found');
       }
 
       // Check if category has subcategories
@@ -259,7 +260,7 @@ export class CategoryService {
       });
 
       if (subcategories.length > 0) {
-        throw new Error('Cannot delete category with subcategories');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Cannot delete category with subcategories', ErrorCode.INTERNAL_ERROR);
       }
 
       // Check if category has products
@@ -269,7 +270,7 @@ export class CategoryService {
       });
 
       if (products.length > 0) {
-        throw new Error('Cannot delete category with products');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Cannot delete category with products', ErrorCode.INTERNAL_ERROR);
       }
 
       await this.prisma.category.delete({
@@ -328,7 +329,7 @@ export class CategoryService {
       });
 
       if (!currentCategory) {
-        throw new Error('Category not found');
+        throw new ResourceNotFoundError('Resource', 'Category not found');
       }
 
       // Build path from current category to root

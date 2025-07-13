@@ -1,3 +1,4 @@
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 /**
  * JWT Service
  * Professional JWT token management with security best practices
@@ -81,7 +82,7 @@ export class JWTService {
         error: error instanceof Error ? error.message : 'Unknown error',
         userId: payload.userId,
       });
-      throw new Error('Failed to generate tokens');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Failed to generate tokens', ErrorCode.INTERNAL_ERROR);
     }
   }
 
@@ -159,7 +160,7 @@ export class JWTService {
         error: error instanceof Error ? error.message : 'Unknown error',
         userId,
       });
-      throw new Error('Failed to generate reset token');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Failed to generate reset token', ErrorCode.INTERNAL_ERROR);
     }
   }
 
@@ -189,7 +190,7 @@ export class JWTService {
         error: error instanceof Error ? error.message : 'Unknown error',
         userId,
       });
-      throw new Error('Failed to generate verification token');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Failed to generate verification token', ErrorCode.INTERNAL_ERROR);
     }
   }
 

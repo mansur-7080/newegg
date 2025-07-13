@@ -1,5 +1,6 @@
 import { getRedisClient } from '../config/redis';
 import { logger } from '../utils/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // Define interfaces for our service
 export interface ICartItem {
@@ -156,12 +157,12 @@ export class CartService {
     try {
       const cart = await this.getCart(userId);
       if (!cart) {
-        throw new Error('Cart not found');
+        throw new ResourceNotFoundError('Resource', 'Cart not found');
       }
 
       const itemIndex = cart.items.findIndex((item) => item.productId === productId);
       if (itemIndex === -1) {
-        throw new Error('Item not found in cart');
+        throw new ResourceNotFoundError('Resource', 'Item not found in cart');
       }
 
       if (quantity <= 0) {
@@ -196,12 +197,12 @@ export class CartService {
     try {
       const cart = await this.getCart(userId);
       if (!cart) {
-        throw new Error('Cart not found');
+        throw new ResourceNotFoundError('Resource', 'Cart not found');
       }
 
       const itemIndex = cart.items.findIndex((item) => item.productId === productId);
       if (itemIndex === -1) {
-        throw new Error('Item not found in cart');
+        throw new ResourceNotFoundError('Resource', 'Item not found in cart');
       }
 
       cart.items.splice(itemIndex, 1);
@@ -223,7 +224,7 @@ export class CartService {
     try {
       const cart = await this.getCart(userId);
       if (!cart) {
-        throw new Error('Cart not found');
+        throw new ResourceNotFoundError('Resource', 'Cart not found');
       }
 
       cart.items = [];
@@ -264,11 +265,11 @@ export class CartService {
     try {
       const cart = await this.getCart(userId);
       if (!cart) {
-        throw new Error('Cart not found');
+        throw new ResourceNotFoundError('Resource', 'Cart not found');
       }
 
       if (!couponData) {
-        throw new Error('Invalid coupon code');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Invalid coupon code', ErrorCode.INTERNAL_ERROR);
       }
 
       if (

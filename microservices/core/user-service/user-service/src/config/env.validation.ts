@@ -1,5 +1,6 @@
 import Joi from 'joi';
 import { logger } from '../utils/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // Environment validation schema
 const envSchema = Joi.object({
@@ -74,7 +75,7 @@ export const validateEnv = () => {
         message: detail.message,
       })),
     });
-    throw new Error(`Environment validation failed: ${error.message}`);
+    throw new ValidationError('Environment validation failed: ${error.message}');
   }
 
   // Update process.env with validated values

@@ -1,5 +1,6 @@
 import { PrismaClient, User, Prisma } from '@prisma/client';
 import { logger } from '@ultramarket/shared';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 /**
  * Professional database client initialization with connection pool configuration
@@ -57,7 +58,7 @@ export class UserService {
         try {
           // Validate required fields
           if (!data.email || !data.password || !data.firstName || !data.lastName) {
-            throw new Error('Missing required user data');
+            throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Missing required user data', ErrorCode.INTERNAL_ERROR);
           }
 
           // Create user with proper type casting for role
@@ -93,7 +94,7 @@ export class UserService {
                 constraint: target.join(', '),
                 email: data.email,
               });
-              throw new Error(`User with this ${target.join(', ')} already exists`);
+              throw new BusinessRuleViolationError(`User with this ${target.join(', ')} already exists`);
             }
 
             // Foreign key constraint failure
@@ -102,7 +103,7 @@ export class UserService {
                 constraint: error.meta?.field_name,
                 email: data.email,
               });
-              throw new Error('Invalid reference to related resource');
+              throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Invalid reference to related resource', ErrorCode.INTERNAL_ERROR);
             }
           }
 
@@ -114,7 +115,7 @@ export class UserService {
           });
 
           // Rethrow with better user-facing message
-          throw new Error('Failed to create user account');
+          throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Failed to create user account', ErrorCode.INTERNAL_ERROR);
         }
       },
       {

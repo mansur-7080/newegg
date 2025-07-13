@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import { logger } from '@ultramarket/shared';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface PaymePaymentRequest {
   amount: number;
@@ -60,7 +61,7 @@ export class PaymeService {
     this.testMode = process.env.NODE_ENV !== 'production';
 
     if (!this.merchantId || !this.secretKey) {
-      throw new Error('Payme payment gateway configuration is missing');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Payme payment gateway configuration is missing', ErrorCode.INTERNAL_ERROR);
     }
   }
 
@@ -149,7 +150,7 @@ export class PaymeService {
           orderId: payload.params.account?.order_id,
           amount: payload.params.amount,
         });
-        throw new Error('Order not found or amount mismatch');
+        throw new ResourceNotFoundError('Resource', 'Order not found or amount mismatch');
       }
 
       // Get order details for receipt
@@ -210,7 +211,7 @@ export class PaymeService {
           orderId: payload.params.account?.order_id,
           amount: payload.params.amount,
         });
-        throw new Error('Order not found or amount mismatch');
+        throw new ResourceNotFoundError('Resource', 'Order not found or amount mismatch');
       }
 
       // Create transaction
@@ -261,7 +262,7 @@ export class PaymeService {
         logger.error('Payme transaction not found for perform', {
           transactionId: payload.params.id,
         });
-        throw new Error('Transaction not found');
+        throw new ResourceNotFoundError('Resource', 'Transaction not found');
       }
 
       // Check if already performed
@@ -325,7 +326,7 @@ export class PaymeService {
         logger.error('Payme transaction not found for cancel', {
           transactionId: payload.params.id,
         });
-        throw new Error('Transaction not found');
+        throw new ResourceNotFoundError('Resource', 'Transaction not found');
       }
 
       // Check if already cancelled
@@ -397,7 +398,7 @@ export class PaymeService {
         logger.error('Payme transaction not found for check', {
           transactionId: payload.params.id,
         });
-        throw new Error('Transaction not found');
+        throw new ResourceNotFoundError('Resource', 'Transaction not found');
       }
 
       return {

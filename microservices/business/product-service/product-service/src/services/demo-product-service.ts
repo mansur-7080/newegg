@@ -1,3 +1,4 @@
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 /**
  * This file provides a mock implementation of the product service with appropriate
  * interfaces to demonstrate the service capabilities without requiring a database
@@ -299,7 +300,7 @@ export const productRepository = {
 
   async update(id: string, data: any): Promise<Product> {
     const index = products.findIndex((p) => p.id === id);
-    if (index === -1) throw new Error('Product not found');
+    if (index === -1) throw new ResourceNotFoundError('Resource', 'Product not found');
 
     products[index] = {
       ...products[index],

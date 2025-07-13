@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { logger } from '@ultramarket/shared';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface PushData {
   to: string; // FCM token or device token
@@ -77,7 +78,7 @@ export class PushService {
 
   async sendPushNotification(data: PushData): Promise<PushResult> {
     if (!this.isValidDeviceToken(data.to)) {
-      throw new Error(`Invalid device token: ${data.to}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Invalid device token: ${data.to}', ErrorCode.INTERNAL_ERROR);
     }
 
     // Determine provider based on token format
@@ -116,7 +117,7 @@ export class PushService {
       case 'APNS':
         return this.sendAPNSNotification(provider, data);
       default:
-        throw new Error(`Unsupported push provider: ${provider.type}`);
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Unsupported push provider: ${provider.type}', ErrorCode.INTERNAL_ERROR);
     }
   }
 
@@ -152,7 +153,7 @@ export class PushService {
 
       if (response.data.success !== 1) {
         const error = response.data.results?.[0]?.error || 'Unknown FCM error';
-        throw new Error(`FCM notification failed: ${error}`);
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'FCM notification failed: ${error}', ErrorCode.INTERNAL_ERROR);
       }
 
       return {
@@ -202,7 +203,7 @@ export class PushService {
       });
 
       if (response.status !== 200) {
-        throw new Error(`APNS notification failed: ${response.statusText}`);
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'APNS notification failed: ${response.statusText}', ErrorCode.INTERNAL_ERROR);
       }
 
       return {
@@ -249,7 +250,7 @@ export class PushService {
     const fcmProvider = this.providers.find((p) => p.type === 'FCM');
     if (fcmProvider) return fcmProvider;
 
-    throw new Error('No suitable push notification provider found');
+    throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'No suitable push notification provider found', ErrorCode.INTERNAL_ERROR);
   }
 
   private isValidDeviceToken(token: string): boolean {
@@ -299,7 +300,7 @@ export class PushService {
       );
 
       if (response.status !== 200) {
-        throw new Error(`Failed to subscribe to topic: ${response.statusText}`);
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Failed to subscribe to topic: ${response.statusText}', ErrorCode.INTERNAL_ERROR);
       }
 
       logger.info('Device subscribed to topic', {
@@ -325,7 +326,7 @@ export class PushService {
       );
 
       if (response.status !== 200) {
-        throw new Error(`Failed to unsubscribe from topic: ${response.statusText}`);
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Failed to unsubscribe from topic: ${response.statusText}', ErrorCode.INTERNAL_ERROR);
       }
 
       logger.info('Device unsubscribed from topic', {
@@ -367,7 +368,7 @@ export class PushService {
       });
 
       if (response.data.success !== 1) {
-        throw new Error(`Topic notification failed: ${response.data.error}`);
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Topic notification failed: ${response.data.error}', ErrorCode.INTERNAL_ERROR);
       }
 
       return {

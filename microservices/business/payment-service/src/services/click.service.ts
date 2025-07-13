@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import { logger } from '@ultramarket/shared';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface ClickPaymentRequest {
   amount: number;
@@ -48,7 +49,7 @@ export class ClickService {
     this.baseUrl = process.env.CLICK_ENDPOINT || 'https://api.click.uz/v2';
 
     if (!this.merchantId || !this.serviceId || !this.secretKey || !this.userId) {
-      throw new Error('Click payment gateway configuration is missing');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Click payment gateway configuration is missing', ErrorCode.INTERNAL_ERROR);
     }
   }
 

@@ -1,5 +1,6 @@
 import { logger } from '../utils/logger';
 import prisma from '../lib/prisma';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // Import ProductFilters type from local file to avoid circular dependency
 export interface ProductFilters {
@@ -59,7 +60,7 @@ export const productRepository = {
       return product as unknown as Product;
     } catch (error) {
       logger.error('Error finding product by ID', { id, error: error.message });
-      throw new Error(`Database error when finding product: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when finding product: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -77,7 +78,7 @@ export const productRepository = {
       return product as unknown as Product;
     } catch (error) {
       logger.error('Error finding product by SKU', { sku, error: error.message });
-      throw new Error(`Database error when finding product by SKU: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when finding product by SKU: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -95,7 +96,7 @@ export const productRepository = {
       return product as unknown as Product;
     } catch (error) {
       logger.error(`Error finding product by ${field}`, { field, value, error: error.message });
-      throw new Error(`Database error when finding product by ${field}: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when finding product by ${field}: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -133,7 +134,7 @@ export const productRepository = {
       return products as unknown as Product[];
     } catch (error) {
       logger.error('Error finding products', { options, error: error.message });
-      throw new Error(`Database error when finding products: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when finding products: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -149,7 +150,7 @@ export const productRepository = {
       return await prisma.product.count({ where });
     } catch (error) {
       logger.error('Error counting products', { where, error: error.message });
-      throw new Error(`Database error when counting products: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when counting products: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -173,7 +174,7 @@ export const productRepository = {
       return product as unknown as Product;
     } catch (error) {
       logger.error('Error creating product', { error: error.message });
-      throw new Error(`Database error when creating product: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when creating product: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -193,7 +194,7 @@ export const productRepository = {
       return product as unknown as Product;
     } catch (error) {
       logger.error('Error updating product', { id, error: error.message });
-      throw new Error(`Database error when updating product: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when updating product: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -212,7 +213,7 @@ export const productRepository = {
       });
     } catch (error) {
       logger.error('Error soft-deleting product', { id, error: error.message });
-      throw new Error(`Database error when soft-deleting product: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when soft-deleting product: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -226,7 +227,7 @@ export const productRepository = {
       });
     } catch (error) {
       logger.error('Error hard-deleting product', { id, error: error.message });
-      throw new Error(`Database error when hard-deleting product: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when hard-deleting product: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -248,7 +249,7 @@ export const productRepository = {
       await prisma.$transaction(transaction);
     } catch (error) {
       logger.error('Error bulk updating product stock', { error: error.message });
-      throw new Error(`Database error when bulk updating stock: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when bulk updating stock: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -324,7 +325,7 @@ export const productRepository = {
       };
     } catch (error) {
       logger.error('Error searching products', { query, error: error.message });
-      throw new Error(`Database error when searching products: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when searching products: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -353,7 +354,7 @@ export const productRepository = {
       return products as unknown as Product[];
     } catch (error) {
       logger.error('Error fetching featured products', { categoryId, error: error.message });
-      throw new Error(`Database error when fetching featured products: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when fetching featured products: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -405,7 +406,7 @@ export const productRepository = {
         category,
         error: error.message,
       });
-      throw new Error(`Database error when fetching related products: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when fetching related products: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 
@@ -426,7 +427,7 @@ export const productRepository = {
       return products as unknown as Product[];
     } catch (error) {
       logger.error('Error finding low stock products', { threshold, error: error.message });
-      throw new Error(`Database error when finding low stock products: ${error.message}`);
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database error when finding low stock products: ${error.message}', ErrorCode.INTERNAL_ERROR);
     }
   },
 };

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { logger } from '../utils/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // MongoDB connection options
 const mongoOptions: mongoose.ConnectOptions = {
@@ -53,7 +54,7 @@ export const connectDB = async (): Promise<void> => {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ultramarket_reviews';
 
     if (!mongoUri) {
-      throw new Error('MONGODB_URI environment variable is not defined');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'MONGODB_URI environment variable is not defined', ErrorCode.INTERNAL_ERROR);
     }
 
     logger.info('Connecting to MongoDB...', {
@@ -221,7 +222,7 @@ export const healthCheck = async (): Promise<{
 export const getDatabaseStats = async (): Promise<any> => {
   try {
     if (!isConnected) {
-      throw new Error('Database not connected');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database not connected', ErrorCode.INTERNAL_ERROR);
     }
 
     const stats = await mongoose.connection.db.stats();
@@ -251,7 +252,7 @@ export const getDatabaseStats = async (): Promise<any> => {
 export const createIndexes = async (): Promise<void> => {
   try {
     if (!isConnected) {
-      throw new Error('Database not connected');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database not connected', ErrorCode.INTERNAL_ERROR);
     }
 
     logger.info('Creating database indexes...');
@@ -353,7 +354,7 @@ const createReviewIndexes = async (): Promise<void> => {
 export const dropIndexes = async (collectionName?: string): Promise<void> => {
   try {
     if (!isConnected) {
-      throw new Error('Database not connected');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Database not connected', ErrorCode.INTERNAL_ERROR);
     }
 
     if (collectionName) {

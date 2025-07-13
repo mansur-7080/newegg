@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import sgMail from '@sendgrid/mail';
 import { logger } from '../utils/logger';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface EmailData {
   to: string | string[];
@@ -117,7 +118,7 @@ export class EmailService {
       }
 
       // Both providers failed
-      throw new Error('All email providers failed');
+      throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'All email providers failed', ErrorCode.INTERNAL_ERROR);
     } catch (error) {
       logger.error('Email sending failed:', error);
       return {
@@ -180,7 +181,7 @@ export class EmailService {
   private async sendViaSMTP(emailData: EmailData): Promise<EmailResult> {
     try {
       if (!this.smtpTransporter) {
-        throw new Error('SMTP transporter not initialized');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'SMTP transporter not initialized', ErrorCode.INTERNAL_ERROR);
       }
 
       const mailOptions: nodemailer.SendMailOptions = {

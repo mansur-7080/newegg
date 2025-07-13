@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 export interface IOrderItem {
   productId: string;
@@ -349,7 +350,7 @@ OrderSchema.methods.updateStatus = async function (newStatus: string, performedB
 
 OrderSchema.methods.cancelOrder = async function (reason: string, performedBy?: string) {
   if (['delivered', 'cancelled', 'refunded'].includes(this.status)) {
-    throw new Error('Cannot cancel order in current status');
+    throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Cannot cancel order in current status', ErrorCode.INTERNAL_ERROR);
   }
 
   this.status = 'cancelled';
@@ -364,7 +365,7 @@ OrderSchema.methods.processRefund = async function (
   performedBy?: string
 ) {
   if (!this.isPaid) {
-    throw new Error('Cannot refund unpaid order');
+    throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Cannot refund unpaid order', ErrorCode.INTERNAL_ERROR);
   }
 
   this.payment.refundedAmount = (this.payment.refundedAmount || 0) + amount;

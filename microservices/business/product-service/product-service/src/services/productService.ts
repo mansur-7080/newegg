@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { logger } from '@ultramarket/shared';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // Product Schema
 const productSchema = new mongoose.Schema({
@@ -243,7 +244,7 @@ export class ProductService {
       // Check if SKU already exists
       const existingProduct = await Product.findOne({ sku: productData.sku });
       if (existingProduct) {
-        throw new Error('Product with this SKU already exists');
+        throw new BusinessRuleViolationError('Product with this SKU already exists');
       }
 
       const product = new Product(productData);
@@ -393,7 +394,7 @@ export class ProductService {
       }
 
       if (operation === 'subtract' && product.stock < quantity) {
-        throw new Error('Insufficient stock');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Insufficient stock', ErrorCode.INTERNAL_ERROR);
       }
 
       const newStock = operation === 'add' ? product.stock + quantity : product.stock - quantity;

@@ -3,6 +3,7 @@
 
 import { createLogger, format, transports } from 'winston';
 import jwt from 'jsonwebtoken';
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 
 // Create local logger
 const logger = createLogger({

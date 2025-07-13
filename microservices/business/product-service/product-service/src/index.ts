@@ -1,3 +1,4 @@
+import { AppError, HttpStatusCode, ErrorCode, ResourceNotFoundError, BusinessRuleViolationError, AuthorizationError, ValidationError } from '../../libs/shared';
 /**
  * UltraMarket Product Service
  * Professional product catalog and inventory management service
@@ -173,7 +174,7 @@ const connectDB = async () => {
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
     logger.error('MONGODB_URI environment variable is not defined');
-    throw new Error('MONGODB_URI environment variable is required');
+    throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'MONGODB_URI environment variable is required', ErrorCode.INTERNAL_ERROR);
   }
 
   // Configure mongoose
@@ -232,7 +233,7 @@ const connectDB = async () => {
 
       if (retries >= maxRetries) {
         logger.error('Failed to connect to MongoDB after maximum retries');
-        throw new Error('Failed to connect to MongoDB after maximum retries');
+        throw new AppError(HttpStatusCode.INTERNAL_SERVER_ERROR, 'Failed to connect to MongoDB after maximum retries', ErrorCode.INTERNAL_ERROR);
       }
     }
   }
