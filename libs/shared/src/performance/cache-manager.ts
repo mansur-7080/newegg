@@ -1,688 +1,314 @@
 /**
- * Professional Cache Management System
- * High-performance caching with Redis, in-memory, and distributed caching
+ * Cache Manager
+ * Professional caching implementation for UltraMarket
  */
 
-import { EventEmitter } from 'events';
-import { performance } from 'perf_hooks';
+import { createClient, RedisClientType } from 'redis';
+import { logger } from '../logging/logger';
 
-// =================== SIMPLE LOGGER ===================
-
-const logger = {
-  info: (message: string, meta?: Record<string, unknown>) => {
-    console.log(`[INFO] ${message}`, meta ? JSON.stringify(meta) : '');
-  },
-  error: (message: string, meta?: Record<string, unknown>) => {
-    console.error(`[ERROR] ${message}`, meta ? JSON.stringify(meta) : '');
-  },
-  warn: (message: string, meta?: Record<string, unknown>) => {
-    console.warn(`[WARN] ${message}`, meta ? JSON.stringify(meta) : '');
-  },
-};
-
-// =================== TYPES ===================
-
-export interface CacheConfig {
-  defaultTTL: number; // seconds
-  maxSize: number; // maximum cache size
-  enableMetrics: boolean;
-  compression: boolean;
-  serialization: 'json' | 'msgpack' | 'none';
-  namespace: string;
+export interface CacheOptions {
+  ttl?: number; // Time to live in seconds
+  prefix?: string;
+  compress?: boolean;
 }
 
-export interface CacheItem<T = unknown> {
-  key: string;
-  value: T;
+export interface CacheItem<T = any> {
+  data: T;
+  timestamp: number;
   ttl: number;
-  createdAt: Date;
-  expiresAt: Date;
-  hits: number;
-  size: number;
-  tags: string[];
 }
 
-export interface CacheMetrics {
-  hits: number;
-  misses: number;
-  sets: number;
-  deletes: number;
-  evictions: number;
-  totalSize: number;
-  hitRate: number;
-  averageResponseTime: number;
-}
+export class CacheManager {
+  private redis: RedisClientType;
+  private defaultTTL: number = 3600; // 1 hour
+  private defaultPrefix: string = 'ultramarket:';
 
-export interface CacheStrategy {
-  name: string;
-  shouldCache: (key: string, value: unknown) => boolean;
-  getTTL: (key: string, value: unknown) => number;
-  getKey: (originalKey: string, context?: unknown) => string;
-}
+  constructor(redisUrl?: string) {
+    this.redis = createClient({
+      url: redisUrl || process.env.REDIS_URL || 'redis://localhost:6379',
+    });
 
-// =================== CACHE MANAGER ===================
+    this.redis.on('error', (err) => {
+      logger.error('Redis connection error:', err);
+    });
 
-export class CacheManager extends EventEmitter {
-  private config: CacheConfig;
-  private cache: Map<string, CacheItem> = new Map();
-  private redisClient: unknown;
-  private metrics: CacheMetrics = {
-    hits: 0,
-    misses: 0,
-    sets: 0,
-    deletes: 0,
-    evictions: 0,
-    totalSize: 0,
-    hitRate: 0,
-    averageResponseTime: 0,
-  };
-  private responseTimes: number[] = [];
-  private cleanupInterval: NodeJS.Timeout | null = null;
-
-  constructor(config: CacheConfig, redisClient?: unknown) {
-    super();
-    this.config = config;
-    this.redisClient = redisClient;
-    this.startCleanupInterval();
+    this.redis.on('connect', () => {
+      logger.info('Connected to Redis cache');
+    });
   }
 
   /**
-   * Get value from cache
+   * Connect to Redis
    */
-  async get<T = unknown>(key: string): Promise<T | null> {
-    const startTime = performance.now();
-    const fullKey = this.getFullKey(key);
-
+  async connect(): Promise<void> {
     try {
-      // Try in-memory cache first
-      const memoryItem = this.cache.get(fullKey);
-      if (memoryItem && !this.isExpired(memoryItem)) {
-        memoryItem.hits++;
-        this.recordHit(performance.now() - startTime);
-        return memoryItem.value as T;
-      }
-
-      // Try Redis cache
-      if (this.redisClient && typeof this.redisClient === 'object' && this.redisClient !== null) {
-        const redisGet = (this.redisClient as { get: (key: string) => Promise<string | null> }).get;
-        if (typeof redisGet === 'function') {
-          const redisValue = await redisGet(fullKey);
-          if (redisValue) {
-            const parsedValue = this.deserialize(redisValue);
-            // Store in memory for faster access
-            await this.setMemory(fullKey, parsedValue, this.config.defaultTTL);
-            this.recordHit(performance.now() - startTime);
-            return parsedValue as T;
-          }
-        }
-      }
-
-      this.recordMiss(performance.now() - startTime);
-      return null;
+      await this.redis.connect();
     } catch (error) {
-      logger.error('Cache get error', { key, error });
-      this.recordMiss(performance.now() - startTime);
-      return null;
-    }
-  }
-
-  /**
-   * Set value in cache
-   */
-  async set<T = unknown>(key: string, value: T, ttl?: number): Promise<void> {
-    const startTime = performance.now();
-    const fullKey = this.getFullKey(key);
-    const cacheTTL = ttl || this.config.defaultTTL;
-
-    try {
-      // Set in memory cache
-      await this.setMemory(fullKey, value, cacheTTL);
-
-      // Set in Redis cache
-      if (this.redisClient && typeof this.redisClient === 'object' && this.redisClient !== null) {
-        const redisSetex = (
-          this.redisClient as { setex: (key: string, ttl: number, value: string) => Promise<void> }
-        ).setex;
-        if (typeof redisSetex === 'function') {
-          const serializedValue = this.serialize(value);
-          await redisSetex(fullKey, cacheTTL, serializedValue);
-        }
-      }
-
-      this.metrics.sets++;
-      this.recordResponseTime(performance.now() - startTime);
-      this.emit('set', { key, value, ttl: cacheTTL });
-    } catch (error) {
-      logger.error('Cache set error', { key, error });
+      logger.error('Failed to connect to Redis:', error);
       throw error;
     }
   }
 
   /**
-   * Delete value from cache
+   * Disconnect from Redis
    */
-  async delete(key: string): Promise<boolean> {
-    const startTime = performance.now();
-    const fullKey = this.getFullKey(key);
-
+  async disconnect(): Promise<void> {
     try {
-      // Delete from memory cache
-      const memoryDeleted = this.cache.delete(fullKey);
-
-      // Delete from Redis cache
-      let redisDeleted = false;
-      if (this.redisClient && typeof this.redisClient === 'object' && this.redisClient !== null) {
-        const redisDel = (this.redisClient as { del: (key: string) => Promise<number> }).del;
-        if (typeof redisDel === 'function') {
-          const result = await redisDel(fullKey);
-          redisDeleted = result > 0;
-        }
-      }
-
-      const deleted = memoryDeleted || redisDeleted;
-      if (deleted) {
-        this.metrics.deletes++;
-        this.recordResponseTime(performance.now() - startTime);
-        this.emit('delete', { key });
-      }
-
-      return deleted;
+      await this.redis.quit();
+      logger.info('Disconnected from Redis');
     } catch (error) {
-      logger.error('Cache delete error', { key, error });
-      return false;
+      logger.error('Failed to disconnect from Redis:', error);
+    }
+  }
+
+  /**
+   * Set cache item
+   */
+  async set<T>(
+    key: string,
+    data: T,
+    options: CacheOptions = {}
+  ): Promise<void> {
+    try {
+      const { ttl = this.defaultTTL, prefix = this.defaultPrefix } = options;
+      const fullKey = `${prefix}${key}`;
+      
+      const cacheItem: CacheItem<T> = {
+        data,
+        timestamp: Date.now(),
+        ttl,
+      };
+
+      await this.redis.setex(fullKey, ttl, JSON.stringify(cacheItem));
+      
+      logger.debug('Cache item set', { key: fullKey, ttl });
+    } catch (error) {
+      logger.error('Failed to set cache item:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get cache item
+   */
+  async get<T>(key: string, prefix: string = this.defaultPrefix): Promise<T | null> {
+    try {
+      const fullKey = `${prefix}${key}`;
+      const cached = await this.redis.get(fullKey);
+
+      if (!cached) {
+        return null;
+      }
+
+      const cacheItem: CacheItem<T> = JSON.parse(cached);
+      
+      // Check if item is expired
+      const now = Date.now();
+      const age = now - cacheItem.timestamp;
+      
+      if (age > cacheItem.ttl * 1000) {
+        await this.delete(key, prefix);
+        return null;
+      }
+
+      logger.debug('Cache hit', { key: fullKey });
+      return cacheItem.data;
+    } catch (error) {
+      logger.error('Failed to get cache item:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Delete cache item
+   */
+  async delete(key: string, prefix: string = this.defaultPrefix): Promise<void> {
+    try {
+      const fullKey = `${prefix}${key}`;
+      await this.redis.del(fullKey);
+      
+      logger.debug('Cache item deleted', { key: fullKey });
+    } catch (error) {
+      logger.error('Failed to delete cache item:', error);
+      throw error;
     }
   }
 
   /**
    * Clear all cache
    */
-  async clear(): Promise<void> {
+  async clear(prefix: string = this.defaultPrefix): Promise<void> {
     try {
-      // Clear memory cache
-      this.cache.clear();
-
-      // Clear Redis cache with namespace
-      if (this.redisClient && typeof this.redisClient === 'object' && this.redisClient !== null) {
-        const redisKeys = (this.redisClient as { keys: (pattern: string) => Promise<string[]> })
-          .keys;
-        if (typeof redisKeys === 'function') {
-          const pattern = `${this.config.namespace}:*`;
-          const keys = await redisKeys(pattern);
-          if (keys.length > 0) {
-            const redisDel = (this.redisClient as { del: (keys: string[]) => Promise<number> }).del;
-            if (typeof redisDel === 'function') {
-              await redisDel(keys);
-            }
-          }
-        }
+      const keys = await this.redis.keys(`${prefix}*`);
+      if (keys.length > 0) {
+        await this.redis.del(keys);
       }
-
-      this.resetMetrics();
-      this.emit('clear');
+      
+      logger.info('Cache cleared', { prefix, count: keys.length });
     } catch (error) {
-      logger.error('Cache clear error', { error });
+      logger.error('Failed to clear cache:', error);
       throw error;
     }
   }
 
   /**
-   * Get or set with function
+   * Get cache statistics
    */
-  async getOrSet<T = unknown>(key: string, fn: () => Promise<T> | T, ttl?: number): Promise<T> {
-    const cached = await this.get<T>(key);
-    if (cached !== null) {
-      return cached;
-    }
-
-    const value = await fn();
-    await this.set(key, value, ttl);
-    return value;
-  }
-
-  /**
-   * Get multiple keys
-   */
-  async getMany<T = unknown>(keys: string[]): Promise<(T | null)[]> {
-    const promises = keys.map((key) => this.get<T>(key));
-    return Promise.all(promises);
-  }
-
-  /**
-   * Set multiple key-value pairs
-   */
-  async setMany<T = unknown>(items: Array<{ key: string; value: T; ttl?: number }>): Promise<void> {
-    const promises = items.map((item) => this.set(item.key, item.value, item.ttl));
-    await Promise.all(promises);
-  }
-
-  /**
-   * Delete multiple keys
-   */
-  async deleteMany(keys: string[]): Promise<number> {
-    const promises = keys.map((key) => this.delete(key));
-    const results = await Promise.all(promises);
-    return results.filter(Boolean).length;
-  }
-
-  /**
-   * Get keys by pattern
-   */
-  async getKeys(pattern: string): Promise<string[]> {
+  async getStats(): Promise<{
+    totalKeys: number;
+    memoryUsage: string;
+    hitRate: number;
+  }> {
     try {
-      const fullPattern = this.getFullKey(pattern);
+      const info = await this.redis.info('memory');
+      const keys = await this.redis.keys(`${this.defaultPrefix}*`);
+      
+      // Parse memory usage from info
+      const memoryMatch = info.match(/used_memory_human:(\S+)/);
+      const memoryUsage = memoryMatch ? memoryMatch[1] : '0B';
+      
+      return {
+        totalKeys: keys.length,
+        memoryUsage,
+        hitRate: 0, // Would need to implement hit tracking
+      };
+    } catch (error) {
+      logger.error('Failed to get cache stats:', error);
+      return {
+        totalKeys: 0,
+        memoryUsage: '0B',
+        hitRate: 0,
+      };
+    }
+  }
 
-      // Get from memory cache
-      const memoryKeys = Array.from(this.cache.keys())
-        .filter((key) => this.matchPattern(key, fullPattern))
-        .map((key) => key.replace(`${this.config.namespace}:`, ''));
+  /**
+   * Cache decorator for methods
+   */
+  static cache<T extends any[], R>(
+    key: string,
+    options: CacheOptions = {}
+  ) {
+    return function (
+      target: any,
+      propertyName: string,
+      descriptor: PropertyDescriptor
+    ) {
+      const method = descriptor.value;
 
-      // Get from Redis cache
-      let redisKeys: string[] = [];
-      if (this.redisClient && typeof this.redisClient === 'object' && this.redisClient !== null) {
-        const redisKeysMethod = (
-          this.redisClient as { keys: (pattern: string) => Promise<string[]> }
-        ).keys;
-        if (typeof redisKeysMethod === 'function') {
-          const keys = await redisKeysMethod(fullPattern);
-          redisKeys = keys.map((key: string) => key.replace(`${this.config.namespace}:`, ''));
+      descriptor.value = async function (...args: T): Promise<R> {
+        const cacheManager = new CacheManager();
+        await cacheManager.connect();
+
+        try {
+          // Generate cache key based on method name and arguments
+          const cacheKey = `${key}:${propertyName}:${JSON.stringify(args)}`;
+          
+          // Try to get from cache
+          const cached = await cacheManager.get<R>(cacheKey);
+          if (cached !== null) {
+            return cached;
+          }
+
+          // Execute method and cache result
+          const result = await method.apply(this, args);
+          await cacheManager.set(cacheKey, result, options);
+          
+          return result;
+        } finally {
+          await cacheManager.disconnect();
+        }
+      };
+    };
+  }
+
+  /**
+   * Invalidate cache by pattern
+   */
+  async invalidatePattern(pattern: string): Promise<void> {
+    try {
+      const keys = await this.redis.keys(pattern);
+      if (keys.length > 0) {
+        await this.redis.del(keys);
+        logger.info('Cache invalidated by pattern', { pattern, count: keys.length });
+      }
+    } catch (error) {
+      logger.error('Failed to invalidate cache pattern:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set multiple cache items
+   */
+  async setMultiple<T>(
+    items: Array<{ key: string; data: T; options?: CacheOptions }>
+  ): Promise<void> {
+    try {
+      const pipeline = this.redis.multi();
+      
+      for (const item of items) {
+        const { key, data, options = {} } = item;
+        const { ttl = this.defaultTTL, prefix = this.defaultPrefix } = options;
+        const fullKey = `${prefix}${key}`;
+        
+        const cacheItem: CacheItem<T> = {
+          data,
+          timestamp: Date.now(),
+          ttl,
+        };
+
+        pipeline.setex(fullKey, ttl, JSON.stringify(cacheItem));
+      }
+
+      await pipeline.exec();
+      logger.debug('Multiple cache items set', { count: items.length });
+    } catch (error) {
+      logger.error('Failed to set multiple cache items:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get multiple cache items
+   */
+  async getMultiple<T>(keys: string[], prefix: string = this.defaultPrefix): Promise<Map<string, T>> {
+    try {
+      const fullKeys = keys.map(key => `${prefix}${key}`);
+      const results = await this.redis.mget(fullKeys);
+      
+      const cacheMap = new Map<string, T>();
+      
+      for (let i = 0; i < keys.length; i++) {
+        const result = results[i];
+        if (result) {
+          try {
+            const cacheItem: CacheItem<T> = JSON.parse(result);
+            
+            // Check if item is expired
+            const now = Date.now();
+            const age = now - cacheItem.timestamp;
+            
+            if (age <= cacheItem.ttl * 1000) {
+              cacheMap.set(keys[i], cacheItem.data);
+            } else {
+              // Delete expired item
+              await this.delete(keys[i], prefix);
+            }
+          } catch (error) {
+            logger.error('Failed to parse cache item:', error);
+          }
         }
       }
 
-      // Combine and deduplicate
-      const allKeys = [...new Set([...memoryKeys, ...redisKeys])];
-      return allKeys;
+      return cacheMap;
     } catch (error) {
-      logger.error('Cache getKeys error', { pattern, error });
-      return [];
+      logger.error('Failed to get multiple cache items:', error);
+      return new Map();
     }
-  }
-
-  /**
-   * Delete keys by pattern
-   */
-  async deleteByPattern(pattern: string): Promise<number> {
-    const keys = await this.getKeys(pattern);
-    return this.deleteMany(keys);
-  }
-
-  /**
-   * Get cache statistics
-   */
-  getMetrics(): CacheMetrics {
-    const totalRequests = this.metrics.hits + this.metrics.misses;
-    const hitRate = totalRequests > 0 ? (this.metrics.hits / totalRequests) * 100 : 0;
-    const averageResponseTime =
-      this.responseTimes.length > 0
-        ? this.responseTimes.reduce((a, b) => a + b, 0) / this.responseTimes.length
-        : 0;
-
-    return {
-      ...this.metrics,
-      hitRate: Math.round(hitRate * 100) / 100,
-      averageResponseTime: Math.round(averageResponseTime * 100) / 100,
-      totalSize: this.getTotalSize(),
-    };
-  }
-
-  /**
-   * Warm up cache with data
-   */
-  async warmUp(data: Array<{ key: string; value: unknown; ttl?: number }>): Promise<void> {
-    logger.info('Cache warm-up started', { count: data.length });
-
-    const chunks = this.chunkArray(data, 100); // Process in chunks
-    for (const chunk of chunks) {
-      await this.setMany(chunk);
-    }
-
-    logger.info('Cache warm-up completed', { count: data.length });
-    this.emit('warmup-complete', { count: data.length });
-  }
-
-  /**
-   * Invalidate cache by tags
-   */
-  async invalidateByTags(tags: string[]): Promise<number> {
-    let deleted = 0;
-
-    for (const [key, item] of this.cache) {
-      if (item.tags.some((tag) => tags.includes(tag))) {
-        await this.delete(key.replace(`${this.config.namespace}:`, ''));
-        deleted++;
-      }
-    }
-
-    return deleted;
-  }
-
-  // =================== PRIVATE METHODS ===================
-
-  private async setMemory<T>(key: string, value: T, ttl: number): Promise<void> {
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + ttl * 1000);
-    const serializedValue = this.serialize(value);
-    const size = this.getSize(serializedValue);
-
-    // Check if we need to evict items
-    if (this.cache.size >= this.config.maxSize) {
-      this.evictLRU();
-    }
-
-    const item: CacheItem = {
-      key,
-      value,
-      ttl,
-      createdAt: now,
-      expiresAt,
-      hits: 0,
-      size,
-      tags: [],
-    };
-
-    this.cache.set(key, item);
-    this.metrics.totalSize += size;
-  }
-
-  private evictLRU(): void {
-    // Find least recently used item (lowest hits)
-    let lruKey: string | null = null;
-    let lruHits = Infinity;
-
-    for (const [key, item] of this.cache) {
-      if (item.hits < lruHits) {
-        lruHits = item.hits;
-        lruKey = key;
-      }
-    }
-
-    if (lruKey) {
-      const item = this.cache.get(lruKey);
-      this.cache.delete(lruKey);
-      if (item) {
-        this.metrics.totalSize -= item.size;
-        this.metrics.evictions++;
-      }
-    }
-  }
-
-  private isExpired(item: CacheItem): boolean {
-    return new Date() > item.expiresAt;
-  }
-
-  private getFullKey(key: string): string {
-    return `${this.config.namespace}:${key}`;
-  }
-
-  private serialize(value: unknown): string {
-    switch (this.config.serialization) {
-      case 'json':
-        return JSON.stringify(value);
-      case 'msgpack':
-        // Would use msgpack library here
-        return JSON.stringify(value);
-      case 'none':
-        return String(value);
-      default:
-        return JSON.stringify(value);
-    }
-  }
-
-  private deserialize(value: string): unknown {
-    switch (this.config.serialization) {
-      case 'json':
-        return JSON.parse(value);
-      case 'msgpack':
-        // Would use msgpack library here
-        return JSON.parse(value);
-      case 'none':
-        return value;
-      default:
-        return JSON.parse(value);
-    }
-  }
-
-  private getSize(value: string): number {
-    return Buffer.byteLength(value, 'utf8');
-  }
-
-  private getTotalSize(): number {
-    let total = 0;
-    for (const item of this.cache.values()) {
-      total += item.size;
-    }
-    return total;
-  }
-
-  private recordHit(responseTime: number): void {
-    this.metrics.hits++;
-    this.recordResponseTime(responseTime);
-  }
-
-  private recordMiss(responseTime: number): void {
-    this.metrics.misses++;
-    this.recordResponseTime(responseTime);
-  }
-
-  private recordResponseTime(responseTime: number): void {
-    this.responseTimes.push(responseTime);
-    if (this.responseTimes.length > 1000) {
-      this.responseTimes = this.responseTimes.slice(-500); // Keep last 500
-    }
-  }
-
-  private resetMetrics(): void {
-    this.metrics = {
-      hits: 0,
-      misses: 0,
-      sets: 0,
-      deletes: 0,
-      evictions: 0,
-      totalSize: 0,
-      hitRate: 0,
-      averageResponseTime: 0,
-    };
-    this.responseTimes = [];
-  }
-
-  private matchPattern(key: string, pattern: string): boolean {
-    const regex = new RegExp(pattern.replace(/\*/g, '.*'));
-    return regex.test(key);
-  }
-
-  private chunkArray<T>(array: T[], chunkSize: number): T[][] {
-    const chunks: T[][] = [];
-    for (let i = 0; i < array.length; i += chunkSize) {
-      chunks.push(array.slice(i, i + chunkSize));
-    }
-    return chunks;
-  }
-
-  private startCleanupInterval(): void {
-    // Clean up expired items every 5 minutes
-    this.cleanupInterval = setInterval(
-      () => {
-        this.cleanupExpired();
-      },
-      5 * 60 * 1000
-    );
-  }
-
-  private cleanupExpired(): void {
-    let cleaned = 0;
-    const now = new Date();
-
-    for (const [key, item] of this.cache) {
-      if (now > item.expiresAt) {
-        this.cache.delete(key);
-        this.metrics.totalSize -= item.size;
-        cleaned++;
-      }
-    }
-
-    if (cleaned > 0) {
-      logger.info('Cache cleanup completed', { cleaned });
-      this.emit('cleanup', { cleaned });
-    }
-  }
-
-  /**
-   * Shutdown cache manager
-   */
-  shutdown(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-    this.cache.clear();
-    this.emit('shutdown');
   }
 }
 
-// =================== CACHE STRATEGIES ===================
-
-export const cacheStrategies = {
-  /**
-   * Cache everything strategy
-   */
-  cacheAll: {
-    name: 'cache-all',
-    shouldCache: () => true,
-    getTTL: (key: string, value: unknown) => 3600, // 1 hour
-    getKey: (originalKey: string) => originalKey,
-  },
-
-  /**
-   * Cache only successful results
-   */
-  cacheSuccess: {
-    name: 'cache-success',
-    shouldCache: (key: string, value: unknown) => {
-      return value !== null && value !== undefined && (value as any).error === undefined;
-    },
-    getTTL: (key: string, value: unknown) => 1800, // 30 minutes
-    getKey: (originalKey: string) => originalKey,
-  },
-
-  /**
-   * Cache with user context
-   */
-  cacheByUser: {
-    name: 'cache-by-user',
-    shouldCache: () => true,
-    getTTL: (key: string, value: unknown) => 900, // 15 minutes
-    getKey: (originalKey: string, context?: unknown) => {
-      const userId = (context as any)?.userId || 'anonymous';
-      return `user:${userId}:${originalKey}`;
-    },
-  },
-
-  /**
-   * Cache expensive operations longer
-   */
-  cacheExpensive: {
-    name: 'cache-expensive',
-    shouldCache: (key: string, value: unknown) => {
-      // Cache if value is complex or large
-      return typeof value === 'object' && JSON.stringify(value).length > 1000;
-    },
-    getTTL: (key: string, value: unknown) => 7200, // 2 hours
-    getKey: (originalKey: string) => `expensive:${originalKey}`,
-  },
-};
-
-// =================== CACHE DECORATORS ===================
-
-/**
- * Cache method decorator
- */
-export function Cacheable(options: {
-  key?: string;
-  ttl?: number;
-  strategy?: CacheStrategy;
-  tags?: string[];
-}) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    const originalMethod = descriptor.value;
-    const cacheManager = new CacheManager({
-      defaultTTL: options.ttl || 3600,
-      maxSize: 1000,
-      enableMetrics: true,
-      compression: false,
-      serialization: 'json',
-      namespace: 'method-cache',
-    });
-
-    descriptor.value = async function (...args: any[]) {
-      const cacheKey =
-        options.key || `${target.constructor.name}:${propertyKey}:${JSON.stringify(args)}`;
-
-      // Try to get from cache
-      const cached = await cacheManager.get(cacheKey);
-      if (cached !== null) {
-        return cached;
-      }
-
-      // Execute original method
-      const result = await originalMethod.apply(this, args);
-
-      // Cache the result
-      if (!options.strategy || options.strategy.shouldCache(cacheKey, result)) {
-        const ttl = options.strategy
-          ? options.strategy.getTTL(cacheKey, result)
-          : options.ttl || 3600;
-        await cacheManager.set(cacheKey, result, ttl);
-      }
-
-      return result;
-    };
-
-    return descriptor;
-  };
-}
-
-// =================== UTILITY FUNCTIONS ===================
-
-/**
- * Create cache manager instance
- */
-export function createCacheManager(
-  config: Partial<CacheConfig>,
-  redisClient?: unknown
-): CacheManager {
-  const defaultConfig: CacheConfig = {
-    defaultTTL: 3600,
-    maxSize: 10000,
-    enableMetrics: true,
-    compression: false,
-    serialization: 'json',
-    namespace: 'ultramarket',
-  };
-
-  return new CacheManager({ ...defaultConfig, ...config }, redisClient);
-}
-
-/**
- * Cache key generator
- */
-export function generateCacheKey(parts: (string | number)[]): string {
-  return parts.join(':');
-}
-
-/**
- * Cache warming utility
- */
-export async function warmCache(
-  cacheManager: CacheManager,
-  dataLoader: () => Promise<Array<{ key: string; value: unknown; ttl?: number }>>
-): Promise<void> {
-  const data = await dataLoader();
-  await cacheManager.warmUp(data);
-}
-
-export default {
-  CacheManager,
-  createCacheManager,
-  cacheStrategies,
-  Cacheable,
-  generateCacheKey,
-  warmCache,
-};
+// Export singleton instance
+export const cacheManager = new CacheManager();
+export default cacheManager;
