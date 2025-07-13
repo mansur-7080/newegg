@@ -62,10 +62,10 @@ const services = {
 app.use(helmet());
 // Secure CORS configuration
 const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'https://ultramarket.uz',
-  'https://www.ultramarket.uz'
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  process.env.ADMIN_URL || 'http://localhost:3001',
+  process.env.PRODUCTION_URL || 'https://ultramarket.uz',
+  process.env.STAGING_URL || 'https://staging.ultramarket.uz'
 ];
 
 app.use(

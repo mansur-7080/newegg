@@ -63,6 +63,12 @@ export class ProductController {
   getProductById = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
+      
+      // Validate product ID
+      if (!id || typeof id !== 'string' || id.trim().length === 0) {
+        throw new AppError(400, 'Invalid product ID');
+      }
+
       const product = await this.productService.getProductById(id);
       res.json(product);
     } catch (error) {
