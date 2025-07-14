@@ -1,302 +1,484 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../store';
-import { updateCartItem, removeFromCart, clearCart } from '../store/slices/cartSlice';
-import { UzbekPaymentMethod, formatUZSPrice } from '../../../../libs/shared/src/constants';
-import { UzbekAddressType } from '../../../../libs/shared/src/types/uzbek-address';
+import { useNavigate } from 'react-router-dom';
+import './CartPage.css';
 
 interface CartItem {
   id: string;
-  name: string;
-  price: number;
+  productId: string;
   quantity: number;
-  image?: string;
+  price: number;
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    stockQuantity: number;
+    image: string;
+    inStock: boolean;
+  };
+}
+
+interface Cart {
+  id: string;
+  userId: string;
+  items: CartItem[];
+  totalItems: number;
+  totalAmount: number;
 }
 
 const CartPage: React.FC = () => {
-  const dispatch = useDispatch();
-  const cartItems = useSelector((state: RootState) => state.cart.items);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<UzbekPaymentMethod>(
-    UzbekPaymentMethod.CLICK
-  );
-  const [deliveryAddress, setDeliveryAddress] = useState<Partial<UzbekAddressType>>({
-    region: '',
-    district: '',
-    mahalla: '',
-    street: '',
-    house: '',
-    apartment: '',
-    landmark: '',
-    deliveryInstructions: '',
-  });
+  const navigate = useNavigate();
+  const [cart, setCart] = useState<Cart | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
+  const [isValidating, setIsValidating] = useState(false);
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = 25000; // 25,000 so'm
-  const total = subtotal + deliveryFee;
+  useEffect(() => {
+    fetchCart();
+  }, []);
 
-  const handleQuantityChange = (id: string, quantity: number) => {
-    if (quantity <= 0) {
-      dispatch(removeFromCart(id));
-    } else {
-      dispatch(updateCartItem({ id, quantity }));
+  const fetchCart = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      const response = await fetch('/api/v1/cart', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          navigate('/login');
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setCart(data.data.cart);
+      } else {
+        throw new Error(data.message || 'Failed to fetch cart');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load cart');
+      console.error('Error fetching cart:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRemoveItem = (id: string) => {
-    dispatch(removeFromCart(id));
+  const updateCartItem = async (productId: string, newQuantity: number) => {
+    try {
+      setUpdatingItems(prev => new Set(prev).add(productId));
+
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/v1/cart/update', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productId,
+          quantity: newQuantity,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setCart(data.data.cart);
+      } else {
+        throw new Error(data.message || 'Failed to update cart');
+      }
+    } catch (err) {
+      console.error('Error updating cart item:', err);
+      alert(err instanceof Error ? err.message : 'Failed to update cart item');
+    } finally {
+      setUpdatingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
   };
 
-  const handleProceedToCheckout = () => {
-    // Checkout sahifasiga o'tish
-    console.log("Checkout ga o'tish:", {
-      items: cartItems,
-      paymentMethod: selectedPaymentMethod,
-      deliveryAddress,
-      total,
-    });
+  const removeFromCart = async (productId: string) => {
+    const confirmed = window.confirm('Bu mahsulotni savatdan o\'chirmoqchimisiz?');
+    if (!confirmed) return;
+
+    try {
+      setUpdatingItems(prev => new Set(prev).add(productId));
+
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/v1/cart/remove/${productId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setCart(data.data.cart);
+      } else {
+        throw new Error(data.message || 'Failed to remove item');
+      }
+    } catch (err) {
+      console.error('Error removing cart item:', err);
+      alert(err instanceof Error ? err.message : 'Failed to remove item');
+    } finally {
+      setUpdatingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
   };
 
-  const uzbekRegions = [
-    'Toshkent shahri',
-    'Toshkent viloyati',
-    'Samarqand',
-    'Buxoro',
-    'Andijon',
-    "Farg'ona",
-    'Namangan',
-    'Qashqadaryo',
-    'Surxondaryo',
-    'Jizzax',
-    'Sirdaryo',
-    'Navoiy',
-    'Xorazm',
-    "Qoraqalpog'iston",
-  ];
+  const clearCart = async () => {
+    const confirmed = window.confirm('Savatdagi barcha mahsulotlarni o\'chirmoqchimisiz?');
+    if (!confirmed) return;
 
-  const paymentMethodLabels = {
-    [UzbekPaymentMethod.CLICK]: "Click to'lov tizimi",
-    [UzbekPaymentMethod.PAYME]: "Payme to'lov tizimi",
-    [UzbekPaymentMethod.UZCARD]: 'Uzcard bank kartasi',
-    [UzbekPaymentMethod.HUMO]: 'Humo bank kartasi',
-    [UzbekPaymentMethod.CASH_ON_DELIVERY]: "Yetkazib berganda to'lash",
+    try {
+      setLoading(true);
+
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/v1/cart/clear', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setCart({ ...cart!, items: [], totalItems: 0, totalAmount: 0 });
+      }
+    } catch (err) {
+      console.error('Error clearing cart:', err);
+      alert(err instanceof Error ? err.message : 'Failed to clear cart');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (cartItems.length === 0) {
+  const validateCartForCheckout = async () => {
+    try {
+      setIsValidating(true);
+
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/v1/cart/validate', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        if (data.data.valid) {
+          navigate('/checkout');
+        } else {
+          const errors = data.data.errors.join('\n');
+          alert(`Savatni tekshirishda muammolar topildi:\n\n${errors}\n\nIltimos, muammolarni hal qiling va qayta urinib ko'ring.`);
+          
+          // Refresh cart to get updated data
+          await fetchCart();
+        }
+      }
+    } catch (err) {
+      console.error('Error validating cart:', err);
+      alert(err instanceof Error ? err.message : 'Failed to validate cart');
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('uz-UZ').format(price) + ' so\'m';
+  };
+
+  const calculateTax = (amount: number) => {
+    return amount * 0.12; // 12% VAT
+  };
+
+  const calculateShipping = (amount: number) => {
+    return amount > 500000 ? 0 : 25000; // Free shipping over 500,000 som
+  };
+
+  if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Savatingiz bo'sh</h2>
-          <p className="text-gray-600 mb-8">Xarid qilish uchun mahsulotlar qo'shing</p>
-          <a href="/" className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
-            Xaridni boshlash
-          </a>
+      <div className="cart-page">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Savat yuklanmoqda...</p>
         </div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="cart-page">
+        <div className="error-container">
+          <h2>Xatolik yuz berdi</h2>
+          <p>{error}</p>
+          <button onClick={fetchCart} className="retry-button">
+            Qayta urinish
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!cart || cart.items.length === 0) {
+    return (
+      <div className="cart-page">
+        <div className="empty-cart">
+          <div className="empty-cart-icon">🛒</div>
+          <h2>Savatingiz bo'sh</h2>
+          <p>Hozircha hech qanday mahsulot qo'shmagansiz</p>
+          <button onClick={() => navigate('/products')} className="continue-shopping-button">
+            Xarid qilishni davom eting
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const subtotal = cart.totalAmount;
+  const tax = calculateTax(subtotal);
+  const shipping = calculateShipping(subtotal);
+  const total = subtotal + tax + shipping;
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Xarid savati</h1>
+    <div className="cart-page">
+      <div className="cart-header">
+        <h1>Xarid savati</h1>
+        <div className="cart-actions">
+          <button onClick={() => navigate('/products')} className="continue-shopping">
+            Xaridni davom eting
+          </button>
+          {cart.items.length > 0 && (
+            <button onClick={clearCart} className="clear-cart">
+              Savatni tozalash
+            </button>
+          )}
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Cart Items */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Tanlangan mahsulotlar</h2>
+      <div className="cart-container">
+        <div className="cart-items">
+          <div className="cart-items-header">
+            <h3>Mahsulotlar ({cart.totalItems})</h3>
+          </div>
 
-            {cartItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between border-b pb-4 mb-4 last:border-b-0"
-              >
-                <div className="flex items-center space-x-4">
-                  {item.image && (
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-16 h-16 object-cover rounded"
-                    />
+          <div className="cart-items-list">
+            {cart.items.map((item) => (
+              <div key={item.id} className="cart-item">
+                <div className="item-image">
+                  <img src={item.product.image} alt={item.product.name} />
+                  {!item.product.inStock && (
+                    <div className="out-of-stock-overlay">
+                      Tugagan
+                    </div>
                   )}
-                  <div>
-                    <h3 className="font-medium">{item.name}</h3>
-                    <p className="text-gray-600">{formatUZSPrice(item.price)}</p>
-                  </div>
                 </div>
 
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                      className="w-8 h-8 flex items-center justify-center border rounded"
-                    >
-                      -
-                    </button>
-                    <span className="w-8 text-center">{item.quantity}</span>
-                    <button
-                      onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                      className="w-8 h-8 flex items-center justify-center border rounded"
-                    >
-                      +
-                    </button>
+                <div className="item-details">
+                  <h4 className="item-name">{item.product.name}</h4>
+                  <div className="item-availability">
+                    {item.product.inStock ? (
+                      <span className="in-stock">
+                        ✅ Mavjud ({item.product.stockQuantity} ta qoldi)
+                      </span>
+                    ) : (
+                      <span className="out-of-stock">❌ Tugagan</span>
+                    )}
                   </div>
+                  
+                  {item.quantity > item.product.stockQuantity && (
+                    <div className="stock-warning">
+                      ⚠️ Faqat {item.product.stockQuantity} ta mavjud
+                    </div>
+                  )}
+                  
+                  {item.price !== item.product.price && (
+                    <div className="price-change-warning">
+                      ⚠️ Narx o'zgargan: {formatPrice(item.product.price)}
+                    </div>
+                  )}
+                </div>
 
+                <div className="item-price">
+                  <span className="current-price">{formatPrice(item.price)}</span>
+                  {item.price !== item.product.price && (
+                    <span className="new-price">{formatPrice(item.product.price)}</span>
+                  )}
+                </div>
+
+                <div className="item-quantity">
                   <button
-                    onClick={() => handleRemoveItem(item.id)}
-                    className="text-red-600 hover:text-red-800"
+                    onClick={() => updateCartItem(item.productId, item.quantity - 1)}
+                    disabled={updatingItems.has(item.productId) || item.quantity <= 1}
+                    className="quantity-button"
                   >
-                    O'chirish
+                    -
+                  </button>
+                  
+                  <input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => {
+                      const newQuantity = parseInt(e.target.value);
+                      if (!isNaN(newQuantity) && newQuantity > 0 && newQuantity <= 50) {
+                        updateCartItem(item.productId, newQuantity);
+                      }
+                    }}
+                    min="1"
+                    max="50"
+                    disabled={updatingItems.has(item.productId)}
+                    className="quantity-input"
+                  />
+                  
+                  <button
+                    onClick={() => updateCartItem(item.productId, item.quantity + 1)}
+                    disabled={
+                      updatingItems.has(item.productId) || 
+                      item.quantity >= item.product.stockQuantity ||
+                      item.quantity >= 50
+                    }
+                    className="quantity-button"
+                  >
+                    +
                   </button>
                 </div>
+
+                <div className="item-total">
+                  {formatPrice(item.quantity * item.price)}
+                </div>
+
+                <button
+                  onClick={() => removeFromCart(item.productId)}
+                  disabled={updatingItems.has(item.productId)}
+                  className="remove-button"
+                  title="Savatdan o'chirish"
+                >
+                  🗑️
+                </button>
+
+                {updatingItems.has(item.productId) && (
+                  <div className="item-updating-overlay">
+                    <div className="updating-spinner"></div>
+                  </div>
+                )}
               </div>
             ))}
-
-            <button
-              onClick={() => dispatch(clearCart())}
-              className="text-red-600 hover:text-red-800 mt-4"
-            >
-              Barcha mahsulotlarni o'chirish
-            </button>
           </div>
         </div>
 
-        {/* Order Summary & Delivery */}
-        <div className="space-y-6">
-          {/* Delivery Address */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Yetkazib berish manzili</h3>
+        <div className="cart-summary">
+          <div className="summary-card">
+            <h3>Buyurtma xulosasi</h3>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Viloyat</label>
-                <select
-                  value={deliveryAddress.region}
-                  onChange={(e) =>
-                    setDeliveryAddress({ ...deliveryAddress, region: e.target.value })
-                  }
-                  className="w-full border rounded-lg px-3 py-2"
-                >
-                  <option value="">Viloyatni tanlang</option>
-                  {uzbekRegions.map((region) => (
-                    <option key={region} value={region}>
-                      {region}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Tuman/Shahar</label>
-                <input
-                  type="text"
-                  value={deliveryAddress.district}
-                  onChange={(e) =>
-                    setDeliveryAddress({ ...deliveryAddress, district: e.target.value })
-                  }
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="Tuman yoki shaharni kiriting"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Mahalla</label>
-                <input
-                  type="text"
-                  value={deliveryAddress.mahalla}
-                  onChange={(e) =>
-                    setDeliveryAddress({ ...deliveryAddress, mahalla: e.target.value })
-                  }
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="Mahalla nomini kiriting"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Ko'cha va uy raqami</label>
-                <input
-                  type="text"
-                  value={deliveryAddress.street}
-                  onChange={(e) =>
-                    setDeliveryAddress({ ...deliveryAddress, street: e.target.value })
-                  }
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="Ko'cha nomi"
-                />
-                <input
-                  type="text"
-                  value={deliveryAddress.house}
-                  onChange={(e) =>
-                    setDeliveryAddress({ ...deliveryAddress, house: e.target.value })
-                  }
-                  className="w-full border rounded-lg px-3 py-2 mt-2"
-                  placeholder="Uy raqami"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Yetkazib berish uchun qo'shimcha ma'lumot
-                </label>
-                <textarea
-                  value={deliveryAddress.deliveryInstructions}
-                  onChange={(e) =>
-                    setDeliveryAddress({ ...deliveryAddress, deliveryInstructions: e.target.value })
-                  }
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={3}
-                  placeholder="Masalan: 2-qavat, qo'ng'iroq qiling"
-                />
-              </div>
+            <div className="summary-line">
+              <span>Mahsulotlar ({cart.totalItems} ta):</span>
+              <span>{formatPrice(subtotal)}</span>
             </div>
-          </div>
 
-          {/* Payment Method */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">To'lov usuli</h3>
-
-            <div className="space-y-3">
-              {Object.values(UzbekPaymentMethod).map((method) => (
-                <label key={method} className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    value={method}
-                    checked={selectedPaymentMethod === method}
-                    onChange={(e) => setSelectedPaymentMethod(e.target.value as UzbekPaymentMethod)}
-                    className="text-blue-600"
-                  />
-                  <span>{paymentMethodLabels[method]}</span>
-                </label>
-              ))}
+            <div className="summary-line">
+              <span>QQS (12%):</span>
+              <span>{formatPrice(tax)}</span>
             </div>
-          </div>
 
-          {/* Order Summary */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Buyurtma xulosasi</h3>
+            <div className="summary-line">
+              <span>Yetkazib berish:</span>
+              <span>
+                {shipping === 0 ? (
+                  <span className="free-shipping">Bepul</span>
+                ) : (
+                  formatPrice(shipping)
+                )}
+              </span>
+            </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Mahsulotlar:</span>
-                <span>{formatUZSPrice(subtotal)}</span>
+            {shipping > 0 && (
+              <div className="shipping-info">
+                <small>
+                  💡 {formatPrice(500000 - subtotal)} qo'shsangiz, bepul yetkazib berish!
+                </small>
               </div>
-              <div className="flex justify-between">
-                <span>Yetkazib berish:</span>
-                <span>{formatUZSPrice(deliveryFee)}</span>
-              </div>
-              <div className="border-t pt-2 mt-2">
-                <div className="flex justify-between font-semibold text-lg">
-                  <span>Jami:</span>
-                  <span>{formatUZSPrice(total)}</span>
-                </div>
-              </div>
+            )}
+
+            <div className="summary-divider"></div>
+
+            <div className="summary-total">
+              <span>Jami:</span>
+              <span className="total-amount">{formatPrice(total)}</span>
             </div>
 
             <button
-              onClick={handleProceedToCheckout}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg mt-6 hover:bg-blue-700 font-semibold"
+              onClick={validateCartForCheckout}
+              disabled={isValidating || cart.items.length === 0}
+              className="checkout-button"
             >
-              Buyurtmani tasdiqlash
+              {isValidating ? 'Tekshirilmoqda...' : 'Checkout ga o\'tish'}
             </button>
+
+            <div className="payment-methods">
+              <h4>Qabul qilinadigan to'lov usullari:</h4>
+              <div className="payment-icons">
+                <div className="payment-method">💳 Payme</div>
+                <div className="payment-method">💳 Click</div>
+                <div className="payment-method">💰 Naqd</div>
+                <div className="payment-method">🏦 Bank</div>
+              </div>
+            </div>
+
+            <div className="security-badges">
+              <div className="security-badge">🔒 Xavfsiz to'lov</div>
+              <div className="security-badge">✅ SSL sertifikat</div>
+            </div>
+          </div>
+
+          <div className="help-card">
+            <h4>Yordam kerakmi?</h4>
+            <p>Bizning mijozlar xizmati jamoasi sizga yordam berishga tayyor.</p>
+            <div className="help-contacts">
+              <div>📞 +998 90 123 45 67</div>
+              <div>📧 support@ultramarket.uz</div>
+              <div>💬 Onlayn chat</div>
+            </div>
           </div>
         </div>
       </div>

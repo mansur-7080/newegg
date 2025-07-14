@@ -1,62 +1,75 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../store';
-import { clearCart } from '../store/slices/cartSlice';
-import { UzbekPaymentMethod } from '../../../../libs/shared/src/constants';
-import { UzbekAddressType } from '../../../../libs/shared/src/types/uzbek-address';
+import { useNavigate } from 'react-router-dom';
+import './CheckoutPage.css';
 
-interface OrderData {
+interface CartItem {
   id: string;
-  items: any[];
-  total: number;
-  paymentMethod: UzbekPaymentMethod;
-  deliveryAddress: UzbekAddressType;
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered';
+  productId: string;
+  quantity: number;
+  price: number;
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    stockQuantity: number;
+    image: string;
+    inStock: boolean;
+  };
+}
+
+interface Cart {
+  id: string;
+  userId: string;
+  items: CartItem[];
+  totalItems: number;
+  totalAmount: number;
+}
+
+interface ShippingAddress {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  region: string;
+  district: string;
+  address: string;
+  postalCode: string;
+  deliveryInstructions: string;
+}
+
+interface FormErrors {
+  [key: string]: string;
 }
 
 const CheckoutPage: React.FC = () => {
-  const dispatch = useDispatch();
-  const cartItems = useSelector((state: RootState) => state.cart.items);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [orderComplete, setOrderComplete] = useState(false);
-  const [orderId, setOrderId] = useState<string>('');
-
-  const [customerInfo, setCustomerInfo] = useState({
+  const navigate = useNavigate();
+  const [cart, setCart] = useState<Cart | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
     firstName: '',
     lastName: '',
     phone: '',
     email: '',
-  });
-
-  const [paymentMethod, setPaymentMethod] = useState<UzbekPaymentMethod>(UzbekPaymentMethod.CLICK);
-
-  const [deliveryAddress, setDeliveryAddress] = useState<UzbekAddressType>({
-    type: 'HOME' as const,
     region: '',
     district: '',
-    mahalla: '',
-    street: '',
-    house: '',
-    apartment: '',
+    address: '',
     postalCode: '',
-    landmark: '',
     deliveryInstructions: '',
   });
 
-  const formatUZSPrice = (price: number): string => {
-    return new Intl.NumberFormat('uz-UZ', {
-      style: 'currency',
-      currency: 'UZS',
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
-  const subtotal = cartItems.reduce(
-    (sum: number, item: any) => sum + item.price * item.quantity,
-    0
-  );
-  const deliveryFee = 25000; // 25,000 so'm
-  const total = subtotal + deliveryFee;
+  const [paymentMethod, setPaymentMethod] = useState<'PAYME' | 'CLICK' | 'CASH' | 'BANK_TRANSFER'>('PAYME');
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount: number;
+    type: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  } | null>(null);
+  const [notes, setNotes] = useState('');
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const uzbekRegions = [
     'Toshkent shahri',
@@ -64,7 +77,7 @@ const CheckoutPage: React.FC = () => {
     'Samarqand',
     'Buxoro',
     'Andijon',
-    "Farg'ona",
+    'Farg\'ona',
     'Namangan',
     'Qashqadaryo',
     'Surxondaryo',
@@ -72,375 +85,681 @@ const CheckoutPage: React.FC = () => {
     'Sirdaryo',
     'Navoiy',
     'Xorazm',
-    "Qoraqalpog'iston",
+    'Qoraqalpog\'iston',
   ];
 
-  const paymentMethodLabels = {
-    [UzbekPaymentMethod.CLICK]: "Click to'lov tizimi",
-    [UzbekPaymentMethod.PAYME]: "Payme to'lov tizimi",
-    [UzbekPaymentMethod.UZCARD]: 'Uzcard bank kartasi',
-    [UzbekPaymentMethod.HUMO]: 'Humo bank kartasi',
-    [UzbekPaymentMethod.CASH_ON_DELIVERY]: "Yetkazib berganda to'lash",
-  };
+  useEffect(() => {
+    fetchCart();
+    loadSavedAddress();
+  }, []);
 
-  const handlePlaceOrder = async () => {
-    setIsProcessing(true);
-
+  const fetchCart = async () => {
     try {
-      // Buyurtma ma'lumotlarini API ga yuborish
-      const orderData: OrderData = {
-        id: `UZ${Date.now()}`,
-        items: cartItems,
-        total,
-        paymentMethod,
-        deliveryAddress,
-        status: 'pending',
-      };
+      setLoading(true);
+      setError(null);
 
-      // API chaqirish simulatsiyasi
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Click/Payme to'lov sahifasiga yo'naltirish
-      if (paymentMethod === UzbekPaymentMethod.CLICK) {
-        // Click API integration
-        window.open(
-          `https://my.click.uz/services/pay?service_id=12345&merchant_id=67890&amount=${total}&transaction_param=${orderData.id}`,
-          '_blank'
-        );
-      } else if (paymentMethod === UzbekPaymentMethod.PAYME) {
-        // Payme API integration
-        window.open(
-          `https://checkout.paycom.uz/${btoa(
-            JSON.stringify({
-              merchant: 'payme_merchant_id',
-              amount: total * 100, // Payme tiyin'da ishlaydi
-              account: { order_id: orderData.id },
-            })
-          )}`,
-          '_blank'
-        );
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        navigate('/login');
+        return;
       }
 
-      setOrderId(orderData.id);
-      setOrderComplete(true);
-      dispatch(clearCart());
-    } catch (error) {
-      console.error('Buyurtma yaratishda xatolik:', error);
-      alert("Buyurtma yaratishda xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.");
+      const response = await fetch('/api/v1/cart', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          navigate('/login');
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        if (!data.data.cart || data.data.cart.items.length === 0) {
+          navigate('/cart');
+          return;
+        }
+        setCart(data.data.cart);
+      } else {
+        throw new Error(data.message || 'Failed to fetch cart');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load cart');
+      console.error('Error fetching cart:', err);
     } finally {
-      setIsProcessing(false);
+      setLoading(false);
     }
   };
 
-  const validateForm = () => {
-    return (
-      customerInfo.firstName &&
-      customerInfo.lastName &&
-      customerInfo.phone &&
-      deliveryAddress.region &&
-      deliveryAddress.district &&
-      deliveryAddress.street &&
-      deliveryAddress.house
-    );
+  const loadSavedAddress = () => {
+    const savedAddress = localStorage.getItem('shippingAddress');
+    if (savedAddress) {
+      try {
+        const parsed = JSON.parse(savedAddress);
+        setShippingAddress(prev => ({ ...prev, ...parsed }));
+      } catch (error) {
+        console.error('Error parsing saved address:', error);
+      }
+    }
   };
 
-  if (orderComplete) {
+  const validateForm = (): boolean => {
+    const errors: FormErrors = {};
+
+    // Required fields validation
+    if (!shippingAddress.firstName.trim()) {
+      errors.firstName = 'Ism kiritish majburiy';
+    }
+
+    if (!shippingAddress.lastName.trim()) {
+      errors.lastName = 'Familiya kiritish majburiy';
+    }
+
+    if (!shippingAddress.phone.trim()) {
+      errors.phone = 'Telefon raqam kiritish majburiy';
+    } else if (!/^\+998\d{9}$/.test(shippingAddress.phone.replace(/\s/g, ''))) {
+      errors.phone = 'To\'g\'ri telefon raqam kiriting (+998xxxxxxxxx)';
+    }
+
+    if (!shippingAddress.email.trim()) {
+      errors.email = 'Email manzil kiritish majburiy';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingAddress.email)) {
+      errors.email = 'To\'g\'ri email manzil kiriting';
+    }
+
+    if (!shippingAddress.region) {
+      errors.region = 'Viloyat tanlash majburiy';
+    }
+
+    if (!shippingAddress.district.trim()) {
+      errors.district = 'Tuman/shahar kiritish majburiy';
+    }
+
+    if (!shippingAddress.address.trim()) {
+      errors.address = 'To\'liq manzil kiritish majburiy';
+    }
+
+    if (!agreedToTerms) {
+      errors.terms = 'Shartlar bilan rozilik majburiy';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/v1/coupons/validate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code: couponCode }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setAppliedCoupon(data.data.coupon);
+        setFormErrors(prev => ({ ...prev, coupon: '' }));
+      } else {
+        setFormErrors(prev => ({ ...prev, coupon: data.message || 'Kupon kodi noto\'g\'ri' }));
+        setAppliedCoupon(null);
+      }
+    } catch (error) {
+      console.error('Error applying coupon:', error);
+      setFormErrors(prev => ({ ...prev, coupon: 'Kupon tekshirishda xatolik' }));
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setFormErrors(prev => ({ ...prev, coupon: '' }));
+  };
+
+  const calculateTotals = () => {
+    if (!cart) return { subtotal: 0, discount: 0, tax: 0, shipping: 0, total: 0 };
+
+    const subtotal = cart.totalAmount;
+    let discount = 0;
+
+    if (appliedCoupon) {
+      if (appliedCoupon.type === 'PERCENTAGE') {
+        discount = (subtotal * appliedCoupon.discount) / 100;
+      } else {
+        discount = appliedCoupon.discount;
+      }
+      discount = Math.min(discount, subtotal);
+    }
+
+    const discountedSubtotal = subtotal - discount;
+    const tax = discountedSubtotal * 0.12; // 12% VAT
+    const shipping = calculateShipping(discountedSubtotal);
+    const total = discountedSubtotal + tax + shipping;
+
+    return { subtotal, discount, tax, shipping, total };
+  };
+
+  const calculateShipping = (amount: number): number => {
+    if (amount >= 500000) return 0; // Free shipping over 500,000 som
+
+    const shippingRates: { [key: string]: number } = {
+      'Toshkent shahri': 25000,
+      'Toshkent viloyati': 35000,
+      'Samarqand': 45000,
+      'Buxoro': 50000,
+      'Andijon': 55000,
+      'Farg\'ona': 55000,
+      'Namangan': 55000,
+      'Qashqadaryo': 60000,
+      'Surxondaryo': 65000,
+      'Jizzax': 40000,
+      'Sirdaryo': 35000,
+      'Navoiy': 50000,
+      'Xorazm': 70000,
+      'Qoraqalpog\'iston': 75000,
+    };
+
+    return shippingRates[shippingAddress.region] || 50000;
+  };
+
+  const handleInputChange = (field: keyof ShippingAddress, value: string) => {
+    setShippingAddress(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error when user starts typing
+    if (formErrors[field]) {
+      setFormErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const saveAddressToLocal = () => {
+    localStorage.setItem('shippingAddress', JSON.stringify(shippingAddress));
+  };
+
+  const placeOrder = async () => {
+    if (!validateForm() || !cart) return;
+
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      // Save address for future use
+      saveAddressToLocal();
+
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/v1/orders', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: cart.items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          shippingAddress,
+          paymentMethod,
+          couponCode: appliedCoupon?.code,
+          notes: notes.trim() || undefined,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        const order = data.data.order;
+        
+        if (paymentMethod === 'PAYME' || paymentMethod === 'CLICK') {
+          // Redirect to payment processor
+          const paymentResponse = await fetch('/api/v1/payments/create', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderId: order.id,
+              amount: order.total,
+              paymentMethod,
+              returnUrl: `${window.location.origin}/order/${order.id}`,
+            }),
+          });
+
+          const paymentData = await paymentResponse.json();
+          
+          if (paymentData.success && paymentData.data.paymentUrl) {
+            window.location.href = paymentData.data.paymentUrl;
+            return;
+          }
+        }
+
+        // For cash or bank transfer, redirect to order page
+        navigate(`/order/${order.id}`, { 
+          state: { 
+            orderCreated: true,
+            message: paymentMethod === 'CASH' 
+              ? 'Buyurtma muvaffaqiyatli yaratildi. Yetkazib berish vaqtida to\'lov qiling.'
+              : 'Buyurtma muvaffaqiyatli yaratildi. Bank orqali to\'lov qiling.' 
+          } 
+        });
+      } else {
+        throw new Error(data.message || 'Order creation failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Buyurtma yaratishda xatolik');
+      console.error('Error placing order:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('uz-UZ').format(price) + ' so\'m';
+  };
+
+  if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-8 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-8 h-8 text-green-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Buyurtma qabul qilindi!</h2>
-          <p className="text-gray-600 mb-4">
-            Buyurtma raqami: <span className="font-semibold">{orderId}</span>
-          </p>
-          <p className="text-gray-600 mb-6">
-            Tez orada siz bilan bog'lanamiz va buyurtma holatini SMS orqali xabar qilamiz.
-          </p>
-          <a href="/" className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
-            Bosh sahifaga qaytish
-          </a>
+      <div className="checkout-page">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Yuklanmoqda...</p>
         </div>
       </div>
     );
   }
 
-  if (cartItems.length === 0) {
+  if (error && !cart) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Savatingiz bo'sh</h2>
-          <p className="text-gray-600 mb-8">Xarid qilish uchun mahsulotlar qo'shing</p>
-          <a href="/" className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
-            Xaridni boshlash
-          </a>
+      <div className="checkout-page">
+        <div className="error-container">
+          <h2>Xatolik yuz berdi</h2>
+          <p>{error}</p>
+          <button onClick={fetchCart} className="retry-button">
+            Qayta urinish
+          </button>
         </div>
       </div>
     );
   }
+
+  if (!cart || cart.items.length === 0) {
+    return (
+      <div className="checkout-page">
+        <div className="empty-container">
+          <h2>Savat bo'sh</h2>
+          <p>Checkout qilish uchun savatga mahsulot qo'shing</p>
+          <button onClick={() => navigate('/products')} className="continue-shopping-button">
+            Xaridni davom eting
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const totals = calculateTotals();
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Buyurtmani tasdiqlash</h1>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Column - Forms */}
-        <div className="space-y-6">
-          {/* Customer Information */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Shaxsiy ma'lumotlar</h2>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Ism</label>
-                <input
-                  type="text"
-                  value={customerInfo.firstName}
-                  onChange={(e) => setCustomerInfo({ ...customerInfo, firstName: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="Ismingizni kiriting"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Familiya</label>
-                <input
-                  type="text"
-                  value={customerInfo.lastName}
-                  onChange={(e) => setCustomerInfo({ ...customerInfo, lastName: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="Familiyangizni kiriting"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm font-medium mb-1">Telefon raqam</label>
-              <input
-                type="tel"
-                value={customerInfo.phone}
-                onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2"
-                placeholder="+998 xx xxx xx xx"
-                required
-              />
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm font-medium mb-1">Email (ixtiyoriy)</label>
-              <input
-                type="email"
-                value={customerInfo.email}
-                onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2"
-                placeholder="email@example.com"
-              />
-            </div>
+    <div className="checkout-page">
+      <div className="checkout-header">
+        <h1>Buyurtmani rasmiylashtirish</h1>
+        <div className="checkout-steps">
+          <div className="step active">
+            <span className="step-number">1</span>
+            <span className="step-label">Manzil</span>
           </div>
+          <div className="step active">
+            <span className="step-number">2</span>
+            <span className="step-label">To'lov</span>
+          </div>
+          <div className="step">
+            <span className="step-number">3</span>
+            <span className="step-label">Tasdiqlash</span>
+          </div>
+        </div>
+      </div>
 
-          {/* Delivery Address */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Yetkazib berish manzili</h2>
+      <div className="checkout-container">
+        <div className="checkout-form">
+          {/* Shipping Address */}
+          <div className="form-section">
+            <h3>Yetkazib berish manzili</h3>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label>Ism *</label>
+                <input
+                  type="text"
+                  value={shippingAddress.firstName}
+                  onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  placeholder="Ismingizni kiriting"
+                  className={formErrors.firstName ? 'error' : ''}
+                />
+                {formErrors.firstName && <span className="error-text">{formErrors.firstName}</span>}
+              </div>
+              
+              <div className="form-group">
+                <label>Familiya *</label>
+                <input
+                  type="text"
+                  value={shippingAddress.lastName}
+                  onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  placeholder="Familiyangizni kiriting"
+                  className={formErrors.lastName ? 'error' : ''}
+                />
+                {formErrors.lastName && <span className="error-text">{formErrors.lastName}</span>}
+              </div>
+            </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Viloyat *</label>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Telefon raqam *</label>
+                <input
+                  type="tel"
+                  value={shippingAddress.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  placeholder="+998 90 123 45 67"
+                  className={formErrors.phone ? 'error' : ''}
+                />
+                {formErrors.phone && <span className="error-text">{formErrors.phone}</span>}
+              </div>
+              
+              <div className="form-group">
+                <label>Email *</label>
+                <input
+                  type="email"
+                  value={shippingAddress.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="email@example.com"
+                  className={formErrors.email ? 'error' : ''}
+                />
+                {formErrors.email && <span className="error-text">{formErrors.email}</span>}
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Viloyat *</label>
                 <select
-                  value={deliveryAddress.region}
-                  onChange={(e) =>
-                    setDeliveryAddress({ ...deliveryAddress, region: e.target.value })
-                  }
-                  className="w-full border rounded-lg px-3 py-2"
-                  required
+                  value={shippingAddress.region}
+                  onChange={(e) => handleInputChange('region', e.target.value)}
+                  className={formErrors.region ? 'error' : ''}
                 >
                   <option value="">Viloyatni tanlang</option>
-                  {uzbekRegions.map((region) => (
-                    <option key={region} value={region}>
-                      {region}
-                    </option>
+                  {uzbekRegions.map(region => (
+                    <option key={region} value={region}>{region}</option>
                   ))}
                 </select>
+                {formErrors.region && <span className="error-text">{formErrors.region}</span>}
               </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Tuman/Shahar *</label>
+              
+              <div className="form-group">
+                <label>Tuman/Shahar *</label>
                 <input
                   type="text"
-                  value={deliveryAddress.district}
-                  onChange={(e) =>
-                    setDeliveryAddress({ ...deliveryAddress, district: e.target.value })
-                  }
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="Tuman yoki shaharni kiriting"
-                  required
+                  value={shippingAddress.district}
+                  onChange={(e) => handleInputChange('district', e.target.value)}
+                  placeholder="Tuman yoki shahar nomini kiriting"
+                  className={formErrors.district ? 'error' : ''}
                 />
+                {formErrors.district && <span className="error-text">{formErrors.district}</span>}
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">Mahalla</label>
+            <div className="form-group">
+              <label>To'liq manzil *</label>
+              <input
+                type="text"
+                value={shippingAddress.address}
+                onChange={(e) => handleInputChange('address', e.target.value)}
+                placeholder="Ko'cha, uy raqami va boshqa ma'lumotlar"
+                className={formErrors.address ? 'error' : ''}
+              />
+              {formErrors.address && <span className="error-text">{formErrors.address}</span>}
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Pochta indeksi</label>
                 <input
                   type="text"
-                  value={deliveryAddress.mahalla}
-                  onChange={(e) =>
-                    setDeliveryAddress({ ...deliveryAddress, mahalla: e.target.value })
-                  }
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="Mahalla nomini kiriting"
+                  value={shippingAddress.postalCode}
+                  onChange={(e) => handleInputChange('postalCode', e.target.value)}
+                  placeholder="100000"
                 />
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Ko'cha *</label>
-                  <input
-                    type="text"
-                    value={deliveryAddress.street}
-                    onChange={(e) =>
-                      setDeliveryAddress({ ...deliveryAddress, street: e.target.value })
-                    }
-                    className="w-full border rounded-lg px-3 py-2"
-                    placeholder="Ko'cha nomi"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Uy raqami *</label>
-                  <input
-                    type="text"
-                    value={deliveryAddress.house}
-                    onChange={(e) =>
-                      setDeliveryAddress({ ...deliveryAddress, house: e.target.value })
-                    }
-                    className="w-full border rounded-lg px-3 py-2"
-                    placeholder="Uy raqami"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Qo'shimcha ma'lumot</label>
-                <textarea
-                  value={deliveryAddress.deliveryInstructions}
-                  onChange={(e) =>
-                    setDeliveryAddress({ ...deliveryAddress, deliveryInstructions: e.target.value })
-                  }
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={3}
-                  placeholder="Masalan: 2-qavat, qo'ng'iroq qiling"
-                />
-              </div>
+            <div className="form-group">
+              <label>Yetkazib berish uchun qo'shimcha ma'lumot</label>
+              <textarea
+                value={shippingAddress.deliveryInstructions}
+                onChange={(e) => handleInputChange('deliveryInstructions', e.target.value)}
+                placeholder="Masalan: 2-qavat, qo'ng'iroq qiling, kv. 15"
+                rows={3}
+              />
             </div>
           </div>
 
           {/* Payment Method */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">To'lov usuli</h2>
-
-            <div className="space-y-3">
-              {Object.values(UzbekPaymentMethod).map((method) => (
-                <label key={method} className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    value={method}
-                    checked={paymentMethod === method}
-                    onChange={(e) => setPaymentMethod(e.target.value as UzbekPaymentMethod)}
-                    className="text-blue-600"
-                  />
-                  <div className="flex items-center space-x-2">
-                    <span>{paymentMethodLabels[method]}</span>
-                    {method === UzbekPaymentMethod.CASH_ON_DELIVERY && (
-                      <span className="text-sm text-gray-500">(Eng mashhur)</span>
-                    )}
+          <div className="form-section">
+            <h3>To'lov usuli</h3>
+            
+            <div className="payment-methods">
+              <label className={`payment-option ${paymentMethod === 'PAYME' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  value="PAYME"
+                  checked={paymentMethod === 'PAYME'}
+                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                />
+                <div className="payment-info">
+                  <div className="payment-icon">💳</div>
+                  <div>
+                    <div className="payment-title">Payme</div>
+                    <div className="payment-description">Bank kartasi orqali onlayn to'lov</div>
                   </div>
-                </label>
-              ))}
-            </div>
+                </div>
+              </label>
 
-            {paymentMethod === UzbekPaymentMethod.CASH_ON_DELIVERY && (
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  ⚠️ Yetkazib berganda to'lash uchun aniq pul tayyorlab qo'ying.
-                </p>
+              <label className={`payment-option ${paymentMethod === 'CLICK' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  value="CLICK"
+                  checked={paymentMethod === 'CLICK'}
+                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                />
+                <div className="payment-info">
+                  <div className="payment-icon">💳</div>
+                  <div>
+                    <div className="payment-title">Click</div>
+                    <div className="payment-description">Bank kartasi orqali onlayn to'lov</div>
+                  </div>
+                </div>
+              </label>
+
+              <label className={`payment-option ${paymentMethod === 'CASH' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  value="CASH"
+                  checked={paymentMethod === 'CASH'}
+                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                />
+                <div className="payment-info">
+                  <div className="payment-icon">💰</div>
+                  <div>
+                    <div className="payment-title">Naqd pul</div>
+                    <div className="payment-description">Yetkazib berish vaqtida to'lov</div>
+                  </div>
+                </div>
+              </label>
+
+              <label className={`payment-option ${paymentMethod === 'BANK_TRANSFER' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  value="BANK_TRANSFER"
+                  checked={paymentMethod === 'BANK_TRANSFER'}
+                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                />
+                <div className="payment-info">
+                  <div className="payment-icon">🏦</div>
+                  <div>
+                    <div className="payment-title">Bank o'tkazmasi</div>
+                    <div className="payment-description">Bank orqali to'lov</div>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Coupon Code */}
+          <div className="form-section">
+            <h3>Chegirma kuponi</h3>
+            
+            <div className="coupon-section">
+              <div className="coupon-input">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="Kupon kodini kiriting"
+                  disabled={!!appliedCoupon}
+                />
+                {appliedCoupon ? (
+                  <button type="button" onClick={removeCoupon} className="remove-coupon">
+                    O'chirish
+                  </button>
+                ) : (
+                  <button type="button" onClick={applyCoupon} className="apply-coupon">
+                    Qo'llash
+                  </button>
+                )}
               </div>
-            )}
+              
+              {formErrors.coupon && <span className="error-text">{formErrors.coupon}</span>}
+              
+              {appliedCoupon && (
+                <div className="applied-coupon">
+                  ✅ Kupon qo'llanildi: {appliedCoupon.code} 
+                  ({appliedCoupon.type === 'PERCENTAGE' ? `${appliedCoupon.discount}%` : formatPrice(appliedCoupon.discount)} chegirma)
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Order Notes */}
+          <div className="form-section">
+            <h3>Buyurtma uchun izoh</h3>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Buyurtma uchun qo'shimcha ma'lumotlar (ixtiyoriy)"
+              rows={3}
+            />
+          </div>
+
+          {/* Terms Agreement */}
+          <div className="form-section">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+              />
+              <span>
+                Men <a href="/terms" target="_blank">foydalanish shartlari</a> va <a href="/privacy" target="_blank">maxfiylik siyosati</a> bilan tanishdim va roziman *
+              </span>
+            </label>
+            {formErrors.terms && <span className="error-text">{formErrors.terms}</span>}
           </div>
         </div>
 
-        {/* Right Column - Order Summary */}
-        <div>
-          <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
-            <h2 className="text-xl font-semibold mb-4">Buyurtma xulosasi</h2>
+        {/* Order Summary */}
+        <div className="order-summary">
+          <div className="summary-card">
+            <h3>Buyurtma xulosasi</h3>
 
-            {/* Order Items */}
-            <div className="space-y-3 mb-6">
-              {cartItems.map((item: any) => (
-                <div key={item.id} className="flex justify-between items-center">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-sm">{item.name}</h4>
-                    <p className="text-gray-600 text-sm">
-                      {item.quantity} × {formatUZSPrice(item.price)}
-                    </p>
+            <div className="order-items">
+              {cart.items.map(item => (
+                <div key={item.id} className="order-item">
+                  <img src={item.product.image} alt={item.product.name} />
+                  <div className="item-details">
+                    <div className="item-name">{item.product.name}</div>
+                    <div className="item-quantity">Miqdor: {item.quantity}</div>
                   </div>
-                  <span className="font-semibold">
-                    {formatUZSPrice(item.price * item.quantity)}
-                  </span>
+                  <div className="item-price">{formatPrice(item.price * item.quantity)}</div>
                 </div>
               ))}
             </div>
 
-            {/* Totals */}
-            <div className="border-t pt-4 space-y-2">
-              <div className="flex justify-between">
+            <div className="summary-totals">
+              <div className="summary-line">
                 <span>Mahsulotlar:</span>
-                <span>{formatUZSPrice(subtotal)}</span>
+                <span>{formatPrice(totals.subtotal)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Yetkazib berish:</span>
-                <span>{formatUZSPrice(deliveryFee)}</span>
-              </div>
-              <div className="border-t pt-2 mt-2">
-                <div className="flex justify-between font-semibold text-lg">
-                  <span>Jami:</span>
-                  <span>{formatUZSPrice(total)}</span>
+
+              {totals.discount > 0 && (
+                <div className="summary-line discount">
+                  <span>Chegirma:</span>
+                  <span>-{formatPrice(totals.discount)}</span>
                 </div>
+              )}
+
+              <div className="summary-line">
+                <span>QQS (12%):</span>
+                <span>{formatPrice(totals.tax)}</span>
+              </div>
+
+              <div className="summary-line">
+                <span>Yetkazib berish:</span>
+                <span>
+                  {totals.shipping === 0 ? (
+                    <span className="free-shipping">Bepul</span>
+                  ) : (
+                    formatPrice(totals.shipping)
+                  )}
+                </span>
+              </div>
+
+              <div className="summary-divider"></div>
+
+              <div className="summary-total">
+                <span>Jami to'lov:</span>
+                <span className="total-amount">{formatPrice(totals.total)}</span>
               </div>
             </div>
 
-            {/* Place Order Button */}
+            {error && (
+              <div className="error-message">
+                {error}
+              </div>
+            )}
+
             <button
-              onClick={handlePlaceOrder}
-              disabled={!validateForm() || isProcessing}
-              className={`w-full py-3 rounded-lg mt-6 font-semibold transition-colors ${
-                validateForm() && !isProcessing
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
+              onClick={placeOrder}
+              disabled={submitting || !agreedToTerms}
+              className="place-order-button"
             >
-              {isProcessing ? 'Buyurtma yaratilmoqda...' : 'Buyurtmani tasdiqlash'}
+              {submitting ? 'Buyurtma yaratilmoqda...' : 'Buyurtmani tasdiqlash'}
             </button>
 
-            <p className="text-xs text-gray-500 mt-4 text-center">
-              Buyurtmani tasdiqlash orqali siz{' '}
-              <a href="/terms" className="text-blue-600 hover:underline">
-                foydalanish shartlari
-              </a>
-              ni qabul qilasiz.
-            </p>
+            <div className="security-info">
+              <div className="security-badge">🔒 Xavfsiz to'lov</div>
+              <div className="security-badge">✅ Ma'lumotlar himoyalangan</div>
+            </div>
           </div>
         </div>
       </div>
