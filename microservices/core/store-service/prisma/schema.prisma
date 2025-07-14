@@ -1,0 +1,289 @@
+// Store Service Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  logo        String?
+  ownerId     String
+  category    String
+  status      StoreStatus @default(PENDING_APPROVAL)
+  isActive    Boolean  @default(false)
+  
+  // Contact information
+  address     Json
+  contact     Json
+  
+  // Business information
+  businessInfo Json
+  
+  // Store settings
+  settings    Json
+  
+  // Statistics
+  rating      Float    @default(0)
+  totalReviews Int     @default(0)
+  totalSales  Int      @default(0)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  products    Product[]
+  orders      Order[]
+  reviews     StoreReview[]
+  
+  @@map("stores")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  sku         String   @unique
+  price       Decimal  @db.Decimal(10, 2)
+  comparePrice Decimal? @db.Decimal(10, 2)
+  costPrice   Decimal? @db.Decimal(10, 2)
+  
+  // Inventory
+  quantity    Int      @default(0)
+  minQuantity Int      @default(0)
+  maxQuantity Int?
+  
+  // Product details
+  weight      Float?
+  dimensions  Json?
+  materials   String[]
+  colors      String[]
+  sizes       String[]
+  
+  // SEO
+  metaTitle   String?
+  metaDescription String?
+  
+  // Status
+  isActive    Boolean  @default(true)
+  isDigital   Boolean  @default(false)
+  requiresShipping Boolean @default(true)
+  
+  // Relations
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  
+  images      ProductImage[]
+  variants    ProductVariant[]
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+  reviews     ProductReview[]
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("products")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  nameUz      String
+  slug        String   @unique
+  description String?
+  image       String?
+  parentId    String?
+  parent      Category? @relation("CategoryChildren", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryChildren")
+  
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  
+  products    Product[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("categories")
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+  
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@map("product_images")
+}
+
+model ProductVariant {
+  id        String  @id @default(cuid())
+  name      String
+  value     String
+  price     Decimal? @db.Decimal(10, 2)
+  sku       String?
+  quantity  Int     @default(0)
+  
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("product_variants")
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  orderNumber   String      @unique
+  userId        String
+  storeId       String
+  store         Store       @relation(fields: [storeId], references: [id])
+  
+  status        OrderStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  
+  // Amounts
+  subtotal      Decimal     @db.Decimal(10, 2)
+  taxAmount     Decimal     @default(0) @db.Decimal(10, 2)
+  shippingAmount Decimal    @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal    @default(0) @db.Decimal(10, 2)
+  totalAmount   Decimal     @db.Decimal(10, 2)
+  
+  // Addresses
+  shippingAddress Json
+  billingAddress  Json?
+  
+  // Shipping
+  shippingMethod  String?
+  trackingNumber  String?
+  
+  // Notes
+  notes         String?
+  internalNotes String?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  shippedAt     DateTime?
+  deliveredAt   DateTime?
+  
+  // Relations
+  items         OrderItem[]
+  
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+  
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  
+  variantId String?
+  
+  createdAt DateTime @default(now())
+  
+  @@map("order_items")
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  userId    String
+  quantity  Int
+  
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  variantId String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, productId, variantId])
+  @@map("cart_items")
+}
+
+model StoreReview {
+  id        String @id @default(cuid())
+  rating    Int
+  comment   String?
+  userId    String
+  
+  storeId   String
+  store     Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, storeId])
+  @@map("store_reviews")
+}
+
+model ProductReview {
+  id        String @id @default(cuid())
+  rating    Int
+  title     String?
+  comment   String?
+  userId    String
+  
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  isVerified Boolean @default(false)
+  helpfulCount Int   @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, productId])
+  @@map("product_reviews")
+}
+
+// Enums
+enum StoreStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIAL_REFUND
+}
