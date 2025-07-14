@@ -17,7 +17,8 @@ const services = {
   orders: 'http://localhost:3003',
   payments: 'http://localhost:3005',
   search: 'http://localhost:3006',
-  notifications: 'http://localhost:3007'
+  notifications: 'http://localhost:3007',
+  files: 'http://localhost:3008'
 };
 
 // Health check
@@ -115,6 +116,18 @@ app.use('/api/notifications', createProxyMiddleware({
   }
 }));
 
+app.use('/api/files', createProxyMiddleware({
+  target: services.files,
+  changeOrigin: true,
+  pathRewrite: {
+    '^/api/files': '/api/files'
+  },
+  onError: (err, req, res) => {
+    console.error('File service proxy error:', err.message);
+    res.status(503).json({ error: 'File service unavailable' });
+  }
+}));
+
 // Default route
 app.get('/', (req, res) => {
   res.json({
@@ -130,7 +143,8 @@ app.get('/', (req, res) => {
       'GET /api/cart',
       'POST /api/payments/create',
       'GET /api/search',
-      'POST /api/notifications/send'
+      'POST /api/notifications/send',
+      'POST /api/files/upload'
     ]
   });
 });
@@ -146,7 +160,7 @@ app.use('*', (req, res) => {
   res.status(404).json({ 
     error: 'Route not found',
     path: req.originalUrl,
-    available_routes: ['/health', '/api/auth', '/api/products', '/api/orders', '/api/cart', '/api/payments', '/api/search', '/api/notifications']
+    available_routes: ['/health', '/api/auth', '/api/products', '/api/orders', '/api/cart', '/api/payments', '/api/search', '/api/notifications', '/api/files']
   });
 });
 

@@ -32,6 +32,12 @@ const HomePage: React.FC = () => {
                 Mahsulotlarni Ko'rish
               </Link>
               <Link
+                to="/platform-status"
+                className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-lg transition duration-300 transform hover:scale-105"
+              >
+                🚀 Platform Status
+              </Link>
+              <Link
                 to="/register"
                 className="bg-white hover:bg-gray-50 text-blue-600 font-semibold py-3 px-8 rounded-lg border-2 border-blue-600 transition duration-300"
               >

@@ -32,6 +32,7 @@ const ShoppingToolsPage = React.lazy(() => import('./pages/ShoppingToolsPage'));
 const GamingZonePage = React.lazy(() => import('./pages/GamingZonePage'));
 const AIProductDetailExample = React.lazy(() => import('./pages/AIProductDetailExample'));
 const TechHomePage = React.lazy(() => import('./pages/TechHomePage'));
+const PlatformStatusPage = React.lazy(() => import('./pages/PlatformStatusPage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
 // Store
@@ -82,6 +83,7 @@ function App() {
                       <Route path="/shopping-tools" element={<ShoppingToolsPage />} />
                       <Route path="/gaming-zone" element={<GamingZonePage />} />
                       <Route path="/ai-recommendations" element={<AIProductDetailExample />} />
+                      <Route path="/platform-status" element={<PlatformStatusPage />} />
 
                       {/* Protected Routes */}
                       <Route path="/checkout" element={<CheckoutPage />} />
