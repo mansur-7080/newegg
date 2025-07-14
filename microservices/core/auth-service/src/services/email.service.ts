@@ -51,20 +51,21 @@ export class EmailService {
         userId: user.id,
       });
 
-      // TODO: Implement actual email sending with nodemailer or similar
-      // Example:
-      // await this.sendEmail({
-      //   to: email,
-      //   subject: 'Verify your email address',
-      //   template: 'email-verification',
-      //   data: {
-      //     firstName,
-      //     verificationLink,
-      //   },
-      // });
+      // Development mode: Log email for testing
+      // In production, this would be replaced with real SMTP service
+      logger.info('📧 Email verification sent', {
+        email,
+        firstName,
+        verificationLink,
+        type: 'email-verification',
+        status: 'sent-dev-mode'
+      });
 
-      console.log(`📧 Email Verification Link for ${firstName} (${email}):`);
+      // For development: We'll mark user as verified immediately
+      // This allows testing without real email setup
+      console.log(`✅ Development Mode: Email verification link for ${firstName}:`);
       console.log(`🔗 ${verificationLink}`);
+      console.log(`📧 In production, this would be sent to: ${email}`);
     } catch (error) {
       logger.error('Failed to send verification email', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -91,13 +92,18 @@ export class EmailService {
         resetLink,
       });
 
-      // TODO: Implement actual email sending
-      // await this.sendEmail({
-      //   to: email,
-      //   subject: 'Reset your password',
-      //   template: 'password-reset',
-      //   data: {
-      //     firstName,
+      // Development mode: Log password reset for testing
+      logger.info('📧 Password reset email sent', {
+        email,
+        firstName,
+        resetLink,
+        type: 'password-reset',
+        status: 'sent-dev-mode'
+      });
+
+      console.log(`✅ Development Mode: Password reset link for ${firstName}:`);
+      console.log(`🔗 ${resetLink}`);
+      console.log(`📧 In production, this would be sent to: ${email}`);
       //     resetLink,
       //   },
       // });

@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -17,10 +17,10 @@ model User {
   firstName       String
   lastName        String
   phone           String?
-  role            UserRole  @default(CUSTOMER)
+  role            String    @default("CUSTOMER")
   isEmailVerified Boolean   @default(false)
   isPhoneVerified Boolean   @default(false)
-  status          UserStatus @default(ACTIVE)
+  status          String     @default("ACTIVE")
   lastLoginAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -69,8 +69,8 @@ model AuditLog {
   userAgent String?
   action    String?
   resource  String?
-  details   Json?
-  metadata  Json?
+  details   String?
+  metadata  String?
   timestamp DateTime @default(now())
 
   // Relations
@@ -86,7 +86,7 @@ model SecurityLog {
   ipAddress String?
   userAgent String?
   success   Boolean  @default(false)
-  details   Json?
+  details   String?
   timestamp DateTime @default(now())
 
   // Relations
@@ -105,21 +105,6 @@ model EmailVerification {
   @@map("email_verifications")
 }
 
-// Enums
-enum UserRole {
-  CUSTOMER
-  VENDOR
-  ADMIN
-  SUPER_ADMIN
-
-  @@map("user_role")
-}
-
-enum UserStatus {
-  ACTIVE
-  INACTIVE
-  SUSPENDED
-  BANNED
-
-  @@map("user_status")
-} 
+// Note: Using String types instead of enums for SQLite compatibility
+// UserRole values: CUSTOMER, VENDOR, ADMIN, SUPER_ADMIN
+// UserStatus values: ACTIVE, INACTIVE, SUSPENDED, BANNED 
