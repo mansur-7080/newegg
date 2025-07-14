@@ -4,7 +4,6 @@
  */
 
 import Joi from 'joi';
-import { UZBEKISTAN_CATEGORIES } from '../services/product.service';
 
 /**
  * Uzbekistan-specific validation patterns
@@ -21,27 +20,9 @@ const UZBEKISTAN_PATTERNS = {
 };
 
 /**
- * Valid categories list
+ * Valid product statuses (matching Prisma schema)
  */
-const VALID_CATEGORIES = Object.values(UZBEKISTAN_CATEGORIES).map(cat => cat.id);
-
-/**
- * Valid subcategories for each category
- */
-const VALID_SUBCATEGORIES = Object.values(UZBEKISTAN_CATEGORIES).reduce((acc, cat) => {
-  cat.subcategories.forEach(sub => acc.push(sub));
-  return acc;
-}, [] as string[]);
-
-/**
- * Valid product statuses
- */
-const VALID_STATUSES = ['DRAFT', 'ACTIVE', 'INACTIVE', 'OUT_OF_STOCK', 'DISCONTINUED'];
-
-/**
- * Valid visibility options
- */
-const VALID_VISIBILITY = ['PUBLIC', 'PRIVATE', 'VENDOR_ONLY'];
+const VALID_STATUSES = ['DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED'];
 
 /**
  * Common validation schemas
@@ -124,18 +105,12 @@ const CommonSchemas = {
       'any.only': `Currency must be one of: ${UZBEKISTAN_PATTERNS.CURRENCIES.join(', ')}`,
     }),
 
-  category: Joi.string()
-    .valid(...VALID_CATEGORIES)
+  categoryId: Joi.string()
+    .length(36) // UUID length
     .required()
     .messages({
-      'any.only': `Category must be one of: ${VALID_CATEGORIES.join(', ')}`,
-      'any.required': 'Category is required',
-    }),
-
-  subcategory: Joi.string()
-    .valid(...VALID_SUBCATEGORIES)
-    .messages({
-      'any.only': `Subcategory must be one of valid subcategories`,
+      'string.length': 'Category ID must be a valid UUID',
+      'any.required': 'Category ID is required',
     }),
 
   brand: Joi.string()
@@ -180,12 +155,14 @@ const CommonSchemas = {
 
   images: Joi.array()
     .items(
-      Joi.string()
-        .uri({ scheme: ['http', 'https'] })
-        .required()
-        .messages({
-          'string.uri': 'Each image must be a valid URL',
+      Joi.alternatives().try(
+        Joi.string().uri({ scheme: ['http', 'https'] }),
+        Joi.object({
+          url: Joi.string().uri({ scheme: ['http', 'https'] }).required(),
+          altText: Joi.string().max(200),
+          isMain: Joi.boolean().default(false),
         })
+      )
     )
     .min(1)
     .max(20)
@@ -253,35 +230,46 @@ const CommonSchemas = {
       'array.max': 'Cannot have more than 20 SEO keywords',
     }),
 
-  stock: Joi.number()
+  quantity: Joi.number()
     .integer()
     .min(0)
     .max(1000000)
     .required()
     .messages({
-      'number.integer': 'Stock must be a whole number',
-      'number.min': 'Stock cannot be negative',
-      'number.max': 'Stock is too high',
-      'any.required': 'Stock is required',
+      'number.integer': 'Quantity must be a whole number',
+      'number.min': 'Quantity cannot be negative',
+      'number.max': 'Quantity is too high',
+      'any.required': 'Quantity is required',
     }),
 
-  minStock: Joi.number()
+  lowStockThreshold: Joi.number()
     .integer()
     .min(0)
     .max(1000)
-    .default(0)
+    .default(10)
     .messages({
-      'number.integer': 'Minimum stock must be a whole number',
-      'number.min': 'Minimum stock cannot be negative',
+      'number.integer': 'Low stock threshold must be a whole number',
+      'number.min': 'Low stock threshold cannot be negative',
     }),
 
-  maxStock: Joi.number()
+  reorderPoint: Joi.number()
+    .integer()
+    .min(0)
+    .max(1000)
+    .default(5)
+    .messages({
+      'number.integer': 'Reorder point must be a whole number',
+      'number.min': 'Reorder point cannot be negative',
+    }),
+
+  reorderQuantity: Joi.number()
     .integer()
     .min(0)
     .max(1000000)
+    .default(50)
     .messages({
-      'number.integer': 'Maximum stock must be a whole number',
-      'number.min': 'Maximum stock cannot be negative',
+      'number.integer': 'Reorder quantity must be a whole number',
+      'number.min': 'Reorder quantity cannot be negative',
     }),
 
   status: Joi.string()
@@ -291,18 +279,26 @@ const CommonSchemas = {
       'any.only': `Status must be one of: ${VALID_STATUSES.join(', ')}`,
     }),
 
-  visibility: Joi.string()
-    .valid(...VALID_VISIBILITY)
-    .default('PUBLIC')
+  isFeatured: Joi.boolean().default(false),
+
+  isBestSeller: Joi.boolean().default(false),
+
+  isNewArrival: Joi.boolean().default(false),
+
+  isOnSale: Joi.boolean().default(false),
+
+  salePercentage: Joi.number()
+    .integer()
+    .min(0)
+    .max(100)
     .messages({
-      'any.only': `Visibility must be one of: ${VALID_VISIBILITY.join(', ')}`,
+      'number.min': 'Sale percentage cannot be negative',
+      'number.max': 'Sale percentage cannot exceed 100%',
     }),
 
-  isDigital: Joi.boolean().default(false),
+  saleStartDate: Joi.date(),
 
-  shippingRequired: Joi.boolean().default(true),
-
-  featured: Joi.boolean().default(false),
+  saleEndDate: Joi.date().greater(Joi.ref('saleStartDate')),
 };
 
 /**
@@ -311,16 +307,13 @@ const CommonSchemas = {
 export const validateProductInput = (data: any) => {
   const schema = Joi.object({
     name: CommonSchemas.productName,
-    nameUz: CommonSchemas.uzbekName,
-    nameRu: CommonSchemas.uzbekName,
-    description: CommonSchemas.description,
-    descriptionUz: Joi.string().min(10).max(5000),
-    descriptionRu: Joi.string().min(10).max(5000),
+    description: CommonSchemas.description.optional(),
     shortDescription: CommonSchemas.shortDescription,
-    category: CommonSchemas.category,
-    subcategory: CommonSchemas.subcategory,
-    brand: CommonSchemas.brand,
+    categoryId: CommonSchemas.categoryId,
+    brand: CommonSchemas.brand.optional(),
+    model: Joi.string().max(100),
     sku: CommonSchemas.sku,
+    barcode: Joi.string().max(100),
     price: CommonSchemas.price,
     comparePrice: CommonSchemas.comparePrice,
     costPrice: CommonSchemas.costPrice,
@@ -328,20 +321,29 @@ export const validateProductInput = (data: any) => {
     weight: CommonSchemas.weight,
     dimensions: CommonSchemas.dimensions,
     images: CommonSchemas.images,
-    thumbnail: CommonSchemas.thumbnail,
     tags: CommonSchemas.tags,
     attributes: CommonSchemas.attributes,
-    seoTitle: CommonSchemas.seoTitle,
-    seoDescription: CommonSchemas.seoDescription,
-    seoKeywords: CommonSchemas.seoKeywords,
-    stock: CommonSchemas.stock,
-    minStock: CommonSchemas.minStock,
-    maxStock: CommonSchemas.maxStock,
-    isDigital: CommonSchemas.isDigital,
-    shippingRequired: CommonSchemas.shippingRequired,
+    specifications: CommonSchemas.attributes,
+    metaTitle: CommonSchemas.seoTitle,
+    metaDescription: CommonSchemas.seoDescription,
+    metaKeywords: CommonSchemas.seoKeywords,
+    warranty: Joi.string().max(500),
+    returnPolicy: Joi.string().max(500),
+    shippingInfo: Joi.string().max(500),
+    quantity: CommonSchemas.quantity,
+    lowStockThreshold: CommonSchemas.lowStockThreshold,
+    reorderPoint: CommonSchemas.reorderPoint,
+    reorderQuantity: CommonSchemas.reorderQuantity,
+    location: Joi.string().max(100),
+    warehouse: Joi.string().max(100),
     status: CommonSchemas.status,
-    featured: CommonSchemas.featured,
-    visibility: CommonSchemas.visibility,
+    isFeatured: CommonSchemas.isFeatured,
+    isBestSeller: CommonSchemas.isBestSeller,
+    isNewArrival: CommonSchemas.isNewArrival,
+    isOnSale: CommonSchemas.isOnSale,
+    salePercentage: CommonSchemas.salePercentage,
+    saleStartDate: CommonSchemas.saleStartDate,
+    saleEndDate: CommonSchemas.saleEndDate,
   })
   .custom((value, helpers) => {
     // Custom validation: compare price should be higher than price

@@ -1,35 +1,23 @@
 /**
  * Product Controller
- * Professional product management with comprehensive CRUD operations
+ * Simplified and functional product management
  */
 
 import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { logger } from '@ultramarket/shared/logging/logger';
-import { ValidationError, NotFoundError, AuthorizationError } from '@ultramarket/shared/errors';
-import {
-  validateProductInput,
-  validateProductUpdateInput,
-  validateProductSearchInput,
-} from '../validators/product.validator';
+import { logger, ValidationError, NotFoundError } from '@ultramarket/shared';
 import {
   createProduct,
   findProductById,
   findProducts,
   updateProduct,
   deleteProduct,
-  searchProducts,
   getProductCategories,
   getProductBrands,
   getProductStatistics,
+  CreateProductInput,
+  UpdateProductInput,
 } from '../services/product.service';
-import { cacheProduct, getCachedProduct, invalidateProductCache } from '../services/cache.service';
-import { logProductAction } from '../services/audit.service';
-import {
-  requireVendor,
-  requireAdmin,
-  requireOwnershipOrAdmin,
-} from '../middleware/auth.middleware';
 
 const prisma = new PrismaClient();
 
@@ -40,37 +28,17 @@ export class ProductController {
    */
   static async createProduct(req: Request, res: Response, next: NextFunction) {
     try {
-      // Validate input
-      const { error, value } = validateProductInput(req.body);
-      if (error) {
-        throw new ValidationError('Invalid product data', error.details);
-      }
+      const productData: CreateProductInput = req.body;
+      const userId = req.user?.id;
 
-      const productData = value;
-      const userId = (req as any).user?.id;
-
-      // Create product
       const product = await createProduct({
         ...productData,
         vendorId: userId,
       });
 
-      // Cache the product
-      await cacheProduct(product);
-
-      // Audit log
-      await logProductAction('PRODUCT_CREATED', {
-        userId,
-        productId: product.id,
-        productName: product.name,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      });
-
       logger.info('Product created successfully', {
         productId: product.id,
         vendorId: userId,
-        operation: 'product_creation',
       });
 
       res.status(201).json({
@@ -91,25 +59,11 @@ export class ProductController {
     try {
       const { id } = req.params;
 
-      // Try to get from cache first
-      let product = await getCachedProduct(id);
+      const product = await findProductById(id);
 
       if (!product) {
-        // Get from database
-        product = await findProductById(id);
-
-        if (!product) {
-          throw new NotFoundError('Product not found');
-        }
-
-        // Cache the product
-        await cacheProduct(product);
+        throw new NotFoundError('Product not found');
       }
-
-      logger.debug('Product retrieved successfully', {
-        productId: id,
-        operation: 'product_retrieval',
-      });
 
       res.status(200).json({
         success: true,
@@ -129,21 +83,35 @@ export class ProductController {
       const {
         page = 1,
         limit = 20,
-        category,
+        categoryId,
         brand,
         minPrice,
         maxPrice,
         sortBy = 'createdAt',
         sortOrder = 'desc',
         status = 'ACTIVE',
+        search,
+        isFeatured,
+        isBestSeller,
+        isNewArrival,
+        isOnSale,
+        inStock,
+        tags,
       } = req.query;
 
       const filters = {
-        category: category as string,
+        categoryId: categoryId as string,
         brand: brand as string,
         minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
         maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
         status: status as string,
+        search: search as string,
+        isFeatured: isFeatured ? isFeatured === 'true' : undefined,
+        isBestSeller: isBestSeller ? isBestSeller === 'true' : undefined,
+        isNewArrival: isNewArrival ? isNewArrival === 'true' : undefined,
+        isOnSale: isOnSale ? isOnSale === 'true' : undefined,
+        inStock: inStock ? inStock === 'true' : undefined,
+        tags: tags ? (tags as string).split(',') : undefined,
       };
 
       const products = await findProducts({
@@ -152,13 +120,6 @@ export class ProductController {
         filters,
         sortBy: sortBy as string,
         sortOrder: sortOrder as 'asc' | 'desc',
-      });
-
-      logger.debug('Products retrieved successfully', {
-        count: products.data.length,
-        total: products.total,
-        page: parseInt(page as string),
-        operation: 'products_retrieval',
       });
 
       res.status(200).json({
@@ -177,45 +138,9 @@ export class ProductController {
   static async updateProduct(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const userId = (req as any).user?.id;
+      const updateData: UpdateProductInput = req.body;
 
-      // Validate input
-      const { error, value } = validateProductUpdateInput(req.body);
-      if (error) {
-        throw new ValidationError('Invalid product update data', error.details);
-      }
-
-      // Check if product exists
-      const existingProduct = await findProductById(id);
-      if (!existingProduct) {
-        throw new NotFoundError('Product not found');
-      }
-
-      // Check ownership or admin role
-      if (existingProduct.vendorId !== userId && (req as any).user?.role !== 'ADMIN') {
-        throw new AuthorizationError('You can only update your own products');
-      }
-
-      // Update product
-      const updatedProduct = await updateProduct(id, value);
-
-      // Update cache
-      await cacheProduct(updatedProduct);
-
-      // Audit log
-      await logProductAction('PRODUCT_UPDATED', {
-        userId,
-        productId: id,
-        productName: updatedProduct.name,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      });
-
-      logger.info('Product updated successfully', {
-        productId: id,
-        vendorId: userId,
-        operation: 'product_update',
-      });
+      const updatedProduct = await updateProduct(id, updateData);
 
       res.status(200).json({
         success: true,
@@ -234,95 +159,13 @@ export class ProductController {
   static async deleteProduct(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const userId = (req as any).user?.id;
 
-      // Check if product exists
-      const existingProduct = await findProductById(id);
-      if (!existingProduct) {
-        throw new NotFoundError('Product not found');
-      }
-
-      // Check ownership or admin role
-      if (existingProduct.vendorId !== userId && (req as any).user?.role !== 'ADMIN') {
-        throw new AuthorizationError('You can only delete your own products');
-      }
-
-      // Delete product
-      await deleteProduct(id);
-
-      // Invalidate cache
-      await invalidateProductCache(id);
-
-      // Audit log
-      await logProductAction('PRODUCT_DELETED', {
-        userId,
-        productId: id,
-        productName: existingProduct.name,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      });
-
-      logger.info('Product deleted successfully', {
-        productId: id,
-        vendorId: userId,
-        operation: 'product_deletion',
-      });
+      const deletedProduct = await deleteProduct(id);
 
       res.status(200).json({
         success: true,
         message: 'Product deleted successfully',
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Search products
-   * GET /api/v1/products/search
-   */
-  static async searchProducts(req: Request, res: Response, next: NextFunction) {
-    try {
-      const {
-        q,
-        page = 1,
-        limit = 20,
-        category,
-        brand,
-        minPrice,
-        maxPrice,
-        sortBy = 'relevance',
-        sortOrder = 'desc',
-      } = req.query;
-
-      if (!q) {
-        throw new ValidationError('Search query is required');
-      }
-
-      const searchResults = await searchProducts({
-        query: q as string,
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
-        filters: {
-          category: category as string,
-          brand: brand as string,
-          minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
-          maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
-        },
-        sortBy: sortBy as string,
-        sortOrder: sortOrder as 'asc' | 'desc',
-      });
-
-      logger.debug('Product search completed', {
-        query: q,
-        results: searchResults.data.length,
-        total: searchResults.total,
-        operation: 'product_search',
-      });
-
-      res.status(200).json({
-        success: true,
-        data: searchResults,
+        data: { product: deletedProduct },
       });
     } catch (error) {
       next(error);
@@ -333,14 +176,9 @@ export class ProductController {
    * Get product categories
    * GET /api/v1/products/categories
    */
-  static async getCategories(req: Request, res: Response, next: NextFunction) {
+  static async getProductCategories(req: Request, res: Response, next: NextFunction) {
     try {
       const categories = await getProductCategories();
-
-      logger.debug('Product categories retrieved', {
-        count: categories.length,
-        operation: 'categories_retrieval',
-      });
 
       res.status(200).json({
         success: true,
@@ -355,14 +193,11 @@ export class ProductController {
    * Get product brands
    * GET /api/v1/products/brands
    */
-  static async getBrands(req: Request, res: Response, next: NextFunction) {
+  static async getProductBrands(req: Request, res: Response, next: NextFunction) {
     try {
-      const brands = await getProductBrands();
+      const { categoryId } = req.query;
 
-      logger.debug('Product brands retrieved', {
-        count: brands.length,
-        operation: 'brands_retrieval',
-      });
+      const brands = await getProductBrands(categoryId as string);
 
       res.status(200).json({
         success: true,
@@ -375,19 +210,17 @@ export class ProductController {
 
   /**
    * Get product statistics
-   * GET /api/v1/products/statistics
+   * GET /api/v1/products/stats
    */
-  static async getStatistics(req: Request, res: Response, next: NextFunction) {
+  static async getProductStats(req: Request, res: Response, next: NextFunction) {
     try {
-      const statistics = await getProductStatistics();
+      const { vendorId } = req.query;
 
-      logger.debug('Product statistics retrieved', {
-        operation: 'statistics_retrieval',
-      });
+      const stats = await getProductStatistics(vendorId as string);
 
       res.status(200).json({
         success: true,
-        data: { statistics },
+        data: { stats },
       });
     } catch (error) {
       next(error);
@@ -395,107 +228,61 @@ export class ProductController {
   }
 
   /**
-   * Get vendor products
-   * GET /api/v1/products/vendor/:vendorId
+   * Search products
+   * GET /api/v1/products/search
    */
-  static async getVendorProducts(req: Request, res: Response, next: NextFunction) {
+  static async searchProducts(req: Request, res: Response, next: NextFunction) {
     try {
-      const { vendorId } = req.params;
-      const { page = 1, limit = 20, status = 'ACTIVE' } = req.query;
+      const { q, page = 1, limit = 20 } = req.query;
 
-      const products = await findProducts({
+      if (!q) {
+        throw new ValidationError('Search query is required');
+      }
+
+      const filters = {
+        search: q as string,
+      };
+
+      const results = await findProducts({
         page: parseInt(page as string),
         limit: parseInt(limit as string),
-        filters: {
-          vendorId,
-          status: status as string,
-        },
+        filters,
         sortBy: 'createdAt',
         sortOrder: 'desc',
       });
 
-      logger.debug('Vendor products retrieved', {
-        vendorId,
-        count: products.data.length,
-        total: products.total,
-        operation: 'vendor_products_retrieval',
+      res.status(200).json({
+        success: true,
+        data: results,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get featured products
+   * GET /api/v1/products/featured
+   */
+  static async getFeaturedProducts(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { limit = 10 } = req.query;
+
+      const filters = {
+        isFeatured: true,
+      };
+
+      const products = await findProducts({
+        page: 1,
+        limit: parseInt(limit as string),
+        filters,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
       });
 
       res.status(200).json({
         success: true,
         data: products,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Bulk update products
-   * PUT /api/v1/products/bulk-update
-   */
-  static async bulkUpdateProducts(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { productIds, updates } = req.body;
-      const userId = (req as any).user?.id;
-
-      if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
-        throw new ValidationError('Product IDs array is required');
-      }
-
-      if (!updates || typeof updates !== 'object') {
-        throw new ValidationError('Updates object is required');
-      }
-
-      // Validate that user owns all products or is admin
-      const products = await prisma.product.findMany({
-        where: { id: { in: productIds } },
-      });
-
-      if (products.length !== productIds.length) {
-        throw new NotFoundError('Some products not found');
-      }
-
-      const isAdmin = (req as any).user?.role === 'ADMIN';
-      const unauthorizedProducts = products.filter((p) => p.vendorId !== userId && !isAdmin);
-
-      if (unauthorizedProducts.length > 0) {
-        throw new AuthorizationError('You can only update your own products');
-      }
-
-      // Bulk update
-      const updatedProducts = await prisma.product.updateMany({
-        where: { id: { in: productIds } },
-        data: updates,
-      });
-
-      // Invalidate cache for updated products
-      for (const productId of productIds) {
-        await invalidateProductCache(productId);
-      }
-
-      // Audit log
-      await logProductAction('BULK_PRODUCT_UPDATE', {
-        userId,
-        productIds,
-        updates,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-      });
-
-      logger.info('Bulk product update completed', {
-        userId,
-        productCount: productIds.length,
-        operation: 'bulk_product_update',
-      });
-
-      res.status(200).json({
-        success: true,
-        message: 'Products updated successfully',
-        data: {
-          updatedCount: updatedProducts.count,
-          productIds,
-        },
       });
     } catch (error) {
       next(error);
@@ -511,32 +298,33 @@ export class ProductController {
       const { id } = req.params;
       const { limit = 10 } = req.query;
 
-      // Check if product exists
+      // Get product to find same category
       const product = await findProductById(id);
       if (!product) {
         throw new NotFoundError('Product not found');
       }
 
-      // Get recommendations based on category and brand
-      const recommendations = await prisma.product.findMany({
-        where: {
-          id: { not: id },
-          status: 'ACTIVE',
-          OR: [{ category: product.category }, { brand: product.brand }],
-        },
-        take: parseInt(limit as string),
-        orderBy: { createdAt: 'desc' },
+      const filters = {
+        categoryId: product.category.id,
+      };
+
+      const recommendations = await findProducts({
+        page: 1,
+        limit: parseInt(limit as string),
+        filters,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
       });
 
-      logger.debug('Product recommendations retrieved', {
-        productId: id,
-        recommendationsCount: recommendations.length,
-        operation: 'product_recommendations',
-      });
+      // Remove the current product from recommendations
+      const filteredRecommendations = {
+        ...recommendations,
+        data: recommendations.data.filter((p: any) => p.id !== id),
+      };
 
       res.status(200).json({
         success: true,
-        data: { recommendations },
+        data: { recommendations: filteredRecommendations },
       });
     } catch (error) {
       next(error);
