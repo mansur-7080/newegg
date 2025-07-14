@@ -1,485 +1,408 @@
 /**
- * Authentication Controller
- * Professional JWT-based authentication with RBAC
+ * Professional Auth Controller for UltraMarket
+ * Comprehensive authentication and authorization with Uzbekistan-specific features
  */
 
 import { Request, Response, NextFunction } from 'express';
-import bcrypt from 'bcryptjs';
-import { prisma } from '../index';
-import { AuthService } from '../services/auth.service';
-import { JWTService } from '../services/jwt.service';
-import { EmailService } from '../services/email.service';
-import {
-  AuthError,
-  ConflictError,
-  NotFoundError,
-  ValidationError,
-} from '../middleware/errorHandler';
-import { AuthRequest } from '../middleware/auth.middleware';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
+import { 
+  AuthError, 
+  ValidationError, 
+  NotFoundError, 
+  ConflictError,
+  asyncHandler 
+} from '../middleware/errorHandler';
+import { UserModel } from '../models/User';
+import { TokenModel } from '../models/Token';
+import { validateEnv } from '../config/env.validation';
+
+// Get JWT configuration
+const jwtConfig = {
+  accessSecret: process.env.JWT_ACCESS_SECRET!,
+  refreshSecret: process.env.JWT_REFRESH_SECRET!,
+  emailVerificationSecret: process.env.JWT_EMAIL_VERIFICATION_SECRET!,
+  passwordResetSecret: process.env.JWT_PASSWORD_RESET_SECRET!,
+  accessTokenExpiry: '15m',
+  refreshTokenExpiry: '7d',
+  emailVerificationExpiry: '24h',
+  passwordResetExpiry: '1h',
+};
 
 export class AuthController {
-  private authService: AuthService;
-  private jwtService: JWTService;
-  private emailService: EmailService;
-
-  constructor() {
-    this.authService = new AuthService();
-    this.jwtService = new JWTService();
-    this.emailService = new EmailService();
-  }
-
   /**
-   * Register a new user
+   * Register new user
    */
-  register = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { email, password, firstName, lastName, phone, role = 'CUSTOMER' } = req.body;
+  static register = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { 
+      email, 
+      password, 
+      firstName, 
+      lastName, 
+      phone, 
+      dateOfBirth,
+      address,
+      city,
+      region,
+      postalCode,
+      acceptTerms,
+      marketingConsent 
+    } = req.body;
 
-      // Check if user already exists
-      const existingUser = await prisma.user.findUnique({
-        where: { email },
-      });
+    // Validate required fields
+    if (!email || !password || !firstName || !lastName) {
+      throw new ValidationError('Email, password, first name, and last name are required');
+    }
 
-      if (existingUser) {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new ValidationError('Invalid email format');
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      throw new ValidationError('Password must be at least 8 characters long');
+    }
+
+    // Validate Uzbek phone number format
+    if (phone) {
+      const phoneRegex = /^\+998[0-9]{9}$/;
+      if (!phoneRegex.test(phone)) {
+        throw new ValidationError('Invalid phone number format. Use +998XXXXXXXXX');
+      }
+    }
+
+    // Check if user already exists
+    const existingUser = await UserModel.findOne({ 
+      $or: [{ email }, { phone }] 
+    });
+
+    if (existingUser) {
+      if (existingUser.email === email) {
         throw new ConflictError('User with this email already exists');
       }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 12);
-
-      // Create user
-      const user = await prisma.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          firstName,
-          lastName,
-          phone,
-          role,
-        },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          phone: true,
-          role: true,
-          isEmailVerified: true,
-          createdAt: true,
-        },
-      });
-
-      // Generate tokens
-      const tokens = await this.jwtService.generateTokens({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-      });
-
-      // Save refresh token
-      await prisma.refreshToken.create({
-        data: {
-          userId: user.id,
-          token: tokens.refreshToken,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-        },
-      });
-
-      // Send verification email
-      await this.emailService.sendVerificationEmail(user.email, user.firstName);
-
-      // Log successful registration
-      logger.info('User registered successfully', {
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-        ip: req.ip,
-      });
-
-      res.status(201).json({
-        success: true,
-        message: 'User registered successfully. Please check your email for verification.',
-        data: {
-          user,
-          tokens,
-        },
-      });
-    } catch (error) {
-      next(error);
+      if (phone && existingUser.phone === phone) {
+        throw new ConflictError('User with this phone number already exists');
+      }
     }
-  };
+
+    // Hash password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create user
+    const user = await UserModel.create({
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      firstName,
+      lastName,
+      phone,
+      dateOfBirth,
+      address,
+      city,
+      region,
+      postalCode,
+      acceptTerms: acceptTerms || false,
+      marketingConsent: marketingConsent || false,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      status: 'active',
+      role: 'customer',
+      preferences: {
+        language: 'uz',
+        currency: 'UZS',
+        timezone: 'Asia/Tashkent',
+        notifications: {
+          email: true,
+          sms: true,
+          push: true,
+        },
+      },
+    });
+
+    // Generate email verification token
+    const emailVerificationToken = jwt.sign(
+      { userId: user.id, email: user.email },
+      jwtConfig.emailVerificationSecret,
+      { expiresIn: jwtConfig.emailVerificationExpiry }
+    );
+
+    // Save verification token
+    await TokenModel.create({
+      userId: user.id,
+      token: emailVerificationToken,
+      type: 'email_verification',
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    });
+
+    // Send verification email (implement email service)
+    // await emailService.sendVerificationEmail(user.email, emailVerificationToken);
+
+    // Generate access and refresh tokens
+    const accessToken = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      jwtConfig.accessSecret,
+      { expiresIn: jwtConfig.accessTokenExpiry }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.id, email: user.email },
+      jwtConfig.refreshSecret,
+      { expiresIn: jwtConfig.refreshTokenExpiry }
+    );
+
+    // Save refresh token
+    await TokenModel.create({
+      userId: user.id,
+      token: refreshToken,
+      type: 'refresh',
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    });
+
+    // Log registration
+    logger.auth(user.id, 'user_registered', {
+      email: user.email,
+      phone: user.phone,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          isEmailVerified: user.isEmailVerified,
+          isPhoneVerified: user.isPhoneVerified,
+          role: user.role,
+          status: user.status,
+        },
+        tokens: {
+          accessToken,
+          refreshToken,
+        },
+      },
+    });
+  });
 
   /**
    * Login user
    */
-  login = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { email, password, rememberMe = false } = req.body;
+  static login = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { email, password, rememberMe } = req.body;
 
-      // Find user
-      const user = await prisma.user.findUnique({
-        where: { email },
-      });
+    // Validate required fields
+    if (!email || !password) {
+      throw new ValidationError('Email and password are required');
+    }
 
-      if (!user) {
-        throw new AuthError('Invalid email or password');
-      }
+    // Find user by email
+    const user = await UserModel.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      throw new AuthError('Invalid email or password');
+    }
 
-      // Check password
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        throw new AuthError('Invalid email or password');
-      }
+    // Check if user is active
+    if (user.status !== 'active') {
+      throw new AuthError('Account is not active. Please contact support.');
+    }
 
-      // Check if user is active
-      if (user.status !== 'ACTIVE') {
-        throw new AuthError('Account is not active');
-      }
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new AuthError('Invalid email or password');
+    }
 
-      // Generate tokens
-      const tokens = await this.jwtService.generateTokens({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-      });
+    // Generate tokens
+    const accessToken = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      jwtConfig.accessSecret,
+      { expiresIn: jwtConfig.accessTokenExpiry }
+    );
 
-      // Save refresh token
-      const expiresAt = rememberMe
-        ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
-        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const refreshTokenExpiry = rememberMe ? '30d' : jwtConfig.refreshTokenExpiry;
+    const refreshToken = jwt.sign(
+      { userId: user.id, email: user.email },
+      jwtConfig.refreshSecret,
+      { expiresIn: refreshTokenExpiry }
+    );
 
-      await prisma.refreshToken.create({
-        data: {
-          userId: user.id,
-          token: tokens.refreshToken,
-          expiresAt,
-        },
-      });
+    // Save refresh token
+    await TokenModel.create({
+      userId: user.id,
+      token: refreshToken,
+      type: 'refresh',
+      expiresAt: new Date(Date.now() + (rememberMe ? 30 : 7) * 24 * 60 * 60 * 1000),
+    });
 
-      // Update last login
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() },
-      });
+    // Update last login
+    await UserModel.findByIdAndUpdate(user.id, {
+      lastLoginAt: new Date(),
+      loginCount: (user.loginCount || 0) + 1,
+    });
 
-      // Log successful login
-      logger.info('User logged in successfully', {
-        userId: user.id,
-        email: user.email,
-        ip: req.ip,
-      });
+    // Log login
+    logger.auth(user.id, 'user_logged_in', {
+      email: user.email,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      rememberMe,
+    });
 
-      // Create audit log
-      await prisma.auditLog.create({
-        data: {
-          event: 'USER_LOGIN',
-          userId: user.id,
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        user: {
+          id: user.id,
           email: user.email,
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
-          action: 'LOGIN',
-          resource: 'AUTH',
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          isEmailVerified: user.isEmailVerified,
+          isPhoneVerified: user.isPhoneVerified,
+          role: user.role,
+          status: user.status,
         },
-      });
-
-      const { password: _, ...userWithoutPassword } = user;
-
-      res.json({
-        success: true,
-        message: 'Login successful',
-        data: {
-          user: userWithoutPassword,
-          tokens,
+        tokens: {
+          accessToken,
+          refreshToken,
         },
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  /**
-   * Logout user
-   */
-  logout = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-      const refreshToken = req.body.refreshToken;
-
-      if (refreshToken) {
-        // Remove refresh token from database
-        await prisma.refreshToken.deleteMany({
-          where: { token: refreshToken },
-        });
-      }
-
-      // Log logout
-      logger.info('User logged out successfully', {
-        userId: req.user?.id,
-        email: req.user?.email,
-        ip: req.ip,
-      });
-
-      res.json({
-        success: true,
-        message: 'Logout successful',
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
+      },
+    });
+  });
 
   /**
    * Refresh access token
    */
-  refreshToken = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { refreshToken } = req.body;
+  static refreshToken = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { refreshToken } = req.body;
 
-      // Find refresh token
-      const storedToken = await prisma.refreshToken.findUnique({
-        where: { token: refreshToken },
-        include: { user: true },
+    if (!refreshToken) {
+      throw new ValidationError('Refresh token is required');
+    }
+
+    try {
+      // Verify refresh token
+      const decoded = jwt.verify(refreshToken, jwtConfig.refreshSecret) as any;
+      
+      // Check if token exists in database
+      const tokenDoc = await TokenModel.findOne({
+        token: refreshToken,
+        type: 'refresh',
+        expiresAt: { $gt: new Date() },
       });
 
-      if (!storedToken) {
+      if (!tokenDoc) {
         throw new AuthError('Invalid refresh token');
       }
 
-      // Check if token is expired
-      if (storedToken.expiresAt < new Date()) {
-        // Remove expired token
-        await prisma.refreshToken.delete({
-          where: { id: storedToken.id },
-        });
-        throw new AuthError('Refresh token expired');
+      // Get user
+      const user = await UserModel.findById(decoded.userId);
+      if (!user || user.status !== 'active') {
+        throw new AuthError('User not found or inactive');
       }
 
-      // Generate new tokens
-      const tokens = await this.jwtService.generateTokens({
-        userId: storedToken.user.id,
-        email: storedToken.user.email,
-        role: storedToken.user.role,
-      });
-
-      // Update refresh token
-      await prisma.refreshToken.update({
-        where: { id: storedToken.id },
-        data: {
-          token: tokens.refreshToken,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-        },
-      });
+      // Generate new access token
+      const newAccessToken = jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        jwtConfig.accessSecret,
+        { expiresIn: jwtConfig.accessTokenExpiry }
+      );
 
       res.json({
         success: true,
         message: 'Token refreshed successfully',
-        data: { tokens },
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  /**
-   * Forgot password
-   */
-  forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { email } = req.body;
-
-      // Find user
-      const user = await prisma.user.findUnique({
-        where: { email },
-      });
-
-      if (!user) {
-        // Don't reveal if user exists or not
-        res.json({
-          success: true,
-          message: 'If an account with that email exists, we have sent a password reset link.',
-        });
-        return;
-      }
-
-      // Generate reset token
-      const resetToken = await this.jwtService.generateResetToken(user.id);
-
-      // Save reset token
-      await prisma.passwordReset.create({
         data: {
-          userId: user.id,
-          token: resetToken,
-          expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+          accessToken: newAccessToken,
         },
       });
-
-      // Send reset email
-      await this.emailService.sendPasswordResetEmail(user.email, user.firstName, resetToken);
-
-      logger.info('Password reset requested', {
-        userId: user.id,
-        email: user.email,
-        ip: req.ip,
-      });
-
-      res.json({
-        success: true,
-        message: 'If an account with that email exists, we have sent a password reset link.',
-      });
     } catch (error) {
-      next(error);
+      if (error instanceof jwt.JsonWebTokenError) {
+        throw new AuthError('Invalid refresh token');
+      }
+      if (error instanceof jwt.TokenExpiredError) {
+        throw new AuthError('Refresh token expired');
+      }
+      throw error;
     }
-  };
+  });
 
   /**
-   * Reset password
+   * Logout user
    */
-  resetPassword = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { token, password } = req.body;
+  static logout = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { refreshToken } = req.body;
+    const userId = (req as any).user?.id;
 
-      // Find reset token
-      const resetToken = await prisma.passwordReset.findUnique({
-        where: { token },
-        include: { user: true },
-      });
-
-      if (!resetToken) {
-        throw new AuthError('Invalid or expired reset token');
-      }
-
-      // Check if token is expired
-      if (resetToken.expiresAt < new Date()) {
-        await prisma.passwordReset.delete({
-          where: { id: resetToken.id },
-        });
-        throw new AuthError('Reset token expired');
-      }
-
-      // Hash new password
-      const hashedPassword = await bcrypt.hash(password, 12);
-
-      // Update user password
-      await prisma.user.update({
-        where: { id: resetToken.userId },
-        data: { password: hashedPassword },
-      });
-
-      // Remove reset token
-      await prisma.passwordReset.delete({
-        where: { id: resetToken.id },
-      });
-
-      // Remove all refresh tokens for this user
-      await prisma.refreshToken.deleteMany({
-        where: { userId: resetToken.userId },
-      });
-
-      logger.info('Password reset successfully', {
-        userId: resetToken.userId,
-        email: resetToken.user.email,
-        ip: req.ip,
-      });
-
-      res.json({
-        success: true,
-        message: 'Password reset successfully. Please login with your new password.',
-      });
-    } catch (error) {
-      next(error);
+    if (refreshToken) {
+      // Invalidate refresh token
+      await TokenModel.findOneAndUpdate(
+        { token: refreshToken, type: 'refresh' },
+        { isRevoked: true }
+      );
     }
-  };
 
-  /**
-   * Change password
-   */
-  changePassword = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-      const { currentPassword, newPassword } = req.body;
-      const userId = req.user!.id;
-
-      // Find user
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-      });
-
-      if (!user) {
-        throw new NotFoundError('User not found');
-      }
-
-      // Verify current password
-      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
-      if (!isCurrentPasswordValid) {
-        throw new AuthError('Current password is incorrect');
-      }
-
-      // Hash new password
-      const hashedPassword = await bcrypt.hash(newPassword, 12);
-
-      // Update password
-      await prisma.user.update({
-        where: { id: userId },
-        data: { password: hashedPassword },
-      });
-
-      // Remove all refresh tokens for this user (force re-login)
-      await prisma.refreshToken.deleteMany({
-        where: { userId },
-      });
-
-      logger.info('Password changed successfully', {
-        userId,
-        email: user.email,
+    if (userId) {
+      // Log logout
+      logger.auth(userId, 'user_logged_out', {
         ip: req.ip,
+        userAgent: req.get('User-Agent'),
       });
-
-      res.json({
-        success: true,
-        message: 'Password changed successfully. Please login again.',
-      });
-    } catch (error) {
-      next(error);
     }
-  };
+
+    res.json({
+      success: true,
+      message: 'Logout successful',
+    });
+  });
 
   /**
    * Verify email
    */
-  verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+  static verifyEmail = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { token } = req.params;
+
+    if (!token) {
+      throw new ValidationError('Verification token is required');
+    }
+
     try {
-      const { token } = req.body;
-
-      // Find verification token
-      const verification = await prisma.emailVerification.findUnique({
-        where: { token },
+      // Verify token
+      const decoded = jwt.verify(token, jwtConfig.emailVerificationSecret) as any;
+      
+      // Check if token exists and is valid
+      const tokenDoc = await TokenModel.findOne({
+        token,
+        type: 'email_verification',
+        expiresAt: { $gt: new Date() },
+        isRevoked: false,
       });
 
-      if (!verification) {
-        throw new AuthError('Invalid verification token');
+      if (!tokenDoc) {
+        throw new AuthError('Invalid or expired verification token');
       }
 
-      // Check if token is expired
-      if (verification.expiresAt < new Date()) {
-        await prisma.emailVerification.delete({
-          where: { id: verification.id },
-        });
-        throw new AuthError('Verification token expired');
-      }
-
-      // Update user email verification status
-      await prisma.user.update({
-        where: { id: verification.userId },
-        data: { isEmailVerified: true },
+      // Update user
+      await UserModel.findByIdAndUpdate(decoded.userId, {
+        isEmailVerified: true,
+        emailVerifiedAt: new Date(),
       });
 
-      // Remove verification token
-      await prisma.emailVerification.delete({
-        where: { id: verification.id },
-      });
+      // Revoke token
+      await TokenModel.findByIdAndUpdate(tokenDoc.id, { isRevoked: true });
 
-      logger.info('Email verified successfully', {
-        userId: verification.userId,
-        ip: req.ip,
+      // Log verification
+      logger.auth(decoded.userId, 'email_verified', {
+        email: decoded.email,
       });
 
       res.json({
@@ -487,83 +410,363 @@ export class AuthController {
         message: 'Email verified successfully',
       });
     } catch (error) {
-      next(error);
+      if (error instanceof jwt.JsonWebTokenError) {
+        throw new AuthError('Invalid verification token');
+      }
+      if (error instanceof jwt.TokenExpiredError) {
+        throw new AuthError('Verification token expired');
+      }
+      throw error;
     }
-  };
+  });
 
   /**
-   * Resend verification email
+   * Request password reset
    */
-  resendVerification = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  static requestPasswordReset = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { email } = req.body;
+
+    if (!email) {
+      throw new ValidationError('Email is required');
+    }
+
+    // Find user
+    const user = await UserModel.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      // Don't reveal if user exists or not
+      res.json({
+        success: true,
+        message: 'If an account with this email exists, a password reset link has been sent',
+      });
+      return;
+    }
+
+    // Generate reset token
+    const resetToken = jwt.sign(
+      { userId: user.id, email: user.email },
+      jwtConfig.passwordResetSecret,
+      { expiresIn: jwtConfig.passwordResetExpiry }
+    );
+
+    // Save reset token
+    await TokenModel.create({
+      userId: user.id,
+      token: resetToken,
+      type: 'password_reset',
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+    });
+
+    // Send reset email (implement email service)
+    // await emailService.sendPasswordResetEmail(user.email, resetToken);
+
+    // Log password reset request
+    logger.auth(user.id, 'password_reset_requested', {
+      email: user.email,
+      ip: req.ip,
+    });
+
+    res.json({
+      success: true,
+      message: 'If an account with this email exists, a password reset link has been sent',
+    });
+  });
+
+  /**
+   * Reset password
+   */
+  static resetPassword = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      throw new ValidationError('Token and new password are required');
+    }
+
+    // Validate password strength
+    if (newPassword.length < 8) {
+      throw new ValidationError('Password must be at least 8 characters long');
+    }
+
     try {
-      const userId = req.user!.id;
-
-      // Find user
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
+      // Verify token
+      const decoded = jwt.verify(token, jwtConfig.passwordResetSecret) as any;
+      
+      // Check if token exists and is valid
+      const tokenDoc = await TokenModel.findOne({
+        token,
+        type: 'password_reset',
+        expiresAt: { $gt: new Date() },
+        isRevoked: false,
       });
 
-      if (!user) {
-        throw new NotFoundError('User not found');
+      if (!tokenDoc) {
+        throw new AuthError('Invalid or expired reset token');
       }
 
-      if (user.isEmailVerified) {
-        throw new ValidationError('Email is already verified');
-      }
+      // Hash new password
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-      // Remove existing verification tokens
-      await prisma.emailVerification.deleteMany({
-        where: { userId },
+      // Update user password
+      await UserModel.findByIdAndUpdate(decoded.userId, {
+        password: hashedPassword,
+        passwordChangedAt: new Date(),
       });
 
-      // Send new verification email
-      await this.emailService.sendVerificationEmail(user.email, user.firstName);
+      // Revoke all user tokens
+      await TokenModel.updateMany(
+        { userId: decoded.userId },
+        { isRevoked: true }
+      );
+
+      // Log password reset
+      logger.auth(decoded.userId, 'password_reset_completed', {
+        email: decoded.email,
+        ip: req.ip,
+      });
 
       res.json({
         success: true,
-        message: 'Verification email sent successfully',
+        message: 'Password reset successfully',
       });
     } catch (error) {
-      next(error);
+      if (error instanceof jwt.JsonWebTokenError) {
+        throw new AuthError('Invalid reset token');
+      }
+      if (error instanceof jwt.TokenExpiredError) {
+        throw new AuthError('Reset token expired');
+      }
+      throw error;
     }
-  };
+  });
+
+  /**
+   * Change password
+   */
+  static changePassword = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { currentPassword, newPassword } = req.body;
+    const userId = (req as any).user?.id;
+
+    if (!currentPassword || !newPassword) {
+      throw new ValidationError('Current password and new password are required');
+    }
+
+    // Validate password strength
+    if (newPassword.length < 8) {
+      throw new ValidationError('Password must be at least 8 characters long');
+    }
+
+    // Get user
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      throw new AuthError('Current password is incorrect');
+    }
+
+    // Hash new password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password
+    await UserModel.findByIdAndUpdate(userId, {
+      password: hashedPassword,
+      passwordChangedAt: new Date(),
+    });
+
+    // Revoke all user tokens except current
+    const currentToken = req.headers.authorization?.replace('Bearer ', '');
+    if (currentToken) {
+      await TokenModel.updateMany(
+        { 
+          userId,
+          token: { $ne: currentToken }
+        },
+        { isRevoked: true }
+      );
+    }
+
+    // Log password change
+    logger.auth(userId, 'password_changed', {
+      email: user.email,
+      ip: req.ip,
+    });
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully',
+    });
+  });
 
   /**
    * Get current user profile
    */
-  getProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-      const userId = req.user!.id;
+  static getProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const userId = (req as any).user?.id;
 
-      // Find user
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          phone: true,
-          role: true,
-          isEmailVerified: true,
-          isPhoneVerified: true,
-          status: true,
-          lastLoginAt: true,
-          createdAt: true,
-          updatedAt: true,
+    const user = await UserModel.findById(userId).select('-password');
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          dateOfBirth: user.dateOfBirth,
+          address: user.address,
+          city: user.city,
+          region: user.region,
+          postalCode: user.postalCode,
+          isEmailVerified: user.isEmailVerified,
+          isPhoneVerified: user.isPhoneVerified,
+          role: user.role,
+          status: user.status,
+          preferences: user.preferences,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
         },
-      });
+      },
+    });
+  });
 
-      if (!user) {
-        throw new NotFoundError('User not found');
+  /**
+   * Update user profile
+   */
+  static updateProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const userId = (req as any).user?.id;
+    const {
+      firstName,
+      lastName,
+      phone,
+      dateOfBirth,
+      address,
+      city,
+      region,
+      postalCode,
+      preferences,
+    } = req.body;
+
+    // Validate phone number if provided
+    if (phone) {
+      const phoneRegex = /^\+998[0-9]{9}$/;
+      if (!phoneRegex.test(phone)) {
+        throw new ValidationError('Invalid phone number format. Use +998XXXXXXXXX');
       }
 
-      res.json({
-        success: true,
-        data: { user },
-      });
-    } catch (error) {
-      next(error);
+      // Check if phone is already used by another user
+      const existingUser = await UserModel.findOne({ phone, _id: { $ne: userId } });
+      if (existingUser) {
+        throw new ConflictError('Phone number is already in use');
+      }
     }
-  };
+
+    // Update user
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      userId,
+      {
+        firstName,
+        lastName,
+        phone,
+        dateOfBirth,
+        address,
+        city,
+        region,
+        postalCode,
+        preferences,
+      },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      throw new NotFoundError('User not found');
+    }
+
+    // Log profile update
+    logger.auth(userId, 'profile_updated', {
+      email: updatedUser.email,
+      updatedFields: Object.keys(req.body),
+    });
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          phone: updatedUser.phone,
+          dateOfBirth: updatedUser.dateOfBirth,
+          address: updatedUser.address,
+          city: updatedUser.city,
+          region: updatedUser.region,
+          postalCode: updatedUser.postalCode,
+          isEmailVerified: updatedUser.isEmailVerified,
+          isPhoneVerified: updatedUser.isPhoneVerified,
+          role: updatedUser.role,
+          status: updatedUser.status,
+          preferences: updatedUser.preferences,
+          createdAt: updatedUser.createdAt,
+          updatedAt: updatedUser.updatedAt,
+        },
+      },
+    });
+  });
+
+  /**
+   * Delete user account
+   */
+  static deleteAccount = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const userId = (req as any).user?.id;
+    const { password } = req.body;
+
+    if (!password) {
+      throw new ValidationError('Password is required to delete account');
+    }
+
+    // Get user
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new AuthError('Password is incorrect');
+    }
+
+    // Soft delete user
+    await UserModel.findByIdAndUpdate(userId, {
+      status: 'deleted',
+      deletedAt: new Date(),
+    });
+
+    // Revoke all user tokens
+    await TokenModel.updateMany(
+      { userId },
+      { isRevoked: true }
+    );
+
+    // Log account deletion
+    logger.auth(userId, 'account_deleted', {
+      email: user.email,
+      ip: req.ip,
+    });
+
+    res.json({
+      success: true,
+      message: 'Account deleted successfully',
+    });
+  });
 }

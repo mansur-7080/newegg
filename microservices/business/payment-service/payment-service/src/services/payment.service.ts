@@ -5,8 +5,9 @@ import { createError } from '@ultramarket/common';
 import { PaymentModel } from '../models/Payment';
 import { EventEmitter } from 'events';
 import axios from 'axios';
+import crypto from 'crypto';
 
-// O'zbekiston Payment Providers
+// O'zbekiston Payment Providers - Real Implementation
 interface ClickConfig {
   serviceId: string;
   merchantId: string;
@@ -86,10 +87,14 @@ export class PaymentService extends EventEmitter {
 
   constructor() {
     super();
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: '2023-10-16',
-    });
-    this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+    
+    // Initialize Stripe only if configured
+    if (process.env.STRIPE_SECRET_KEY) {
+      this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: '2023-10-16',
+      });
+      this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+    }
 
     // O'zbekiston payment providers configuration
     this.clickConfig = {
@@ -110,6 +115,32 @@ export class PaymentService extends EventEmitter {
       secretKey: process.env.APELSIN_SECRET_KEY || '',
       environment: (process.env.APELSIN_ENVIRONMENT as 'test' | 'production') || 'test',
     };
+
+    // Validate required configurations
+    this.validateConfigurations();
+  }
+
+  /**
+   * Validate payment provider configurations
+   */
+  private validateConfigurations(): void {
+    const errors: string[] = [];
+
+    if (!this.clickConfig.serviceId || !this.clickConfig.merchantId || !this.clickConfig.secretKey) {
+      errors.push('Click configuration is incomplete');
+    }
+
+    if (!this.paymeConfig.merchantId || !this.paymeConfig.secretKey) {
+      errors.push('Payme configuration is incomplete');
+    }
+
+    if (!this.apelsinConfig.merchantId || !this.apelsinConfig.secretKey) {
+      errors.push('Apelsin configuration is incomplete');
+    }
+
+    if (errors.length > 0) {
+      logger.warn('Payment service configuration issues', { errors });
+    }
   }
 
   /**
@@ -117,7 +148,15 @@ export class PaymentService extends EventEmitter {
    */
   async processPayment(request: PaymentRequest): Promise<PaymentResponse> {
     try {
-      logger.info('Processing payment', { orderId: request.orderId, amount: request.amount });
+      logger.info('Processing payment', { 
+        orderId: request.orderId, 
+        amount: request.amount,
+        method: request.method,
+        currency: request.currency 
+      });
+
+      // Validate request
+      this.validatePaymentRequest(request);
 
       // Create payment record
       const payment = await PaymentModel.create({
@@ -136,27 +175,30 @@ export class PaymentService extends EventEmitter {
       switch (request.method) {
         case PaymentMethod.CREDIT_CARD:
         case PaymentMethod.DEBIT_CARD:
+          if (!this.stripe) {
+            throw createError(400, 'Stripe is not configured for card payments');
+          }
           response = await this.processCardPayment(payment.id, request);
           break;
 
-        case PaymentMethod.PAYPAL:
-          response = await this.processPayPalPayment(payment.id, request);
+        case PaymentMethod.CLICK:
+          response = await this.processClickPayment(payment.id, request);
           break;
 
-        case PaymentMethod.APPLE_PAY:
-          response = await this.processApplePayPayment(payment.id, request);
+        case PaymentMethod.PAYME:
+          response = await this.processPaymePayment(payment.id, request);
           break;
 
-        case PaymentMethod.GOOGLE_PAY:
-          response = await this.processGooglePayPayment(payment.id, request);
+        case PaymentMethod.APELSIN:
+          response = await this.processApelsinPayment(payment.id, request);
           break;
 
         case PaymentMethod.BANK_TRANSFER:
           response = await this.processBankTransfer(payment.id, request);
           break;
 
-        case PaymentMethod.CRYPTO:
-          response = await this.processCryptoPayment(payment.id, request);
+        case PaymentMethod.CASH_ON_DELIVERY:
+          response = await this.processCashOnDelivery(payment.id, request);
           break;
 
         default:
@@ -168,6 +210,10 @@ export class PaymentService extends EventEmitter {
         status: response.status,
         transactionId: response.transactionId,
         processedAt: response.status === PaymentStatus.COMPLETED ? new Date() : undefined,
+        metadata: {
+          ...request.metadata,
+          ...response.metadata,
+        },
       });
 
       // Emit payment event
@@ -177,12 +223,47 @@ export class PaymentService extends EventEmitter {
         status: response.status,
         amount: request.amount,
         currency: request.currency,
+        method: request.method,
       });
 
       return response;
     } catch (error) {
-      logger.error('Payment processing failed', error);
+      logger.error('Payment processing failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        orderId: request.orderId,
+        method: request.method 
+      });
       throw error;
+    }
+  }
+
+  /**
+   * Validate payment request
+   */
+  private validatePaymentRequest(request: PaymentRequest): void {
+    if (!request.amount || request.amount <= 0) {
+      throw createError(400, 'Invalid amount');
+    }
+
+    if (!request.orderId) {
+      throw createError(400, 'Order ID is required');
+    }
+
+    if (!request.userId) {
+      throw createError(400, 'User ID is required');
+    }
+
+    if (!request.currency) {
+      throw createError(400, 'Currency is required');
+    }
+
+    // Validate amount limits for Uzbekistan
+    if (request.amount < 1000) { // 1000 UZS minimum
+      throw createError(400, 'Amount must be at least 1000 UZS');
+    }
+
+    if (request.amount > 100000000) { // 100M UZS maximum
+      throw createError(400, 'Amount exceeds maximum limit');
     }
   }
 
@@ -209,9 +290,6 @@ export class PaymentService extends EventEmitter {
             email: request.customer.email,
             name: request.customer.name,
             phone: request.customer.phone,
-            metadata: {
-              userId: request.userId,
-            },
           });
           customerId = customer.id;
         }
@@ -222,16 +300,22 @@ export class PaymentService extends EventEmitter {
         amount: Math.round(request.amount * 100), // Convert to cents
         currency: request.currency.toLowerCase(),
         customer: customerId,
-        description: request.description,
         metadata: {
-          paymentId,
           orderId: request.orderId,
+          paymentId,
           userId: request.userId,
           ...request.metadata,
         },
+        description: request.description || 'UltraMarket Purchase',
         automatic_payment_methods: {
           enabled: true,
         },
+      });
+
+      logger.info('Card payment intent created', {
+        paymentIntentId: paymentIntent.id,
+        paymentId,
+        status: paymentIntent.status,
       });
 
       return {
@@ -241,195 +325,19 @@ export class PaymentService extends EventEmitter {
         currency: request.currency,
         method: request.method,
         transactionId: paymentIntent.id,
-        clientSecret: paymentIntent.client_secret!,
-        metadata: paymentIntent.metadata,
-      };
-    } catch (error: any) {
-      logger.error('Stripe payment failed', error);
-      throw createError(400, `Card payment failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Process PayPal payment using PayPal Orders API
-   */
-  private async processPayPalPayment(
-    paymentId: string,
-    request: PaymentRequest
-  ): Promise<PaymentResponse> {
-    try {
-      logger.info('Processing PayPal payment', {
-        paymentId,
-        orderId: request.orderId,
-        amount: request.amount,
-      });
-
-      // Get PayPal access token
-      const accessToken = await this.getPayPalAccessToken();
-
-      // Create PayPal order
-      const paypalOrder = await this.createPayPalOrder(accessToken, request);
-
-      // Find approval link
-      const approvalLink = paypalOrder.links.find((link) => link.rel === 'approve');
-      if (!approvalLink) {
-        throw createError(500, 'PayPal approval link not found');
-      }
-
-      logger.info('PayPal order created successfully', {
-        paypalOrderId: paypalOrder.id,
-        paymentId,
-        status: paypalOrder.status,
-      });
-
-      return {
-        id: paymentId,
-        status: PaymentStatus.PENDING,
-        amount: request.amount,
-        currency: request.currency,
-        method: request.method,
-        transactionId: paypalOrder.id,
-        redirectUrl: approvalLink.href,
+        clientSecret: paymentIntent.client_secret || undefined,
         metadata: {
           ...request.metadata,
-          paypalOrderId: paypalOrder.id,
-          paypalIntent: paypalOrder.intent,
+          stripePaymentIntentId: paymentIntent.id,
+          stripeStatus: paymentIntent.status,
         },
       };
     } catch (error) {
-      logger.error('PayPal payment processing failed', error);
-      throw createError(
-        400,
-        `PayPal payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
-  }
-
-  /**
-   * Get PayPal access token
-   */
-  private async getPayPalAccessToken(): Promise<string> {
-    try {
-      const authUrl =
-        this.paypalConfig.environment === 'live'
-          ? 'https://api-m.paypal.com/v1/oauth2/token'
-          : 'https://api-m.sandbox.paypal.com/v1/oauth2/token';
-
-      const response = await axios.post(authUrl, 'grant_type=client_credentials', {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Basic ${btoa(`${this.paypalConfig.clientId}:${this.paypalConfig.clientSecret}`)}`,
-        },
+      logger.error('Card payment processing failed', { 
+        paymentId, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
       });
-
-      return response.data.access_token;
-    } catch (error) {
-      logger.error('Failed to get PayPal access token', error);
-      throw createError(500, 'PayPal authentication failed');
-    }
-  }
-
-  /**
-   * Create PayPal order
-   */
-  private async createPayPalOrder(
-    accessToken: string,
-    request: PaymentRequest
-  ): Promise<PayPalOrder> {
-    try {
-      const apiUrl =
-        this.paypalConfig.environment === 'live'
-          ? 'https://api-m.paypal.com/v2/checkout/orders'
-          : 'https://api-m.sandbox.paypal.com/v2/checkout/orders';
-
-      const orderData = {
-        intent: 'CAPTURE',
-        purchase_units: [
-          {
-            reference_id: request.orderId,
-            description: request.description || 'UltraMarket Purchase',
-            amount: {
-              currency_code: request.currency,
-              value: request.amount.toString(),
-            },
-            payee: {
-              email_address: process.env.PAYPAL_MERCHANT_EMAIL || 'merchant@ultramarket.com',
-            },
-            custom_id: paymentId,
-          },
-        ],
-        application_context: {
-          return_url: `${process.env.FRONTEND_URL}/payment/success`,
-          cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
-          brand_name: 'UltraMarket',
-          landing_page: 'LOGIN',
-          user_action: 'PAY_NOW',
-          shipping_preference: 'NO_SHIPPING',
-        },
-      };
-
-      const response = await axios.post(apiUrl, orderData, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      return response.data;
-    } catch (error) {
-      logger.error('Failed to create PayPal order', error);
-      throw createError(500, 'PayPal order creation failed');
-    }
-  }
-
-  /**
-   * Capture PayPal payment
-   */
-  async capturePayPalPayment(paypalOrderId: string): Promise<PaymentResponse> {
-    try {
-      const accessToken = await this.getPayPalAccessToken();
-
-      const apiUrl =
-        this.paypalConfig.environment === 'live'
-          ? `https://api-m.paypal.com/v2/checkout/orders/${paypalOrderId}/capture`
-          : `https://api-m.sandbox.paypal.com/v2/checkout/orders/${paypalOrderId}/capture`;
-
-      const response = await axios.post(
-        apiUrl,
-        {},
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      const captureData = response.data;
-
-      logger.info('PayPal payment captured successfully', {
-        paypalOrderId,
-        captureId: captureData.purchase_units[0].payments.captures[0].id,
-        status: captureData.status,
-      });
-
-      return {
-        id: captureData.purchase_units[0].payments.captures[0].id,
-        status: PaymentStatus.COMPLETED,
-        amount: parseFloat(captureData.purchase_units[0].payments.captures[0].amount.value),
-        currency: captureData.purchase_units[0].payments.captures[0].amount
-          .currency_code as Currency,
-        method: PaymentMethod.PAYPAL,
-        transactionId: captureData.purchase_units[0].payments.captures[0].id,
-        metadata: {
-          paypalOrderId: captureData.id,
-          paypalCaptureId: captureData.purchase_units[0].payments.captures[0].id,
-          paypalStatus: captureData.status,
-        },
-      };
-    } catch (error) {
-      logger.error('PayPal payment capture failed', error);
-      throw createError(500, 'PayPal payment capture failed');
+      throw createError(400, `Card payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -447,6 +355,7 @@ export class PaymentService extends EventEmitter {
         amount: request.amount,
       });
 
+      // Create Click order
       const clickOrder = await this.createClickOrder(request);
 
       logger.info('Click order created successfully', {
@@ -466,15 +375,15 @@ export class PaymentService extends EventEmitter {
         metadata: {
           ...request.metadata,
           clickOrderId: clickOrder.id,
-          clickMerchantId: clickOrder.merchantId,
+          clickStatus: clickOrder.status,
         },
       };
     } catch (error) {
-      logger.error('Click payment processing failed', error);
-      throw createError(
-        400,
-        `Click payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      logger.error('Click payment processing failed', { 
+        paymentId, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      throw createError(400, `Click payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -492,6 +401,7 @@ export class PaymentService extends EventEmitter {
         amount: request.amount,
       });
 
+      // Create Payme order
       const paymeOrder = await this.createPaymeOrder(request);
 
       logger.info('Payme order created successfully', {
@@ -511,15 +421,15 @@ export class PaymentService extends EventEmitter {
         metadata: {
           ...request.metadata,
           paymeOrderId: paymeOrder.id,
-          paymeMerchantId: paymeOrder.merchantId,
+          paymeStatus: paymeOrder.status,
         },
       };
     } catch (error) {
-      logger.error('Payme payment processing failed', error);
-      throw createError(
-        400,
-        `Payme payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      logger.error('Payme payment processing failed', { 
+        paymentId, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      throw createError(400, `Payme payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -537,6 +447,7 @@ export class PaymentService extends EventEmitter {
         amount: request.amount,
       });
 
+      // Create Apelsin order
       const apelsinOrder = await this.createApelsinOrder(request);
 
       logger.info('Apelsin order created successfully', {
@@ -556,27 +467,31 @@ export class PaymentService extends EventEmitter {
         metadata: {
           ...request.metadata,
           apelsinOrderId: apelsinOrder.id,
-          apelsinMerchantId: apelsinOrder.merchantId,
+          apelsinStatus: apelsinOrder.status,
         },
       };
     } catch (error) {
-      logger.error('Apelsin payment processing failed', error);
-      throw createError(
-        400,
-        `Apelsin payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      logger.error('Apelsin payment processing failed', { 
+        paymentId, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      throw createError(400, `Apelsin payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
-   * Create Click order
+   * Create Click order with proper error handling
    */
   private async createClickOrder(request: PaymentRequest): Promise<UzbekPaymentOrder> {
     try {
-      const apiUrl =
-        this.clickConfig.environment === 'production'
-          ? 'https://api.click.uz/v2/merchant/invoice/create'
-          : 'https://testmerchant.click.uz/v2/merchant/invoice/create';
+      // Validate Click configuration
+      if (!this.clickConfig.serviceId || !this.clickConfig.merchantId || !this.clickConfig.secretKey) {
+        throw new Error('Click configuration is incomplete');
+      }
+
+      const apiUrl = this.clickConfig.environment === 'production'
+        ? 'https://api.click.uz/v2/merchant/invoice/create'
+        : 'https://testmerchant.click.uz/v2/merchant/invoice/create';
 
       const orderData = {
         service_id: this.clickConfig.serviceId,
@@ -590,12 +505,23 @@ export class PaymentService extends EventEmitter {
         description: request.description || "UltraMarket to'lov",
       };
 
-      const response = await axios.post(apiUrl, orderData, {
+      // Add signature for security
+      const signature = this.generateClickSignature(orderData);
+
+      const response = await axios.post(apiUrl, {
+        ...orderData,
+        sign_string: signature,
+      }, {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Basic ${btoa(`${this.clickConfig.merchantId}:${this.clickConfig.secretKey}`)}`,
+          'Authorization': `Basic ${Buffer.from(`${this.clickConfig.merchantId}:${this.clickConfig.secretKey}`).toString('base64')}`,
         },
+        timeout: 30000, // 30 seconds timeout
       });
+
+      if (!response.data || response.data.error) {
+        throw new Error(response.data?.error || 'Click API error');
+      }
 
       return {
         id: response.data.invoice_id,
@@ -607,20 +533,35 @@ export class PaymentService extends EventEmitter {
         transactionId: response.data.invoice_id,
       };
     } catch (error) {
-      logger.error('Failed to create Click order', error);
-      throw createError(500, 'Click order creation failed');
+      logger.error('Failed to create Click order', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        orderId: request.orderId 
+      });
+      throw createError(500, `Click order creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
-   * Create Payme order
+   * Generate Click signature for security
+   */
+  private generateClickSignature(data: any): string {
+    const signString = `${data.service_id}${data.merchant_id}${data.amount}${data.currency}${data.merchant_trans_id}${data.merchant_prepare_id}${this.clickConfig.secretKey}`;
+    return crypto.createHash('md5').update(signString).digest('hex');
+  }
+
+  /**
+   * Create Payme order with proper error handling
    */
   private async createPaymeOrder(request: PaymentRequest): Promise<UzbekPaymentOrder> {
     try {
-      const apiUrl =
-        this.paymeConfig.environment === 'production'
-          ? 'https://checkout.paycom.uz'
-          : 'https://test.paycom.uz';
+      // Validate Payme configuration
+      if (!this.paymeConfig.merchantId || !this.paymeConfig.secretKey) {
+        throw new Error('Payme configuration is incomplete');
+      }
+
+      const apiUrl = this.paymeConfig.environment === 'production'
+        ? 'https://checkout.paycom.uz'
+        : 'https://test.paycom.uz';
 
       const orderData = {
         method: 'cards.create',
@@ -636,12 +577,23 @@ export class PaymentService extends EventEmitter {
         },
       };
 
-      const response = await axios.post(apiUrl, orderData, {
+      // Add signature for security
+      const signature = this.generatePaymeSignature(orderData);
+
+      const response = await axios.post(apiUrl, {
+        ...orderData,
+        sign_string: signature,
+      }, {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Basic ${btoa(`${this.paymeConfig.merchantId}:${this.paymeConfig.secretKey}`)}`,
+          'Authorization': `Basic ${Buffer.from(`${this.paymeConfig.merchantId}:${this.paymeConfig.secretKey}`).toString('base64')}`,
         },
+        timeout: 30000, // 30 seconds timeout
       });
+
+      if (!response.data || response.data.error) {
+        throw new Error(response.data?.error || 'Payme API error');
+      }
 
       return {
         id: response.data.result.id,
@@ -653,20 +605,35 @@ export class PaymentService extends EventEmitter {
         transactionId: response.data.result.id,
       };
     } catch (error) {
-      logger.error('Failed to create Payme order', error);
-      throw createError(500, 'Payme order creation failed');
+      logger.error('Failed to create Payme order', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        orderId: request.orderId 
+      });
+      throw createError(500, `Payme order creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
-   * Create Apelsin order
+   * Generate Payme signature for security
+   */
+  private generatePaymeSignature(data: any): string {
+    const signString = `${data.method}${JSON.stringify(data.params)}${this.paymeConfig.secretKey}`;
+    return crypto.createHash('md5').update(signString).digest('hex');
+  }
+
+  /**
+   * Create Apelsin order with proper error handling
    */
   private async createApelsinOrder(request: PaymentRequest): Promise<UzbekPaymentOrder> {
     try {
-      const apiUrl =
-        this.apelsinConfig.environment === 'production'
-          ? 'https://pay.apelsin.uz/api/v1/invoice'
-          : 'https://test.pay.apelsin.uz/api/v1/invoice';
+      // Validate Apelsin configuration
+      if (!this.apelsinConfig.merchantId || !this.apelsinConfig.secretKey) {
+        throw new Error('Apelsin configuration is incomplete');
+      }
+
+      const apiUrl = this.apelsinConfig.environment === 'production'
+        ? 'https://pay.apelsin.uz/api/v1/invoice'
+        : 'https://test.pay.apelsin.uz/api/v1/invoice';
 
       const orderData = {
         merchant_id: this.apelsinConfig.merchantId,
@@ -679,12 +646,23 @@ export class PaymentService extends EventEmitter {
         callback_url: `${process.env.API_URL}/payment/apelsin/callback`,
       };
 
-      const response = await axios.post(apiUrl, orderData, {
+      // Add signature for security
+      const signature = this.generateApelsinSignature(orderData);
+
+      const response = await axios.post(apiUrl, {
+        ...orderData,
+        sign_string: signature,
+      }, {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apelsinConfig.secretKey}`,
+          'Authorization': `Bearer ${this.apelsinConfig.secretKey}`,
         },
+        timeout: 30000, // 30 seconds timeout
       });
+
+      if (!response.data || response.data.error) {
+        throw new Error(response.data?.error || 'Apelsin API error');
+      }
 
       return {
         id: response.data.invoice_id,
@@ -696,9 +674,20 @@ export class PaymentService extends EventEmitter {
         transactionId: response.data.invoice_id,
       };
     } catch (error) {
-      logger.error('Failed to create Apelsin order', error);
-      throw createError(500, 'Apelsin order creation failed');
+      logger.error('Failed to create Apelsin order', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        orderId: request.orderId 
+      });
+      throw createError(500, `Apelsin order creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Generate Apelsin signature for security
+   */
+  private generateApelsinSignature(data: any): string {
+    const signString = `${data.merchant_id}${data.amount}${data.currency}${data.order_id}${this.apelsinConfig.secretKey}`;
+    return crypto.createHash('md5').update(signString).digest('hex');
   }
 
   /**
@@ -748,6 +737,41 @@ export class PaymentService extends EventEmitter {
   }
 
   /**
+   * Process cash on delivery
+   */
+  private async processCashOnDelivery(
+    paymentId: string,
+    request: PaymentRequest
+  ): Promise<PaymentResponse> {
+    try {
+      logger.info('Processing cash on delivery', {
+        paymentId,
+        orderId: request.orderId,
+        amount: request.amount,
+      });
+
+      return {
+        id: paymentId,
+        status: PaymentStatus.PENDING,
+        amount: request.amount,
+        currency: request.currency,
+        method: request.method,
+        metadata: {
+          ...request.metadata,
+          paymentMethod: 'CASH_ON_DELIVERY',
+          requiresConfirmation: true,
+        },
+      };
+    } catch (error) {
+      logger.error('Cash on delivery processing failed', error);
+      throw createError(
+        400,
+        `Cash on delivery failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
    * Generate bank transfer instructions for O'zbekiston banks
    */
   private generateBankTransferInstructions(request: PaymentRequest) {
@@ -756,16 +780,25 @@ export class PaymentService extends EventEmitter {
         name: 'NBU (Milliy Bank)',
         account: '2021 4000 1234 5678',
         mfo: '00014',
+        swift: 'UZBNUZ22',
       },
       {
         name: 'Asaka Bank',
         account: '2021 4000 8765 4321',
         mfo: '00015',
+        swift: 'UZASUZ22',
       },
       {
         name: 'Xalq Banki',
         account: '2021 4000 1111 2222',
         mfo: '00016',
+        swift: 'UZHLUZ22',
+      },
+      {
+        name: 'Kapital Bank',
+        account: '2021 4000 3333 4444',
+        mfo: '00017',
+        swift: 'UZKPUZ22',
       },
     ];
 
@@ -776,42 +809,23 @@ export class PaymentService extends EventEmitter {
       bankName: selectedBank.name,
       bankAccount: selectedBank.account,
       mfo: selectedBank.mfo,
+      swift: selectedBank.swift,
+      transferCode,
       amount: request.amount,
       currency: request.currency,
-      transferCode: transferCode,
-      instructions: `
-        To'lov ma'lumotlari:
-        Bank: ${selectedBank.name}
-        Hisob raqami: ${selectedBank.account}
-        MFO: ${selectedBank.mfo}
-        Summa: ${request.amount} ${request.currency}
-        To'lov kodi: ${transferCode}
-        Izoh: UltraMarket buyurtma ${request.orderId}
-      `,
+      instructions: [
+        `Bank: ${selectedBank.name}`,
+        `Account: ${selectedBank.account}`,
+        `MFO: ${selectedBank.mfo}`,
+        `Amount: ${request.amount} ${request.currency}`,
+        `Transfer Code: ${transferCode}`,
+        `Purpose: UltraMarket order ${request.orderId}`,
+      ],
     };
   }
 
   /**
-   * Process cryptocurrency payment
-   */
-  private async processCryptoPayment(
-    paymentId: string,
-    request: PaymentRequest
-  ): Promise<PaymentResponse> {
-    // Crypto payment implementation (e.g., using Coinbase Commerce)
-    return {
-      id: paymentId,
-      status: PaymentStatus.PENDING,
-      amount: request.amount,
-      currency: request.currency,
-      method: request.method,
-      redirectUrl: `https://commerce.coinbase.com/checkout/${paymentId}`,
-      metadata: request.metadata,
-    };
-  }
-
-  /**
-   * Confirm a payment
+   * Confirm payment (for webhook handling)
    */
   async confirmPayment(paymentId: string, data: any): Promise<PaymentResponse> {
     try {
@@ -820,55 +834,60 @@ export class PaymentService extends EventEmitter {
         throw createError(404, 'Payment not found');
       }
 
-      if (payment.status !== PaymentStatus.PENDING) {
-        throw createError(400, 'Payment is not in pending status');
-      }
-
-      // Process confirmation based on payment method
+      // Update payment status based on provider response
       let status = PaymentStatus.COMPLETED;
-      let transactionId = payment.transactionId;
+      let transactionId = data.transactionId || data.id;
 
-      if (
-        payment.method === PaymentMethod.CREDIT_CARD ||
-        payment.method === PaymentMethod.DEBIT_CARD
-      ) {
-        // Confirm Stripe payment intent
-        const paymentIntent = await this.stripe.paymentIntents.confirm(payment.transactionId!);
-        status = this.mapStripeStatus(paymentIntent.status);
-        transactionId = paymentIntent.id;
+      // Validate payment amount
+      if (data.amount && data.amount !== payment.amount) {
+        logger.warn('Payment amount mismatch', {
+          paymentId,
+          expected: payment.amount,
+          received: data.amount,
+        });
+        status = PaymentStatus.FAILED;
       }
 
-      // Update payment status
-      payment.status = status;
-      payment.transactionId = transactionId;
-      payment.processedAt = status === PaymentStatus.COMPLETED ? new Date() : undefined;
-      await payment.save();
-
-      // Emit confirmation event
-      this.emit('payment.confirmed', {
-        paymentId: payment.id,
-        orderId: payment.orderId,
-        status: payment.status,
-        amount: payment.amount,
-        currency: payment.currency,
+      // Update payment record
+      await PaymentModel.findByIdAndUpdate(paymentId, {
+        status,
+        transactionId,
+        processedAt: new Date(),
+        metadata: {
+          ...payment.metadata,
+          confirmationData: data,
+        },
       });
 
-      return {
-        id: payment.id,
-        status: payment.status,
+      // Emit payment confirmed event
+      this.emit('payment.confirmed', {
+        paymentId,
+        orderId: payment.orderId,
+        status,
         amount: payment.amount,
         currency: payment.currency,
         method: payment.method,
-        transactionId: payment.transactionId,
+      });
+
+      return {
+        id: paymentId,
+        status,
+        amount: payment.amount,
+        currency: payment.currency,
+        method: payment.method,
+        transactionId,
+        metadata: {
+          confirmationData: data,
+        },
       };
     } catch (error) {
-      logger.error('Payment confirmation failed', error);
+      logger.error('Payment confirmation failed', { paymentId, error });
       throw error;
     }
   }
 
   /**
-   * Process a refund
+   * Process refund
    */
   async processRefund(request: RefundRequest): Promise<any> {
     try {
@@ -878,87 +897,214 @@ export class PaymentService extends EventEmitter {
       }
 
       if (payment.status !== PaymentStatus.COMPLETED) {
-        throw createError(400, 'Cannot refund uncompleted payment');
+        throw createError(400, 'Payment is not completed');
       }
 
       const refundAmount = request.amount || payment.amount;
-      if (refundAmount > payment.amount - payment.refundedAmount) {
-        throw createError(400, 'Refund amount exceeds available amount');
+
+      // Process refund based on payment method
+      let refundResult;
+      switch (payment.method) {
+        case PaymentMethod.CREDIT_CARD:
+        case PaymentMethod.DEBIT_CARD:
+          if (this.stripe) {
+            refundResult = await this.stripe.refunds.create({
+              payment_intent: payment.transactionId,
+              amount: Math.round(refundAmount * 100),
+              reason: request.reason || 'requested_by_customer',
+              metadata: {
+                paymentId: request.paymentId,
+                orderId: payment.orderId,
+                ...request.metadata,
+              },
+            });
+          }
+          break;
+
+        case PaymentMethod.CLICK:
+          refundResult = await this.processClickRefund(payment, refundAmount, request);
+          break;
+
+        case PaymentMethod.PAYME:
+          refundResult = await this.processPaymeRefund(payment, refundAmount, request);
+          break;
+
+        case PaymentMethod.APELSIN:
+          refundResult = await this.processApelsinRefund(payment, refundAmount, request);
+          break;
+
+        default:
+          throw createError(400, `Refund not supported for payment method: ${payment.method}`);
       }
 
-      let refund: any;
-
-      if (
-        payment.method === PaymentMethod.CREDIT_CARD ||
-        payment.method === PaymentMethod.DEBIT_CARD
-      ) {
-        // Process Stripe refund
-        refund = await this.stripe.refunds.create({
-          payment_intent: payment.transactionId!,
-          amount: Math.round(refundAmount * 100),
-          reason: request.reason as any,
-          metadata: request.metadata,
-        });
-      }
-
-      // Update payment record
-      payment.refundedAmount += refundAmount;
-      payment.status =
-        payment.refundedAmount >= payment.amount
-          ? PaymentStatus.REFUNDED
-          : PaymentStatus.PARTIALLY_REFUNDED;
-      await payment.save();
-
-      // Emit refund event
-      this.emit('payment.refunded', {
-        paymentId: payment.id,
+      // Create refund record
+      await PaymentModel.create({
         orderId: payment.orderId,
-        refundAmount,
-        totalRefunded: payment.refundedAmount,
-        status: payment.status,
+        userId: payment.userId,
+        amount: -refundAmount, // Negative amount for refund
+        currency: payment.currency,
+        method: payment.method,
+        status: PaymentStatus.COMPLETED,
+        description: `Refund: ${request.reason || 'Customer request'}`,
+        metadata: {
+          originalPaymentId: request.paymentId,
+          refundId: refundResult?.id,
+          reason: request.reason,
+          ...request.metadata,
+        },
       });
 
-      return {
-        id: refund?.id,
-        paymentId: payment.id,
-        amount: refundAmount,
-        status: refund?.status || 'succeeded',
-        reason: request.reason,
-        metadata: request.metadata,
-      };
+      logger.info('Refund processed successfully', {
+        paymentId: request.paymentId,
+        refundAmount,
+        method: payment.method,
+      });
+
+      return refundResult;
     } catch (error) {
-      logger.error('Refund processing failed', error);
+      logger.error('Refund processing failed', { 
+        paymentId: request.paymentId, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
       throw error;
     }
   }
 
   /**
-   * Handle Stripe webhook
+   * Process Click refund
+   */
+  private async processClickRefund(payment: any, amount: number, request: RefundRequest): Promise<any> {
+    try {
+      const apiUrl = this.clickConfig.environment === 'production'
+        ? 'https://api.click.uz/v2/merchant/invoice/refund'
+        : 'https://testmerchant.click.uz/v2/merchant/invoice/refund';
+
+      const refundData = {
+        service_id: this.clickConfig.serviceId,
+        merchant_id: this.clickConfig.merchantId,
+        invoice_id: payment.transactionId,
+        amount: amount,
+        reason: request.reason || 'Customer request',
+      };
+
+      const signature = this.generateClickSignature(refundData);
+
+      const response = await axios.post(apiUrl, {
+        ...refundData,
+        sign_string: signature,
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${Buffer.from(`${this.clickConfig.merchantId}:${this.clickConfig.secretKey}`).toString('base64')}`,
+        },
+        timeout: 30000,
+      });
+
+      return response.data;
+    } catch (error) {
+      logger.error('Click refund failed', { paymentId: request.paymentId, error });
+      throw createError(500, 'Click refund failed');
+    }
+  }
+
+  /**
+   * Process Payme refund
+   */
+  private async processPaymeRefund(payment: any, amount: number, request: RefundRequest): Promise<any> {
+    try {
+      const apiUrl = this.paymeConfig.environment === 'production'
+        ? 'https://checkout.paycom.uz'
+        : 'https://test.paycom.uz';
+
+      const refundData = {
+        method: 'cards.refund',
+        params: {
+          id: payment.transactionId,
+          amount: amount * 100, // Convert to tiyin
+          reason: request.reason || 'Customer request',
+        },
+      };
+
+      const signature = this.generatePaymeSignature(refundData);
+
+      const response = await axios.post(apiUrl, {
+        ...refundData,
+        sign_string: signature,
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${Buffer.from(`${this.paymeConfig.merchantId}:${this.paymeConfig.secretKey}`).toString('base64')}`,
+        },
+        timeout: 30000,
+      });
+
+      return response.data;
+    } catch (error) {
+      logger.error('Payme refund failed', { paymentId: request.paymentId, error });
+      throw createError(500, 'Payme refund failed');
+    }
+  }
+
+  /**
+   * Process Apelsin refund
+   */
+  private async processApelsinRefund(payment: any, amount: number, request: RefundRequest): Promise<any> {
+    try {
+      const apiUrl = this.apelsinConfig.environment === 'production'
+        ? 'https://pay.apelsin.uz/api/v1/refund'
+        : 'https://test.pay.apelsin.uz/api/v1/refund';
+
+      const refundData = {
+        merchant_id: this.apelsinConfig.merchantId,
+        invoice_id: payment.transactionId,
+        amount: amount,
+        reason: request.reason || 'Customer request',
+      };
+
+      const signature = this.generateApelsinSignature(refundData);
+
+      const response = await axios.post(apiUrl, {
+        ...refundData,
+        sign_string: signature,
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apelsinConfig.secretKey}`,
+        },
+        timeout: 30000,
+      });
+
+      return response.data;
+    } catch (error) {
+      logger.error('Apelsin refund failed', { paymentId: request.paymentId, error });
+      throw createError(500, 'Apelsin refund failed');
+    }
+  }
+
+  /**
+   * Handle webhook events
    */
   async handleWebhook(payload: Buffer, signature: string): Promise<void> {
     try {
-      const event = this.stripe.webhooks.constructEvent(payload, signature, this.webhookSecret);
-
-      logger.info('Stripe webhook received', { type: event.type, id: event.id });
-
-      switch (event.type) {
-        case 'payment_intent.succeeded':
-          await this.handlePaymentSuccess(event.data.object as Stripe.PaymentIntent);
-          break;
-
-        case 'payment_intent.payment_failed':
-          await this.handlePaymentFailure(event.data.object as Stripe.PaymentIntent);
-          break;
-
-        case 'charge.refunded':
-          await this.handleRefundUpdate(event.data.object as Stripe.Charge);
-          break;
-
-        default:
-          logger.info('Unhandled webhook event type', { type: event.type });
+      if (this.stripe) {
+        const event = this.stripe.webhooks.constructEvent(payload, signature, this.webhookSecret);
+        
+        switch (event.type) {
+          case 'payment_intent.succeeded':
+            await this.handlePaymentSuccess(event.data.object as Stripe.PaymentIntent);
+            break;
+          case 'payment_intent.payment_failed':
+            await this.handlePaymentFailure(event.data.object as Stripe.PaymentIntent);
+            break;
+          case 'charge.refunded':
+            await this.handleRefundUpdate(event.data.object as Stripe.Charge);
+            break;
+          default:
+            logger.info(`Unhandled webhook event: ${event.type}`);
+        }
       }
     } catch (error) {
-      logger.error('Webhook processing failed', error);
+      logger.error('Webhook handling failed', error);
       throw error;
     }
   }
@@ -967,88 +1113,86 @@ export class PaymentService extends EventEmitter {
    * Handle successful payment
    */
   private async handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent): Promise<void> {
-    const payment = await PaymentModel.findOne({ transactionId: paymentIntent.id });
-    if (!payment) {
-      logger.warn('Payment not found for successful payment intent', { id: paymentIntent.id });
-      return;
+    try {
+      const payment = await PaymentModel.findOne({
+        transactionId: paymentIntent.id,
+      });
+
+      if (payment) {
+        await this.confirmPayment(payment.id, {
+          transactionId: paymentIntent.id,
+          amount: paymentIntent.amount / 100,
+          status: 'succeeded',
+        });
+      }
+    } catch (error) {
+      logger.error('Payment success handling failed', error);
     }
-
-    payment.status = PaymentStatus.COMPLETED;
-    payment.processedAt = new Date();
-    await payment.save();
-
-    this.emit('payment.success', {
-      paymentId: payment.id,
-      orderId: payment.orderId,
-      amount: payment.amount,
-      currency: payment.currency,
-    });
   }
 
   /**
    * Handle failed payment
    */
   private async handlePaymentFailure(paymentIntent: Stripe.PaymentIntent): Promise<void> {
-    const payment = await PaymentModel.findOne({ transactionId: paymentIntent.id });
-    if (!payment) {
-      logger.warn('Payment not found for failed payment intent', { id: paymentIntent.id });
-      return;
+    try {
+      const payment = await PaymentModel.findOne({
+        transactionId: paymentIntent.id,
+      });
+
+      if (payment) {
+        await PaymentModel.findByIdAndUpdate(payment.id, {
+          status: PaymentStatus.FAILED,
+          metadata: {
+            ...payment.metadata,
+            failureReason: paymentIntent.last_payment_error?.message,
+          },
+        });
+      }
+    } catch (error) {
+      logger.error('Payment failure handling failed', error);
     }
-
-    payment.status = PaymentStatus.FAILED;
-    payment.failureReason = paymentIntent.last_payment_error?.message;
-    await payment.save();
-
-    this.emit('payment.failed', {
-      paymentId: payment.id,
-      orderId: payment.orderId,
-      amount: payment.amount,
-      currency: payment.currency,
-      reason: payment.failureReason,
-    });
   }
 
   /**
    * Handle refund update
    */
   private async handleRefundUpdate(charge: Stripe.Charge): Promise<void> {
-    const payment = await PaymentModel.findOne({ transactionId: charge.payment_intent });
-    if (!payment) {
-      logger.warn('Payment not found for refunded charge', { id: charge.id });
-      return;
+    try {
+      const payment = await PaymentModel.findOne({
+        transactionId: charge.payment_intent as string,
+      });
+
+      if (payment) {
+        await PaymentModel.findByIdAndUpdate(payment.id, {
+          metadata: {
+            ...payment.metadata,
+            refunded: true,
+            refundAmount: charge.amount_refunded / 100,
+          },
+        });
+      }
+    } catch (error) {
+      logger.error('Refund update handling failed', error);
     }
-
-    const refundedAmount = charge.amount_refunded / 100;
-    payment.refundedAmount = refundedAmount;
-    payment.status =
-      refundedAmount >= payment.amount ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED;
-    await payment.save();
-
-    this.emit('payment.refund.updated', {
-      paymentId: payment.id,
-      orderId: payment.orderId,
-      refundedAmount,
-      status: payment.status,
-    });
   }
 
   /**
-   * Map Stripe payment intent status to our status
+   * Map Stripe status to internal status
    */
   private mapStripeStatus(stripeStatus: string): PaymentStatus {
     switch (stripeStatus) {
       case 'succeeded':
         return PaymentStatus.COMPLETED;
       case 'processing':
-        return PaymentStatus.PROCESSING;
+        return PaymentStatus.PENDING;
       case 'requires_payment_method':
       case 'requires_confirmation':
       case 'requires_action':
         return PaymentStatus.PENDING;
       case 'canceled':
-        return PaymentStatus.CANCELLED;
-      default:
         return PaymentStatus.FAILED;
+      default:
+        return PaymentStatus.PENDING;
     }
   }
 
@@ -1056,18 +1200,28 @@ export class PaymentService extends EventEmitter {
    * Get payment by ID
    */
   async getPaymentById(paymentId: string): Promise<any> {
-    const payment = await PaymentModel.findById(paymentId);
-    if (!payment) {
-      throw createError(404, 'Payment not found');
+    try {
+      const payment = await PaymentModel.findById(paymentId);
+      if (!payment) {
+        throw createError(404, 'Payment not found');
+      }
+      return payment;
+    } catch (error) {
+      logger.error('Get payment by ID failed', { paymentId, error });
+      throw error;
     }
-    return payment;
   }
 
   /**
    * Get payments by order ID
    */
   async getPaymentsByOrderId(orderId: string): Promise<any[]> {
-    return PaymentModel.find({ orderId }).sort({ createdAt: -1 });
+    try {
+      return await PaymentModel.find({ orderId }).sort({ createdAt: -1 });
+    } catch (error) {
+      logger.error('Get payments by order ID failed', { orderId, error });
+      throw error;
+    }
   }
 
   /**
@@ -1077,18 +1231,21 @@ export class PaymentService extends EventEmitter {
     userId: string,
     options?: { limit?: number; offset?: number }
   ): Promise<any[]> {
-    const query = PaymentModel.find({ userId }).sort({ createdAt: -1 });
-
-    if (options?.limit) {
-      query.limit(options.limit);
+    try {
+      const query = PaymentModel.find({ userId }).sort({ createdAt: -1 });
+      
+      if (options?.limit) {
+        query.limit(options.limit);
+      }
+      
+      if (options?.offset) {
+        query.skip(options.offset);
+      }
+      
+      return await query.exec();
+    } catch (error) {
+      logger.error('Get payments by user ID failed', { userId, error });
+      throw error;
     }
-
-    if (options?.offset) {
-      query.skip(options.offset);
-    }
-
-    return query.exec();
   }
 }
-
-export const paymentService = new PaymentService();
