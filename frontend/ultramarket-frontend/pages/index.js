@@ -24,7 +24,6 @@ const HomePage = () => {
         setUser(JSON.parse(userData));
         setIsAuthenticated(true);
       } catch (error) {
-        // Invalid user data
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
@@ -37,7 +36,6 @@ const HomePage = () => {
       try {
         setIsLoading(true);
         
-        // API chaqiruvlari
         const [productsRes, categoriesRes, statsRes] = await Promise.all([
           apiClient.getProducts({ limit: 4 }),
           apiClient.getCategories(),
@@ -79,7 +77,6 @@ const HomePage = () => {
     try {
       const response = await apiClient.searchProducts(searchQuery);
       console.log('Search results:', response.data);
-      // Bu yerda search results page-ga yo'naltirish kerak
     } catch (error) {
       console.error('Search error:', error);
     }
@@ -98,10 +95,10 @@ const HomePage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Yuklanmoqda...</p>
+      <div style={{minHeight: '100vh', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+        <div style={{textAlign: 'center'}}>
+          <div className="loading-spinner" style={{width: '3rem', height: '3rem', margin: '0 auto 1rem'}}></div>
+          <p style={{color: '#6b7280'}}>Yuklanmoqda...</p>
         </div>
       </div>
     );
@@ -114,122 +111,108 @@ const HomePage = () => {
         <meta name="description" content="UltraMarket - O'zbekiston marketplace" />
       </Head>
 
-      <div className="min-h-screen bg-gray-50">
+      <div className="homepage">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <h1 className="text-2xl font-bold text-blue-600">UltraMarket</h1>
-                <span className="ml-2 text-sm text-gray-500">O'zbekiston</span>
-              </div>
-              
-              <nav className="hidden md:flex space-x-6">
-                <a href="#" className="text-gray-600 hover:text-blue-600">Kategoriyalar</a>
-                <a href="#" className="text-gray-600 hover:text-blue-600">Do'konlar</a>
-                <a href="#" className="text-gray-600 hover:text-blue-600">Yordam</a>
-              </nav>
-              
-              <div className="flex items-center space-x-4">
-                {isAuthenticated ? (
-                  <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-600">
-                      Salom, {user?.firstName}!
-                    </span>
-                    <button
-                      onClick={handleLogout}
-                      className="text-sm text-gray-600 hover:text-red-600"
-                    >
-                      Chiqish
+        <header className="header">
+          <div className="header-content">
+            <div className="header-left">
+              <h1 className="header-logo">UltraMarket</h1>
+              <span style={{marginLeft: '0.5rem', fontSize: '0.875rem', color: '#6b7280'}}>O'zbekiston</span>
+            </div>
+            
+            <nav className="header-nav">
+              <a href="#">Kategoriyalar</a>
+              <a href="#">Do'konlar</a>
+              <a href="#">Yordam</a>
+            </nav>
+            
+            <div className="header-right">
+              {isAuthenticated ? (
+                <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+                  <span style={{fontSize: '0.875rem', color: '#6b7280'}}>
+                    Salom, {user?.firstName}!
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    style={{fontSize: '0.875rem', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer'}}
+                  >
+                    Chiqish
+                  </button>
+                </div>
+              ) : (
+                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                  <Link href="/auth/login">
+                    <button className="btn" style={{color: '#2563eb', background: 'none', border: 'none'}}>
+                      Kirish
                     </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-2">
-                    <Link href="/auth/login">
-                      <button className="text-blue-600 hover:text-blue-700 px-3 py-2 text-sm">
-                        Kirish
-                      </button>
-                    </Link>
-                    <Link href="/auth/register">
-                      <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
-                        Ro'yxatdan o'tish
-                      </button>
-                    </Link>
-                  </div>
-                )}
-              </div>
+                  </Link>
+                  <Link href="/auth/register">
+                    <button className="btn btn-primary">
+                      Ro'yxatdan o'tish
+                    </button>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </header>
 
         {/* Authentication Status Banner */}
         {isAuthenticated && (
-          <div className="bg-green-50 border-b border-green-200">
-            <div className="max-w-7xl mx-auto px-4 py-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <span className="text-green-700 text-sm">
-                    ✅ Siz tizimga kirdingiz
-                  </span>
-                </div>
-                <div className="text-xs text-green-600">
-                  Email: {user?.email}
-                </div>
+          <div className="status-banner">
+            <div className="status-content">
+              <div style={{fontSize: '0.875rem', color: '#15803d'}}>
+                ✅ Siz tizimga kirdingiz
+              </div>
+              <div style={{fontSize: '0.75rem', color: '#16a34a'}}>
+                Email: {user?.email}
               </div>
             </div>
           </div>
         )}
 
         {/* Hero Section */}
-        <section className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
-          <div className="max-w-7xl mx-auto px-4 text-center">
-            <h2 className="text-4xl md:text-6xl font-bold mb-6">
+        <section className="hero-section">
+          <div className="container" style={{textAlign: 'center'}}>
+            <h2 className="hero-title">
               O'zbekiston #1 Marketplace
             </h2>
-            <p className="text-xl mb-8 text-blue-100">
+            <p className="hero-subtitle">
               {stats ? `${stats.totalProducts} mahsulot, ${stats.totalStores} do'kon, ${stats.totalUsers} foydalanuvchi` : 'Eng yaxshi mahsulotlar'}
             </p>
             
             {/* Search */}
-            <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
-              <div className="flex">
-                <input
-                  type="text"
-                  placeholder="Mahsulot qidiring..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 px-4 py-3 rounded-l-lg text-gray-900 focus:outline-none"
-                />
-                <button 
-                  type="submit"
-                  className="bg-yellow-500 text-gray-900 px-6 py-3 rounded-r-lg font-semibold hover:bg-yellow-400"
-                >
-                  Qidirish
-                </button>
-              </div>
+            <form onSubmit={handleSearch} className="search-form">
+              <input
+                type="text"
+                placeholder="Mahsulot qidiring..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="search-input"
+              />
+              <button type="submit" className="search-btn">
+                Qidirish
+              </button>
             </form>
           </div>
         </section>
 
         {/* Categories */}
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4">
-            <h3 className="text-3xl font-bold text-center mb-12">Kategoriyalar</h3>
+        <section className="section">
+          <div className="container">
+            <h3 className="section-title">Kategoriyalar</h3>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-4">
               {categories.map((category) => (
-                <div
-                  key={category.id}
-                  className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer text-center"
-                >
-                  <div className="text-4xl mb-3">
+                <div key={category.id} className="card">
+                  <div style={{fontSize: '2.5rem', marginBottom: '1rem'}}>
                     {category.id === 'electronics' && '📱'}
                     {category.id === 'fashion' && '👕'}
                     {category.id === 'home' && '🏠'}
                     {category.id === 'automotive' && '🚗'}
                   </div>
-                  <h4 className="font-semibold text-gray-800">{category.nameUz}</h4>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <h4 style={{fontWeight: '600', color: '#111827'}}>{category.nameUz}</h4>
+                  <p style={{fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem'}}>
                     {category.productCount.toLocaleString()} mahsulot
                   </p>
                 </div>
@@ -239,60 +222,57 @@ const HomePage = () => {
         </section>
 
         {/* Products */}
-        <section className="py-16 bg-white">
-          <div className="max-w-7xl mx-auto px-4">
-            <h3 className="text-3xl font-bold text-center mb-12">Mashhur mahsulotlar</h3>
+        <section className="section section-white">
+          <div className="container">
+            <h3 className="section-title">Mashhur mahsulotlar</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-4">
               {products.map((product) => (
-                <div
-                  key={product.id}
-                  className="bg-gray-50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div className="h-48 bg-gray-200 flex items-center justify-center">
-                    <span className="text-gray-500">📱</span>
+                <div key={product.id} className="product-card">
+                  <div className="product-image">
+                    <span style={{color: '#6b7280'}}>📱</span>
                   </div>
                   
-                  <div className="p-4">
-                    <h4 className="font-semibold text-gray-900 mb-2 line-clamp-2">
+                  <div className="product-info">
+                    <h4 className="product-title">
                       {product.nameUz || product.name}
                     </h4>
                     
-                    <div className="flex items-center justify-between mb-3">
+                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem'}}>
                       <div>
-                        <p className="text-lg font-bold text-blue-600">
+                        <p className="product-price">
                           {formatPrice(product.price)}
                         </p>
                         {product.originalPrice && (
-                          <p className="text-sm text-gray-500 line-through">
+                          <p className="product-original-price">
                             {formatPrice(product.originalPrice)}
                           </p>
                         )}
                       </div>
                       
                       {product.discount && (
-                        <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
+                        <span className="discount-badge">
                           -{product.discount}%
                         </span>
                       )}
                     </div>
                     
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-yellow-500">⭐</span>
-                        <span className="text-sm text-gray-600">
+                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem'}}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '0.25rem'}}>
+                        <span style={{color: '#eab308'}}>⭐</span>
+                        <span style={{fontSize: '0.875rem', color: '#6b7280'}}>
                           {product.rating} ({product.reviewCount})
                         </span>
                       </div>
                       
-                      <span className="text-xs text-gray-500">
+                      <span style={{fontSize: '0.75rem', color: '#6b7280'}}>
                         {product.store.name}
                       </span>
                     </div>
                     
                     <button
                       onClick={() => addToCart(product.id)}
-                      className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      className="btn btn-primary btn-full"
                     >
                       Savatga qo'shish
                     </button>
@@ -304,50 +284,50 @@ const HomePage = () => {
         </section>
 
         {/* Features */}
-        <section className="bg-gray-100 py-16">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="text-4xl mb-4">🚚</div>
-                <h4 className="text-xl font-semibold mb-2">Tez yetkazib berish</h4>
-                <p className="text-gray-600">24 soat ichida O'zbekiston bo'ylab</p>
+        <section className="section section-gray">
+          <div className="container">
+            <div className="grid grid-3">
+              <div style={{textAlign: 'center'}}>
+                <div style={{fontSize: '2.5rem', marginBottom: '1rem'}}>🚚</div>
+                <h4 style={{fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem'}}>Tez yetkazib berish</h4>
+                <p style={{color: '#6b7280'}}>24 soat ichida O'zbekiston bo'ylab</p>
               </div>
               
-              <div className="text-center">
-                <div className="text-4xl mb-4">🔒</div>
-                <h4 className="text-xl font-semibold mb-2">Xavfsiz to'lov</h4>
-                <p className="text-gray-600">Click, Payme, Apelsin orqali</p>
+              <div style={{textAlign: 'center'}}>
+                <div style={{fontSize: '2.5rem', marginBottom: '1rem'}}>🔒</div>
+                <h4 style={{fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem'}}>Xavfsiz to'lov</h4>
+                <p style={{color: '#6b7280'}}>Click, Payme, Apelsin orqali</p>
               </div>
               
-              <div className="text-center">
-                <div className="text-4xl mb-4">📞</div>
-                <h4 className="text-xl font-semibold mb-2">24/7 yordam</h4>
-                <p className="text-gray-600">Har doim sizning xizmatingizda</p>
+              <div style={{textAlign: 'center'}}>
+                <div style={{fontSize: '2.5rem', marginBottom: '1rem'}}>📞</div>
+                <h4 style={{fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem'}}>24/7 yordam</h4>
+                <p style={{color: '#6b7280'}}>Har doim sizning xizmatingizda</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Stats - Real API data */}
+        {/* Stats */}
         {stats && (
-          <section className="bg-blue-600 text-white py-16">
-            <div className="max-w-7xl mx-auto px-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <section style={{background: '#2563eb', color: 'white', padding: '4rem 0'}}>
+            <div className="container">
+              <div style={{display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem', textAlign: 'center'}}>
                 <div>
-                  <div className="text-3xl font-bold mb-2">{stats.totalProducts}+</div>
-                  <div className="text-blue-200">Mahsulotlar</div>
+                  <div style={{fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem'}}>{stats.totalProducts}+</div>
+                  <div style={{color: '#bfdbfe'}}>Mahsulotlar</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold mb-2">{stats.totalStores}+</div>
-                  <div className="text-blue-200">Do'konlar</div>
+                  <div style={{fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem'}}>{stats.totalStores}+</div>
+                  <div style={{color: '#bfdbfe'}}>Do'konlar</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold mb-2">{stats.totalUsers}+</div>
-                  <div className="text-blue-200">Foydalanuvchilar</div>
+                  <div style={{fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem'}}>{stats.totalUsers}+</div>
+                  <div style={{color: '#bfdbfe'}}>Foydalanuvchilar</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold mb-2">4.8⭐</div>
-                  <div className="text-blue-200">Reyting</div>
+                  <div style={{fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem'}}>4.8⭐</div>
+                  <div style={{color: '#bfdbfe'}}>Reyting</div>
                 </div>
               </div>
             </div>
@@ -355,16 +335,16 @@ const HomePage = () => {
         )}
 
         {/* Footer */}
-        <footer className="bg-gray-900 text-white py-12">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <footer className="footer">
+          <div className="footer-content">
+            <div className="footer-grid">
               <div>
-                <h5 className="text-xl font-bold mb-4">UltraMarket</h5>
-                <p className="text-gray-400">
+                <h5 className="footer-title">UltraMarket</h5>
+                <p className="footer-text">
                   O'zbekistonning eng ishonchli online marketplace
                 </p>
                 {stats && (
-                  <div className="mt-4 text-sm text-gray-400">
+                  <div style={{marginTop: '1rem', fontSize: '0.875rem', color: '#9ca3af'}}>
                     <p>Platform: {stats.platform}</p>
                     <p>Hudud: {stats.region}</p>
                     <p>Valyuta: {stats.currency}</p>
@@ -373,30 +353,28 @@ const HomePage = () => {
               </div>
               
               <div>
-                <h6 className="font-semibold mb-4">Foydali havolalar</h6>
-                <ul className="space-y-2 text-gray-400">
-                  <li><a href="#" className="hover:text-white">Biz haqimizda</a></li>
-                  <li><a href="#" className="hover:text-white">Yordam</a></li>
-                  <li><a href="#" className="hover:text-white">Aloqa</a></li>
-                </ul>
+                <h6 className="footer-title">Foydali havolalar</h6>
+                <a href="#" className="footer-link">Biz haqimizda</a>
+                <a href="#" className="footer-link">Yordam</a>
+                <a href="#" className="footer-link">Aloqa</a>
               </div>
               
               <div>
-                <h6 className="font-semibold mb-4">Xizmatlar</h6>
+                <h6 className="footer-title">Xizmatlar</h6>
                 {stats && stats.features && (
-                  <ul className="space-y-2 text-gray-400">
+                  <div>
                     {stats.features.map((feature, index) => (
-                      <li key={index}>{feature}</li>
+                      <div key={index} className="footer-text" style={{marginBottom: '0.5rem'}}>{feature}</div>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
             </div>
             
-            <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+            <div className="footer-bottom">
               <p>&copy; 2024 UltraMarket. Barcha huquqlar himoyalangan.</p>
               {isAuthenticated && (
-                <p className="mt-2 text-xs">
+                <p style={{marginTop: '0.5rem', fontSize: '0.75rem'}}>
                   Authenticated as: {user?.email} | Role: {user?.role}
                 </p>
               )}
