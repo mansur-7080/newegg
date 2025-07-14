@@ -44,18 +44,18 @@ environment:
 # 1. Backend strukturasini yarating
 mkdir -p backend/src/{controllers,routes,middleware,models,services,utils}
 
-# 2. Asosiy fayllar
-touch backend/src/index.js
-touch backend/src/database.js  
-touch backend/src/auth.js
+# 2. Asosiy fayllar (TypeScript!)
+touch backend/src/index.ts
+touch backend/src/database.ts  
+touch backend/src/auth.ts
 ```
 
-#### B) Main backend server (backend/src/index.js)
-```javascript
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+#### B) Main backend server (backend/src/index.ts)
+```typescript
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
 
 const app = express();
 
@@ -76,9 +76,13 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 
 // Routes
-app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/products', require('./routes/product.routes'));
-app.use('/api/orders', require('./routes/order.routes'));
+import authRoutes from './routes/auth.routes';
+import productRoutes from './routes/product.routes';
+import orderRoutes from './routes/order.routes';
+
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

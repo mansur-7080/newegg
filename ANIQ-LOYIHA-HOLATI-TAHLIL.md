@@ -66,7 +66,7 @@ backend/                    # ❌ FAQAT SQLite + node_modules
 
 # KERAK:
 backend/src/
-├── index.js               # ❌ MAIN SERVER YO'Q
+├── index.ts               # ❌ MAIN SERVER YO'Q (TypeScript!)
 ├── routes/                # ❌ API ROUTES YO'Q
 └── config/                # ❌ CONFIG YO'Q
 ```
@@ -141,9 +141,9 @@ if (!this.serviceId) throw new Error('Click credentials required');
 # 1. Backend entry point
 mkdir -p backend/src/{routes,controllers,middleware}
 
-# 2. Main server file
-touch backend/src/index.js
-touch backend/src/routes/index.js
+# 2. Main server file (TypeScript!)
+touch backend/src/index.ts
+touch backend/src/routes/index.ts
 ```
 
 #### B) Security Credentials
