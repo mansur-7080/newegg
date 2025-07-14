@@ -20,182 +20,107 @@ import { calculateProductMetrics } from '../utils/metrics.utils';
 
 const prisma = new PrismaClient();
 
-// Uzbekistan-specific product categories
-export const UZBEKISTAN_CATEGORIES = {
-  ELECTRONICS: {
-    id: 'electronics',
-    nameUz: 'Elektronika',
-    nameRu: 'Электроника',
-    nameEn: 'Electronics',
-    subcategories: [
-      'smartphones', 'laptops', 'tablets', 'audio', 'tv-appliances', 
-      'gaming', 'cameras', 'accessories', 'components'
-    ]
-  },
-  CLOTHING: {
-    id: 'clothing',
-    nameUz: 'Kiyim-kechak',
-    nameRu: 'Одежда',
-    nameEn: 'Clothing',
-    subcategories: [
-      'mens-clothing', 'womens-clothing', 'kids-clothing', 'shoes', 
-      'bags', 'accessories', 'traditional-wear'
-    ]
-  },
-  HOME_GARDEN: {
-    id: 'home-garden',
-    nameUz: 'Uy va bog\'',
-    nameRu: 'Дом и сад',
-    nameEn: 'Home & Garden',
-    subcategories: [
-      'furniture', 'kitchen', 'decor', 'garden', 'tools', 'lighting'
-    ]
-  },
-  FOOD_BEVERAGES: {
-    id: 'food-beverages',
-    nameUz: 'Oziq-ovqat',
-    nameRu: 'Еда и напитки',
-    nameEn: 'Food & Beverages',
-    subcategories: [
-      'groceries', 'beverages', 'snacks', 'organic', 'local-products'
-    ]
-  },
-  BOOKS_MEDIA: {
-    id: 'books-media',
-    nameUz: 'Kitoblar va media',
-    nameRu: 'Книги и медиа',
-    nameEn: 'Books & Media',
-    subcategories: [
-      'books', 'ebooks', 'audiobooks', 'magazines', 'movies', 'music'
-    ]
-  },
-  SPORTS_OUTDOORS: {
-    id: 'sports-outdoors',
-    nameUz: 'Sport va dam olish',
-    nameRu: 'Спорт и отдых',
-    nameEn: 'Sports & Outdoors',
-    subcategories: [
-      'fitness', 'outdoor-gear', 'sports-equipment', 'cycling', 'water-sports'
-    ]
-  },
-  HEALTH_BEAUTY: {
-    id: 'health-beauty',
-    nameUz: 'Salomatlik va go\'zallik',
-    nameRu: 'Здоровье и красота',
-    nameEn: 'Health & Beauty',
-    subcategories: [
-      'skincare', 'makeup', 'health-supplements', 'personal-care', 'medical'
-    ]
-  },
-  AUTOMOTIVE: {
-    id: 'automotive',
-    nameUz: 'Avtomobil',
-    nameRu: 'Автомобильные товары',
-    nameEn: 'Automotive',
-    subcategories: [
-      'parts', 'accessories', 'maintenance', 'tools', 'electronics'
-    ]
-  }
-};
+// Categories are now managed in the database
+// This is kept for reference but not used in the code
 
-// Product status enum
+// Product status enum (matching schema)
 export enum ProductStatus {
   DRAFT = 'DRAFT',
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
-  OUT_OF_STOCK = 'OUT_OF_STOCK',
-  DISCONTINUED = 'DISCONTINUED'
+  ARCHIVED = 'ARCHIVED'
 }
 
-// Product creation interface
+// Product creation interface (matching schema)
 export interface CreateProductInput {
   name: string;
-  nameUz?: string;
-  nameRu?: string;
-  description: string;
-  descriptionUz?: string;
-  descriptionRu?: string;
+  description?: string;
   shortDescription?: string;
-  category: string;
-  subcategory?: string;
-  brand: string;
+  categoryId: string;
+  brand?: string;
+  model?: string;
   sku: string;
+  barcode?: string;
   price: number;
   comparePrice?: number;
   costPrice?: number;
-  currency: string;
+  currency?: string;
   weight?: number;
-  dimensions?: {
-    length?: number;
-    width?: number;
-    height?: number;
-  };
-  images: string[];
-  thumbnail?: string;
+  dimensions?: Record<string, any>;
+  images: Array<{ url: string; altText?: string; isMain?: boolean }>;
   tags: string[];
-  attributes: Record<string, any>;
-  seoTitle?: string;
-  seoDescription?: string;
-  seoKeywords?: string[];
-  stock: number;
-  minStock?: number;
-  maxStock?: number;
-  vendorId: string;
-  isDigital?: boolean;
-  shippingRequired?: boolean;
-  status: ProductStatus;
-  featured?: boolean;
-  visibility: 'PUBLIC' | 'PRIVATE' | 'VENDOR_ONLY';
+  attributes?: Record<string, any>;
+  specifications?: Record<string, any>;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  warranty?: string;
+  returnPolicy?: string;
+  shippingInfo?: string;
+  vendorId?: string;
+  status?: ProductStatus;
+  isFeatured?: boolean;
+  isBestSeller?: boolean;
+  isNewArrival?: boolean;
+  isOnSale?: boolean;
+  salePercentage?: number;
+  saleStartDate?: Date;
+  saleEndDate?: Date;
+  // Inventory fields
+  quantity: number;
+  lowStockThreshold?: number;
+  reorderPoint?: number;
+  reorderQuantity?: number;
+  location?: string;
+  warehouse?: string;
 }
 
-// Product update interface
+// Product update interface (matching schema)
 export interface UpdateProductInput {
   name?: string;
-  nameUz?: string;
-  nameRu?: string;
   description?: string;
-  descriptionUz?: string;
-  descriptionRu?: string;
   shortDescription?: string;
-  category?: string;
-  subcategory?: string;
+  categoryId?: string;
   brand?: string;
+  model?: string;
+  barcode?: string;
   price?: number;
   comparePrice?: number;
   costPrice?: number;
+  currency?: string;
   weight?: number;
-  dimensions?: {
-    length?: number;
-    width?: number;
-    height?: number;
-  };
-  images?: string[];
-  thumbnail?: string;
+  dimensions?: Record<string, any>;
   tags?: string[];
   attributes?: Record<string, any>;
-  seoTitle?: string;
-  seoDescription?: string;
-  seoKeywords?: string[];
-  stock?: number;
-  minStock?: number;
-  maxStock?: number;
-  isDigital?: boolean;
-  shippingRequired?: boolean;
+  specifications?: Record<string, any>;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  warranty?: string;
+  returnPolicy?: string;
+  shippingInfo?: string;
   status?: ProductStatus;
-  featured?: boolean;
-  visibility?: 'PUBLIC' | 'PRIVATE' | 'VENDOR_ONLY';
+  isFeatured?: boolean;
+  isBestSeller?: boolean;
+  isNewArrival?: boolean;
+  isOnSale?: boolean;
+  salePercentage?: number;
+  saleStartDate?: Date;
+  saleEndDate?: Date;
 }
 
-// Product search filters
+// Product search filters (matching schema)
 export interface ProductFilters {
-  category?: string;
-  subcategory?: string;
+  categoryId?: string;
   brand?: string;
   minPrice?: number;
   maxPrice?: number;
   status?: string;
   vendorId?: string;
-  featured?: boolean;
+  isFeatured?: boolean;
+  isBestSeller?: boolean;
+  isNewArrival?: boolean;
+  isOnSale?: boolean;
   inStock?: boolean;
   tags?: string[];
   search?: string;
@@ -235,16 +160,18 @@ export async function createProduct(input: CreateProductInput) {
       counter++;
     }
 
-    // Validate category
-    const categoryExists = Object.values(UZBEKISTAN_CATEGORIES)
-      .some(cat => cat.id === input.category);
+    // Validate category exists in database
+    const categoryExists = await prisma.category.findUnique({
+      where: { id: input.categoryId }
+    });
     
     if (!categoryExists) {
-      throw new ValidationError(`Invalid category: ${input.category}`);
+      throw new ValidationError(`Invalid category ID: ${input.categoryId}`);
     }
 
     // Process and optimize images
-    const optimizedImages = await optimizeImageUrls(input.images);
+    const imageUrls = input.images.map(img => typeof img === 'string' ? img : img.url);
+    const optimizedImages = await optimizeImageUrls(imageUrls);
 
     // Calculate product metrics
     const metrics = calculateProductMetrics({
@@ -259,80 +186,85 @@ export async function createProduct(input: CreateProductInput) {
       const newProduct = await tx.product.create({
         data: {
           name: input.name,
-          nameUz: input.nameUz,
-          nameRu: input.nameRu,
           description: input.description,
-          descriptionUz: input.descriptionUz,
-          descriptionRu: input.descriptionRu,
           shortDescription: input.shortDescription,
           slug: uniqueSlug,
-          category: input.category,
-          subcategory: input.subcategory,
+          categoryId: input.categoryId,
           brand: input.brand,
+          model: input.model,
           sku: input.sku,
+          barcode: input.barcode,
           price: input.price,
           comparePrice: input.comparePrice,
           costPrice: input.costPrice,
           currency: input.currency || 'UZS',
           weight: input.weight,
           dimensions: input.dimensions as Prisma.JsonValue,
-          images: optimizedImages,
-          thumbnail: input.thumbnail || optimizedImages[0],
           tags: input.tags,
           attributes: input.attributes as Prisma.JsonValue,
-          seoTitle: input.seoTitle || input.name,
-          seoDescription: input.seoDescription || input.shortDescription || input.description.substring(0, 160),
-          seoKeywords: input.seoKeywords || [],
-          stock: input.stock,
-          minStock: input.minStock || 0,
-          maxStock: input.maxStock,
+          specifications: input.specifications as Prisma.JsonValue,
+          metaTitle: input.metaTitle || input.name,
+          metaDescription: input.metaDescription || input.shortDescription || input.description?.substring(0, 160),
+          metaKeywords: input.metaKeywords,
+          warranty: input.warranty,
+          returnPolicy: input.returnPolicy,
+          shippingInfo: input.shippingInfo,
           vendorId: input.vendorId,
-          isDigital: input.isDigital || false,
-          shippingRequired: input.shippingRequired !== false,
-          status: input.status,
-          featured: input.featured || false,
-          visibility: input.visibility || 'PUBLIC',
-          profit: metrics.profit,
-          profitMargin: metrics.profitMargin,
-          discountPercentage: metrics.discountPercentage,
-          views: 0,
-          sales: 0,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          status: input.status || ProductStatus.DRAFT,
+          isFeatured: input.isFeatured || false,
+          isBestSeller: input.isBestSeller || false,
+          isNewArrival: input.isNewArrival || false,
+          isOnSale: input.isOnSale || false,
+          salePercentage: input.salePercentage,
+          saleStartDate: input.saleStartDate,
+          saleEndDate: input.saleEndDate,
         },
         include: {
-          vendor: {
+          category: {
             select: {
               id: true,
               name: true,
-              businessName: true,
-              location: true,
+              slug: true,
+            }
+          },
+          vendor: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
             }
           }
         }
       });
 
+      // Create product images
+      if (input.images && input.images.length > 0) {
+        const imageData = input.images.map((img, index) => ({
+          productId: newProduct.id,
+          url: typeof img === 'string' ? img : img.url,
+          altText: typeof img === 'object' ? img.altText : `${input.name} image ${index + 1}`,
+          sortOrder: index,
+          isMain: typeof img === 'object' ? img.isMain : index === 0,
+        }));
+
+        await tx.productImage.createMany({
+          data: imageData
+        });
+      }
+
       // Create inventory entry
       await tx.inventory.create({
         data: {
           productId: newProduct.id,
-          quantity: input.stock,
-          reserved: 0,
-          available: input.stock,
-          location: 'WAREHOUSE_MAIN',
-          updatedBy: input.vendorId,
-        }
-      });
-
-      // Create product analytics entry
-      await tx.productAnalytics.create({
-        data: {
-          productId: newProduct.id,
-          views: 0,
-          clicks: 0,
-          conversions: 0,
-          revenue: 0,
-          createdAt: new Date(),
+          quantity: input.quantity,
+          reservedQuantity: 0,
+          availableQuantity: input.quantity,
+          lowStockThreshold: input.lowStockThreshold || 10,
+          reorderPoint: input.reorderPoint || 5,
+          reorderQuantity: input.reorderQuantity || 50,
+          location: input.location,
+          warehouse: input.warehouse,
         }
       });
 
@@ -367,55 +299,60 @@ export async function findProductById(id: string, includeAnalytics: boolean = fa
     const product = await prisma.product.findUnique({
       where: { id },
       include: {
-        vendor: {
+        category: {
           select: {
             id: true,
             name: true,
-            businessName: true,
-            location: true,
-            rating: true,
-            totalProducts: true,
+            slug: true,
+          }
+        },
+        vendor: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
           }
         },
         inventory: {
           select: {
             quantity: true,
-            reserved: true,
-            available: true,
+            reservedQuantity: true,
+            availableQuantity: true,
+            lowStockThreshold: true,
             location: true,
+            warehouse: true,
             updatedAt: true,
           }
+        },
+        images: {
+          select: {
+            id: true,
+            url: true,
+            altText: true,
+            sortOrder: true,
+            isMain: true,
+          },
+          orderBy: { sortOrder: 'asc' }
         },
         reviews: {
           select: {
             id: true,
             rating: true,
+            title: true,
             comment: true,
             userId: true,
+            isVerified: true,
             createdAt: true,
-            user: {
-              select: {
-                name: true,
-                avatar: true,
-              }
-            }
           },
           orderBy: { createdAt: 'desc' },
           take: 5,
         },
-        analytics: includeAnalytics ? {
-          select: {
-            views: true,
-            clicks: true,
-            conversions: true,
-            revenue: true,
-            updatedAt: true,
-          }
-        } : false,
         _count: {
           select: {
             reviews: true,
-            wishlistItems: true,
+            variants: true,
           }
         }
       }
@@ -430,17 +367,13 @@ export async function findProductById(id: string, includeAnalytics: boolean = fa
       ? product.reviews.reduce((sum, review) => sum + review.rating, 0) / product.reviews.length
       : 0;
 
-    // Increment view count (async, don't wait)
-    prisma.product.update({
-      where: { id },
-      data: { views: { increment: 1 } }
-    }).catch(err => logger.warn('Failed to increment view count', { productId: id, error: err.message }));
-
     return {
       ...product,
       avgRating: Math.round(avgRating * 10) / 10,
       totalReviews: product._count.reviews,
-      totalWishlisted: product._count.wishlistItems,
+      totalVariants: product._count.variants,
+      mainImage: product.images.find(img => img.isMain) || product.images[0],
+      inStock: product.inventory ? product.inventory.availableQuantity > 0 : false,
     };
 
   } catch (error) {
@@ -463,16 +396,13 @@ export async function findProducts(options: ProductSearchOptions) {
 
     // Build where clause
     const where: Prisma.ProductWhereInput = {
-      status: { not: 'DISCONTINUED' },
+      status: { not: 'ARCHIVED' },
+      isActive: true,
     };
 
     // Apply filters
-    if (filters.category) {
-      where.category = filters.category;
-    }
-
-    if (filters.subcategory) {
-      where.subcategory = filters.subcategory;
+    if (filters.categoryId) {
+      where.categoryId = filters.categoryId;
     }
 
     if (filters.brand) {
@@ -493,12 +423,26 @@ export async function findProducts(options: ProductSearchOptions) {
       where.vendorId = filters.vendorId;
     }
 
-    if (filters.featured !== undefined) {
-      where.featured = filters.featured;
+    if (filters.isFeatured !== undefined) {
+      where.isFeatured = filters.isFeatured;
+    }
+
+    if (filters.isBestSeller !== undefined) {
+      where.isBestSeller = filters.isBestSeller;
+    }
+
+    if (filters.isNewArrival !== undefined) {
+      where.isNewArrival = filters.isNewArrival;
+    }
+
+    if (filters.isOnSale !== undefined) {
+      where.isOnSale = filters.isOnSale;
     }
 
     if (filters.inStock) {
-      where.stock = { gt: 0 };
+      where.inventory = {
+        availableQuantity: { gt: 0 }
+      };
     }
 
     if (filters.tags && filters.tags.length > 0) {
@@ -509,14 +453,13 @@ export async function findProducts(options: ProductSearchOptions) {
       const searchTerm = filters.search.toLowerCase();
       where.OR = [
         { name: { contains: searchTerm, mode: 'insensitive' } },
-        { nameUz: { contains: searchTerm, mode: 'insensitive' } },
-        { nameRu: { contains: searchTerm, mode: 'insensitive' } },
         { description: { contains: searchTerm, mode: 'insensitive' } },
-        { descriptionUz: { contains: searchTerm, mode: 'insensitive' } },
-        { descriptionRu: { contains: searchTerm, mode: 'insensitive' } },
+        { shortDescription: { contains: searchTerm, mode: 'insensitive' } },
         { brand: { contains: searchTerm, mode: 'insensitive' } },
+        { model: { contains: searchTerm, mode: 'insensitive' } },
         { tags: { has: searchTerm } },
         { sku: { contains: searchTerm, mode: 'insensitive' } },
+        { barcode: { contains: searchTerm, mode: 'insensitive' } },
       ];
     }
 
@@ -529,18 +472,6 @@ export async function findProducts(options: ProductSearchOptions) {
         break;
       case 'name':
         orderBy.name = sortOrder;
-        break;
-      case 'rating':
-        orderBy.avgRating = sortOrder;
-        break;
-      case 'sales':
-        orderBy.sales = sortOrder;
-        break;
-      case 'views':
-        orderBy.views = sortOrder;
-        break;
-      case 'stock':
-        orderBy.stock = sortOrder;
         break;
       case 'createdAt':
       default:
@@ -556,19 +487,35 @@ export async function findProducts(options: ProductSearchOptions) {
         take: limit,
         orderBy,
         include: {
-          vendor: {
+          category: {
             select: {
               id: true,
               name: true,
-              businessName: true,
-              location: true,
-              rating: true,
+              slug: true,
+            }
+          },
+          vendor: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              role: true,
             }
           },
           inventory: {
             select: {
-              available: true,
+              availableQuantity: true,
+              lowStockThreshold: true,
             }
+          },
+          images: {
+            select: {
+              url: true,
+              altText: true,
+              isMain: true,
+            },
+            where: { isMain: true },
+            take: 1,
           },
           _count: {
             select: {
@@ -752,13 +699,12 @@ export async function deleteProduct(id: string) {
       throw new NotFoundError('Product not found');
     }
 
-    // Soft delete by setting status to DISCONTINUED
+    // Soft delete by setting status to ARCHIVED
     const deletedProduct = await prisma.product.update({
       where: { id },
       data: {
-        status: ProductStatus.DISCONTINUED,
-        visibility: 'PRIVATE',
-        updatedAt: new Date(),
+        status: ProductStatus.ARCHIVED,
+        isActive: false,
       }
     });
 
@@ -800,32 +746,44 @@ export async function searchProducts(query: string, filters: ProductFilters = {}
  */
 export async function getProductCategories() {
   try {
-    const categories = await prisma.product.groupBy({
-      by: ['category'],
+    const categories = await prisma.category.findMany({
       where: {
-        status: { notIn: ['DISCONTINUED'] },
-        visibility: 'PUBLIC',
+        isActive: true,
       },
-      _count: {
-        category: true,
+      include: {
+        _count: {
+          select: {
+            products: {
+              where: {
+                status: { not: 'ARCHIVED' },
+                isActive: true,
+              }
+            }
+          }
+        },
+        children: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          }
+        }
       },
+      orderBy: {
+        sortOrder: 'asc'
+      }
     });
 
-    const categoryStats = categories.map(cat => {
-      const categoryInfo = Object.values(UZBEKISTAN_CATEGORIES)
-        .find(c => c.id === cat.category);
-      
-      return {
-        id: cat.category,
-        name: categoryInfo?.nameEn || cat.category,
-        nameUz: categoryInfo?.nameUz,
-        nameRu: categoryInfo?.nameRu,
-        productCount: cat._count.category,
-        subcategories: categoryInfo?.subcategories || [],
-      };
-    });
-
-    return categoryStats;
+    return categories.map(category => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      image: category.image,
+      productCount: category._count.products,
+      subcategories: category.children,
+      parentId: category.parentId,
+    }));
 
   } catch (error) {
     logger.error('Error getting product categories', {
@@ -839,15 +797,16 @@ export async function getProductCategories() {
 /**
  * Get product brands with statistics
  */
-export async function getProductBrands(category?: string) {
+export async function getProductBrands(categoryId?: string) {
   try {
     const where: Prisma.ProductWhereInput = {
-      status: { notIn: ['DISCONTINUED'] },
-      visibility: 'PUBLIC',
+      status: { not: 'ARCHIVED' },
+      isActive: true,
+      brand: { not: null },
     };
 
-    if (category) {
-      where.category = category;
+    if (categoryId) {
+      where.categoryId = categoryId;
     }
 
     const brands = await prisma.product.groupBy({
@@ -863,15 +822,17 @@ export async function getProductBrands(category?: string) {
       },
     });
 
-    return brands.map(brand => ({
-      name: brand.brand,
-      productCount: brand._count.brand,
-    }));
+    return brands
+      .filter(brand => brand.brand !== null)
+      .map(brand => ({
+        name: brand.brand!,
+        productCount: brand._count.brand,
+      }));
 
   } catch (error) {
     logger.error('Error getting product brands', {
       error: error.message,
-      category,
+      categoryId,
       operation: 'get_product_brands'
     });
     throw error;
@@ -899,7 +860,12 @@ export async function getProductStatistics(vendorId?: string) {
     ] = await Promise.all([
       prisma.product.count({ where }),
       prisma.product.count({ where: { ...where, status: 'ACTIVE' } }),
-      prisma.product.count({ where: { ...where, stock: 0 } }),
+      prisma.product.count({ 
+        where: { 
+          ...where, 
+          inventory: { availableQuantity: 0 } 
+        } 
+      }),
       prisma.product.aggregate({
         where,
         _sum: { price: true },
@@ -909,10 +875,10 @@ export async function getProductStatistics(vendorId?: string) {
         _avg: { price: true },
       }),
       prisma.product.groupBy({
-        by: ['category'],
+        by: ['categoryId'],
         where,
-        _count: { category: true },
-        orderBy: { _count: { category: 'desc' } },
+        _count: { categoryId: true },
+        orderBy: { _count: { categoryId: 'desc' } },
         take: 5,
       }),
     ]);
@@ -923,10 +889,10 @@ export async function getProductStatistics(vendorId?: string) {
       outOfStockProducts,
       draftProducts: totalProducts - activeProducts,
       totalValue: totalValue._sum.price || 0,
-      avgPrice: avgPrice._avg.price || 0,
+      avgPrice: Number(avgPrice._avg.price) || 0,
       topCategories: topCategories.map(cat => ({
-        category: cat.category,
-        count: cat._count.category,
+        categoryId: cat.categoryId,
+        count: cat._count.categoryId,
       })),
     };
 
