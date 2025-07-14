@@ -52,12 +52,22 @@ export class PaymeService {
   private readonly secretKey: string;
   private readonly endpoint: string;
   private readonly testMode: boolean;
+  private readonly db: any; // PrismaClient from database service
 
   constructor() {
     this.merchantId = process.env.PAYME_MERCHANT_ID || '';
     this.secretKey = process.env.PAYME_SECRET_KEY || '';
     this.endpoint = process.env.PAYME_ENDPOINT || 'https://checkout.paycom.uz/api';
     this.testMode = process.env.NODE_ENV !== 'production';
+
+    // Initialize database connection
+    try {
+      const { db } = require('../../../../libs/shared/src/database/database.service');
+      this.db = db.getClient();
+    } catch (error) {
+      console.error('Failed to initialize database connection:', error);
+      throw new Error('Database connection required for payment service');
+    }
 
     if (!this.merchantId || !this.secretKey) {
       throw new Error('Payme payment gateway configuration is missing');
@@ -422,14 +432,45 @@ export class PaymeService {
    */
   private async verifyOrder(orderId: string, amount: number): Promise<boolean> {
     try {
-      // This would typically call the Order Service
       logger.info('Verifying order', { orderId, amount });
 
-      // TODO: Implement actual order verification
-      // const order = await orderService.getOrder(orderId);
-      // return order && order.amount === amount && order.status === 'pending';
+      // Real database order verification
+      const order = await this.db.order.findUnique({
+        where: { id: orderId },
+        select: {
+          id: true,
+          total: true,
+          status: true,
+          userId: true,
+        },
+      });
 
-      return true; // Temporary for development
+      if (!order) {
+        logger.warn('Order not found', { orderId });
+        return false;
+      }
+
+      if (order.status !== 'PENDING') {
+        logger.warn('Order status invalid for payment', { 
+          orderId, 
+          status: order.status 
+        });
+        return false;
+      }
+
+      // Convert amount from tiyin to sum for comparison
+      const orderAmountInTiyin = Math.round(order.total.toNumber() * 100);
+      
+      if (orderAmountInTiyin !== amount) {
+        logger.warn('Order amount mismatch', { 
+          orderId, 
+          expectedAmount: orderAmountInTiyin, 
+          receivedAmount: amount 
+        });
+        return false;
+      }
+
+      return true;
     } catch (error) {
       logger.error('Order verification failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -454,22 +495,41 @@ export class PaymeService {
     }>;
   }> {
     try {
-      // TODO: Get actual order details
       logger.info('Getting order details', { orderId });
 
-      return {
-        items: [
-          {
-            title: 'Order #' + orderId,
-            price: 100000, // Amount in tiyin
-            count: 1,
-            code: '123456789',
-            units: 796,
-            vat_percent: 12,
-            package_code: '123456',
+      // Get real order details from database
+      const order = await this.db.order.findUnique({
+        where: { id: orderId },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  name: true,
+                  sku: true,
+                },
+              },
+            },
           },
-        ],
-      };
+        },
+      });
+
+      if (!order) {
+        throw new Error(`Order ${orderId} not found`);
+      }
+
+      // Convert order items to Payme receipt format
+      const items = order.items.map((item: any, index: number) => ({
+        title: item.product.name || `Product ${item.productId}`,
+        price: Math.round(item.price.toNumber() * 100), // Convert to tiyin
+        count: item.quantity,
+        code: item.product.sku || `ITEM_${index + 1}`,
+        units: 796, // Standard unit code for "pieces"
+        vat_percent: 12, // Standard VAT in Uzbekistan
+        package_code: '123456', // Standard package code
+      }));
+
+      return { items };
     } catch (error) {
       logger.error('Failed to get order details', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -484,11 +544,33 @@ export class PaymeService {
    */
   private async storeTransaction(transaction: PaymeTransaction): Promise<PaymeTransaction> {
     try {
-      // TODO: Store in database
       logger.info('Storing Payme transaction', {
         transactionId: transaction.id,
         orderId: transaction.account.order_id,
         amount: transaction.amount,
+      });
+
+      // Store payment transaction in database
+      await this.db.payment.create({
+        data: {
+          id: transaction.id,
+          orderId: transaction.account.order_id,
+          amount: transaction.amount / 100, // Convert from tiyin to sum
+          currency: 'UZS',
+          provider: 'PAYME',
+          status: 'PENDING',
+          providerTransactionId: transaction.id,
+          metadata: {
+            payme_transaction: transaction,
+            create_time: transaction.create_time,
+            state: transaction.state,
+          },
+          createdAt: new Date(transaction.create_time),
+        },
+      });
+
+      logger.info('Transaction stored successfully', {
+        transactionId: transaction.id,
       });
 
       return transaction;
@@ -506,10 +588,37 @@ export class PaymeService {
    */
   private async getTransaction(transactionId: string): Promise<PaymeTransaction | null> {
     try {
-      // TODO: Get from database
       logger.info('Getting Payme transaction', { transactionId });
 
-      return null; // Temporary for development
+      // Get transaction from database
+      const payment = await this.db.payment.findUnique({
+        where: {
+          providerTransactionId: transactionId,
+          provider: 'PAYME',
+        },
+      });
+
+      if (!payment) {
+        logger.warn('Transaction not found', { transactionId });
+        return null;
+      }
+
+      // Convert database payment to PaymeTransaction format
+      const transaction: PaymeTransaction = {
+        id: transactionId,
+        time: payment.metadata?.payme_transaction?.time || payment.createdAt.getTime(),
+        amount: Math.round(payment.amount.toNumber() * 100), // Convert to tiyin
+        account: {
+          order_id: payment.orderId,
+        },
+        create_time: payment.metadata?.create_time || payment.createdAt.getTime(),
+        perform_time: payment.metadata?.perform_time,
+        cancel_time: payment.metadata?.cancel_time,
+        state: payment.metadata?.state || 1,
+        reason: payment.metadata?.reason,
+      };
+
+      return transaction;
     } catch (error) {
       logger.error('Failed to get transaction', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -527,10 +636,38 @@ export class PaymeService {
     updates: Partial<PaymeTransaction>
   ): Promise<void> {
     try {
-      // TODO: Update in database
       logger.info('Updating Payme transaction', {
         transactionId,
         updates,
+      });
+
+      // Update payment status based on transaction state
+      let paymentStatus = 'PENDING';
+      if (updates.perform_time) {
+        paymentStatus = 'COMPLETED';
+      } else if (updates.cancel_time) {
+        paymentStatus = 'CANCELLED';
+      }
+
+      // Update transaction in database
+      await this.db.payment.updateMany({
+        where: {
+          providerTransactionId: transactionId,
+          provider: 'PAYME',
+        },
+        data: {
+          status: paymentStatus,
+          metadata: {
+            update_time: Date.now(),
+            ...updates,
+          },
+          updatedAt: new Date(),
+        },
+      });
+
+      logger.info('Transaction updated successfully', {
+        transactionId,
+        status: paymentStatus,
       });
     } catch (error) {
       logger.error('Failed to update transaction', {
@@ -546,8 +683,52 @@ export class PaymeService {
    */
   private async completeOrder(orderId: string, amount: number): Promise<void> {
     try {
-      // TODO: Update order status, send notifications, etc.
       logger.info('Completing order', { orderId, amount });
+
+      // Update order status to PAID
+      const order = await this.db.order.update({
+        where: { id: orderId },
+        data: {
+          status: 'PAID',
+          paidAt: new Date(),
+          updatedAt: new Date(),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+            },
+          },
+        },
+      });
+
+      // Create notification for user
+      await this.db.notification.create({
+        data: {
+          userId: order.userId,
+          title: 'To\'lov muvaffaqiyatli amalga oshirildi',
+          message: `Buyurtma #${orderId} uchun to\'lov qabul qilindi. Summa: ${amount / 100} so'm`,
+          type: 'PAYMENT_SUCCESS',
+          isRead: false,
+        },
+      });
+
+      // Log successful payment
+      logger.info('Order completed successfully', {
+        orderId,
+        userId: order.userId,
+        amount: amount / 100,
+        userEmail: order.user.email,
+      });
+
+      // Here you could trigger other services:
+      // - Inventory service to update stock
+      // - Shipping service to create shipment
+      // - Email service to send confirmation
+      // - Analytics service for tracking
+
     } catch (error) {
       logger.error('Failed to complete order', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -562,8 +743,46 @@ export class PaymeService {
    */
   private async refundOrder(orderId: string, amount: number): Promise<void> {
     try {
-      // TODO: Handle refund logic
       logger.info('Refunding order', { orderId, amount });
+
+      // Update order status to CANCELLED
+      const order = await this.db.order.update({
+        where: { id: orderId },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: new Date(),
+          updatedAt: new Date(),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+            },
+          },
+        },
+      });
+
+      // Create notification for user
+      await this.db.notification.create({
+        data: {
+          userId: order.userId,
+          title: 'To\'lov bekor qilindi',
+          message: `Buyurtma #${orderId} uchun to\'lov bekor qilindi. Summa: ${amount / 100} so'm`,
+          type: 'PAYMENT_CANCELLED',
+          isRead: false,
+        },
+      });
+
+      // Log cancelled payment
+      logger.info('Order refunded successfully', {
+        orderId,
+        userId: order.userId,
+        amount: amount / 100,
+        userEmail: order.user.email,
+      });
+
     } catch (error) {
       logger.error('Failed to refund order', {
         error: error instanceof Error ? error.message : 'Unknown error',
