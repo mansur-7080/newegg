@@ -1,768 +1,1071 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import './UserProfilePage.css';
 
 interface UserProfile {
   id: string;
-  username: string;
-  fullName: string;
-  fullNameUz: string;
-  avatar: string;
-  coverImage: string;
-  location: string;
-  locationUz: string;
-  bio: string;
-  bioUz: string;
-  verified: boolean;
-  level: number;
-  experiencePoints: number;
-  nextLevelXP: number;
-  joinDate: Date;
-  lastActive: Date;
-  badges: Badge[];
-  stats: UserStats;
-  preferences: UserPreferences;
-}
-
-interface Badge {
-  id: string;
-  name: string;
-  nameUz: string;
-  description: string;
-  descriptionUz: string;
-  icon: string;
-  color: string;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
-  unlockedAt: Date;
-}
-
-interface UserStats {
-  totalBuilds: number;
-  publicBuilds: number;
-  totalLikes: number;
-  totalViews: number;
-  completedBuilds: number;
-  averageRating: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  dateOfBirth?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  avatar?: string;
+  isEmailVerified: boolean;
+  isPhoneVerified: boolean;
+  preferredLanguage: 'UZ' | 'RU' | 'EN';
+  preferredCurrency: 'UZS' | 'USD';
+  marketingOptIn: boolean;
+  twoFactorEnabled: boolean;
+  addresses: UserAddress[];
+  orderCount: number;
   totalSpent: number;
-  favoriteCategory: string;
-  buildingStreak: number;
-  helpfulReviews: number;
+  loyaltyPoints: number;
+  accountLevel: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
+  createdAt: string;
+  lastLoginAt?: string;
 }
 
-interface UserPreferences {
-  preferredBrands: string[];
-  budgetRange: [number, number];
-  primaryUseCase: string[];
-  notifications: {
-    priceDrops: boolean;
-    newProducts: boolean;
-    buildUpdates: boolean;
-    community: boolean;
-  };
-  privacy: {
-    showSpending: boolean;
-    showBuilds: boolean;
-    showActivity: boolean;
-  };
-}
-
-interface PCBuild {
+interface UserAddress {
   id: string;
-  name: string;
-  nameUz: string;
-  description: string;
-  descriptionUz: string;
-  thumbnail: string;
-  gallery: string[];
-  components: BuildComponent[];
-  totalPrice: number;
-  purpose: string[];
-  status: 'planning' | 'in-progress' | 'completed' | 'archived';
-  visibility: 'public' | 'private' | 'friends';
-  createdAt: Date;
-  updatedAt: Date;
-  likes: number;
-  views: number;
-  rating: number;
-  tags: string[];
-  performance: {
-    gaming4k: number;
-    productivity: number;
-    powerEfficiency: number;
-    quietness: number;
-  };
+  type: 'HOME' | 'WORK' | 'OTHER';
+  title: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  region: string;
+  district: string;
+  address: string;
+  postalCode?: string;
+  landmark?: string;
+  isDefault: boolean;
 }
 
-interface BuildComponent {
+interface Order {
   id: string;
-  category: string;
-  name: string;
-  brand: string;
-  model: string;
-  price: number;
-  image: string;
-  specs: any;
-  selected: boolean;
-  alternatives: string[];
+  orderNumber: string;
+  status: string;
+  total: number;
+  createdAt: string;
+  items: Array<{
+    id: string;
+    product: {
+      name: string;
+      image: string;
+    };
+    quantity: number;
+    price: number;
+  }>;
 }
 
 const UserProfilePage: React.FC = () => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [builds, setBuilds] = useState<PCBuild[]>([]);
-  const [activeTab, setActiveTab] = useState<
-    'overview' | 'builds' | 'activity' | 'achievements' | 'settings'
-  >('overview');
-  const [isOwnProfile, setIsOwnProfile] = useState(true);
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'profile' | 'addresses' | 'orders' | 'security' | 'preferences'>('profile');
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [showAddAddress, setShowAddAddress] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<UserAddress | null>(null);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+
+  // Form states
+  const [profileForm, setProfileForm] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    dateOfBirth: '',
+    gender: '',
+    preferredLanguage: 'UZ',
+    preferredCurrency: 'UZS',
+    marketingOptIn: false,
+  });
+
+  const [addressForm, setAddressForm] = useState({
+    type: 'HOME',
+    title: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    region: '',
+    district: '',
+    address: '',
+    postalCode: '',
+    landmark: '',
+    isDefault: false,
+  });
+
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+
+  const uzbekRegions = [
+    'Toshkent shahri',
+    'Toshkent viloyati',
+    'Samarqand',
+    'Buxoro',
+    'Andijon',
+    'Farg\'ona',
+    'Namangan',
+    'Qashqadaryo',
+    'Surxondaryo',
+    'Jizzax',
+    'Sirdaryo',
+    'Navoiy',
+    'Xorazm',
+    'Qoraqalpog\'iston',
+  ];
+
+  const accountLevelColors = {
+    BRONZE: '#cd7f32',
+    SILVER: '#c0c0c0',
+    GOLD: '#ffd700',
+    PLATINUM: '#e5e4e2',
+  };
+
+  const accountLevelTexts = {
+    BRONZE: 'Bronza',
+    SILVER: 'Kumush',
+    GOLD: 'Oltin',
+    PLATINUM: 'Platina',
+  };
 
   useEffect(() => {
-    loadUserProfile();
-    loadUserBuilds();
-  }, []);
+    fetchUserProfile();
+    if (activeTab === 'orders') {
+      fetchUserOrders();
+    }
+  }, [activeTab]);
 
-  const loadUserProfile = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (profile) {
+      setProfileForm({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        phone: profile.phone,
+        dateOfBirth: profile.dateOfBirth || '',
+        gender: profile.gender || '',
+        preferredLanguage: profile.preferredLanguage,
+        preferredCurrency: profile.preferredCurrency,
+        marketingOptIn: profile.marketingOptIn,
+      });
+    }
+  }, [profile]);
+
+  const fetchUserProfile = async () => {
     try {
-      // Mock data - in real app, fetch from API
-      const mockUser: UserProfile = {
-        id: 'user123',
-        username: 'TechMaster_UZ',
-        fullName: 'Anvar Karimov',
-        fullNameUz: 'Анвар Каримов',
-        avatar: '/images/users/anvar-avatar.jpg',
-        coverImage: '/images/users/anvar-cover.jpg',
-        location: 'Tashkent, Uzbekistan',
-        locationUz: "Toshkent, O'zbekiston",
-        bio: 'Professional PC builder and tech enthusiast. Specialized in gaming and workstation builds.',
-        bioUz:
-          'Professional PC builder va tech enthusiast. Gaming va workstation buildlarida mutaxassis.',
-        verified: true,
-        level: 15,
-        experiencePoints: 8750,
-        nextLevelXP: 10000,
-        joinDate: new Date('2022-05-15'),
-        lastActive: new Date(),
-        badges: [
-          {
-            id: 'master-builder',
-            name: 'Master Builder',
-            nameUz: 'Master Builder',
-            description: 'Built 25+ complete systems',
-            descriptionUz: "25+ to'liq sistema qurdi",
-            icon: '🏗️',
-            color: '#FFD700',
-            rarity: 'legendary',
-            unlockedAt: new Date('2023-08-20'),
-          },
-          {
-            id: 'tech-guru',
-            name: 'Tech Guru',
-            nameUz: 'Tech Guru',
-            description: 'Expert knowledge in all components',
-            descriptionUz: 'Barcha komponentlarda expert bilim',
-            icon: '🧠',
-            color: '#9966CC',
-            rarity: 'epic',
-            unlockedAt: new Date('2023-06-15'),
-          },
-          {
-            id: 'budget-master',
-            name: 'Budget Master',
-            nameUz: 'Byudjet Master',
-            description: 'Created 10 budget builds under $500',
-            descriptionUz: '$500 dan kam 10 ta byudjet build yaratdi',
-            icon: '💰',
-            color: '#32CD32',
-            rarity: 'rare',
-            unlockedAt: new Date('2023-03-10'),
-          },
-        ],
-        stats: {
-          totalBuilds: 28,
-          publicBuilds: 23,
-          totalLikes: 456,
-          totalViews: 12800,
-          completedBuilds: 18,
-          averageRating: 4.8,
-          totalSpent: 45000000, // UZS
-          favoriteCategory: 'Gaming',
-          buildingStreak: 7,
-          helpfulReviews: 34,
-        },
-        preferences: {
-          preferredBrands: ['NVIDIA', 'AMD', 'Intel', 'ASUS'],
-          budgetRange: [2000000, 15000000],
-          primaryUseCase: ['Gaming', 'Content Creation'],
-          notifications: {
-            priceDrops: true,
-            newProducts: true,
-            buildUpdates: true,
-            community: false,
-          },
-          privacy: {
-            showSpending: false,
-            showBuilds: true,
-            showActivity: true,
-          },
-        },
-      };
+      setLoading(true);
+      setError(null);
 
-      setUser(mockUser);
-    } catch (error) {
-      console.error('Error loading user profile:', error);
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      const response = await fetch('/api/v1/user/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          navigate('/login');
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setProfile(data.data.profile);
+      } else {
+        throw new Error(data.message || 'Failed to fetch profile');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load profile');
+      console.error('Error fetching profile:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadUserBuilds = async () => {
+  const fetchUserOrders = async () => {
     try {
-      // Mock data
-      const mockBuilds: PCBuild[] = [
-        {
-          id: 'build1',
-          name: 'Ultimate Gaming Beast 2024',
-          nameUz: 'Ultimate Gaming Beast 2024',
-          description: 'High-end gaming build for 4K gaming and streaming',
-          descriptionUz: '4K gaming va streaming uchun high-end gaming build',
-          thumbnail: '/images/builds/gaming-beast-thumb.jpg',
-          gallery: [
-            '/images/builds/gaming-beast-1.jpg',
-            '/images/builds/gaming-beast-2.jpg',
-            '/images/builds/gaming-beast-3.jpg',
-          ],
-          components: [
-            {
-              id: 'cpu1',
-              category: 'CPU',
-              name: 'AMD Ryzen 9 7950X',
-              brand: 'AMD',
-              model: '7950X',
-              price: 8500000,
-              image: '/images/components/ryzen-7950x.jpg',
-              specs: { cores: 16, threads: 32, baseClock: '4.5 GHz', boostClock: '5.7 GHz' },
-              selected: true,
-              alternatives: ['intel-i9-13900k', 'amd-7900x'],
-            },
-            {
-              id: 'gpu1',
-              category: 'GPU',
-              name: 'NVIDIA RTX 4090',
-              brand: 'NVIDIA',
-              model: 'RTX 4090',
-              price: 22000000,
-              image: '/images/components/rtx-4090.jpg',
-              specs: { memory: '24GB GDDR6X', coreClock: '2230 MHz', boost: '2520 MHz' },
-              selected: true,
-              alternatives: ['rtx-4080', 'amd-7900xtx'],
-            },
-          ],
-          totalPrice: 45000000,
-          purpose: ['4K Gaming', 'Streaming', 'Content Creation'],
-          status: 'completed',
-          visibility: 'public',
-          createdAt: new Date('2024-01-10'),
-          updatedAt: new Date('2024-01-15'),
-          likes: 89,
-          views: 1250,
-          rating: 4.9,
-          tags: ['High-End', '4K Gaming', 'RGB'],
-          performance: {
-            gaming4k: 95,
-            productivity: 88,
-            powerEfficiency: 70,
-            quietness: 75,
-          },
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/v1/user/orders?limit=10', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        {
-          id: 'build2',
-          name: 'Budget Gaming Starter',
-          nameUz: 'Budget Gaming Starter',
-          description: 'Affordable 1080p gaming build for beginners',
-          descriptionUz: 'Yangi boshlovchilar uchun arzon 1080p gaming build',
-          thumbnail: '/images/builds/budget-starter-thumb.jpg',
-          gallery: ['/images/builds/budget-starter-1.jpg'],
-          components: [],
-          totalPrice: 6500000,
-          purpose: ['1080p Gaming', 'eSports'],
-          status: 'planning',
-          visibility: 'public',
-          createdAt: new Date('2024-01-20'),
-          updatedAt: new Date('2024-01-22'),
-          likes: 45,
-          views: 680,
-          rating: 4.6,
-          tags: ['Budget', '1080p', 'eSports'],
-          performance: {
-            gaming4k: 40,
-            productivity: 65,
-            powerEfficiency: 85,
-            quietness: 90,
-          },
-        },
-      ];
+      });
 
-      setBuilds(mockBuilds);
-    } catch (error) {
-      console.error('Error loading user builds:', error);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setOrders(data.data.orders);
+      }
+    } catch (err) {
+      console.error('Error fetching orders:', err);
     }
+  };
+
+  const updateProfile = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/v1/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profileForm),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setProfile(data.data.profile);
+        alert('Profil muvaffaqiyatli yangilandi');
+      } else {
+        throw new Error(data.message || 'Failed to update profile');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update profile');
+      console.error('Error updating profile:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveAddress = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+
+      const token = localStorage.getItem('authToken');
+      const isEditing = !!editingAddress;
+      const url = isEditing 
+        ? `/api/v1/user/addresses/${editingAddress.id}`
+        : '/api/v1/user/addresses';
+      
+      const response = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(addressForm),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        await fetchUserProfile(); // Refresh profile to get updated addresses
+        setShowAddAddress(false);
+        setEditingAddress(null);
+        resetAddressForm();
+        alert(isEditing ? 'Manzil yangilandi' : 'Manzil qo\'shildi');
+      } else {
+        throw new Error(data.message || 'Failed to save address');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save address');
+      console.error('Error saving address:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteAddress = async (addressId: string) => {
+    const confirmed = window.confirm('Bu manzilni o\'chirmoqchimisiz?');
+    if (!confirmed) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/v1/user/addresses/${addressId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        await fetchUserProfile(); // Refresh profile
+        alert('Manzil o\'chirildi');
+      } else {
+        throw new Error(data.message || 'Failed to delete address');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete address');
+      console.error('Error deleting address:', err);
+    }
+  };
+
+  const changePassword = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setError('Yangi parol va tasdiqlash bir xil emas');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      setError('Parol kamida 8 ta belgi bo\'lishi kerak');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/v1/user/change-password', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(passwordForm),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setShowChangePassword(false);
+        alert('Parol muvaffaqiyatli o\'zgartirildi');
+      } else {
+        throw new Error(data.message || 'Failed to change password');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to change password');
+      console.error('Error changing password:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const editAddress = (address: UserAddress) => {
+    setEditingAddress(address);
+    setAddressForm({
+      type: address.type,
+      title: address.title,
+      firstName: address.firstName,
+      lastName: address.lastName,
+      phone: address.phone,
+      region: address.region,
+      district: address.district,
+      address: address.address,
+      postalCode: address.postalCode || '',
+      landmark: address.landmark || '',
+      isDefault: address.isDefault,
+    });
+    setShowAddAddress(true);
+  };
+
+  const resetAddressForm = () => {
+    setAddressForm({
+      type: 'HOME',
+      title: '',
+      firstName: '',
+      lastName: '',
+      phone: '',
+      region: '',
+      district: '',
+      address: '',
+      postalCode: '',
+      landmark: '',
+      isDefault: false,
+    });
   };
 
   const formatPrice = (price: number) => {
-    if (price >= 1000000) {
-      return `${(price / 1000000).toFixed(1)}M so'm`;
-    }
-    if (price >= 1000) {
-      return `${(price / 1000).toFixed(0)}K so'm`;
-    }
-    return `${price} so'm`;
+    return new Intl.NumberFormat('uz-UZ').format(price) + ' so\'m';
   };
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('uz-UZ', {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('uz-UZ', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-    }).format(date);
+    });
   };
 
-  const getProgressPercentage = () => {
-    if (!user) return 0;
-    return (user.experiencePoints / user.nextLevelXP) * 100;
+  const getStatusText = (status: string) => {
+    const statusTexts: { [key: string]: string } = {
+      PENDING: 'Kutilmoqda',
+      CONFIRMED: 'Tasdiqlangan',
+      PROCESSING: 'Tayyorlanmoqda',
+      SHIPPED: 'Jo\'natilgan',
+      DELIVERED: 'Yetkazilgan',
+      CANCELLED: 'Bekor qilingan',
+      RETURNED: 'Qaytarilgan',
+    };
+    return statusTexts[status] || status;
   };
 
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'legendary':
-        return '#FFD700';
-      case 'epic':
-        return '#9966CC';
-      case 'rare':
-        return '#0099FF';
-      default:
-        return '#888888';
-    }
+  const getStatusColor = (status: string) => {
+    const statusColors: { [key: string]: string } = {
+      PENDING: '#f59e0b',
+      CONFIRMED: '#3b82f6',
+      PROCESSING: '#8b5cf6',
+      SHIPPED: '#06b6d4',
+      DELIVERED: '#10b981',
+      CANCELLED: '#ef4444',
+      RETURNED: '#f97316',
+    };
+    return statusColors[status] || '#6b7280';
   };
 
   if (loading) {
     return (
-      <div className="profile-loading">
-        <div className="loading-spinner"></div>
-        <p>Profil yuklanmoqda...</p>
+      <div className="profile-page">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Profil yuklanmoqda...</p>
+        </div>
       </div>
     );
   }
 
-  if (!user) {
+  if (!profile) {
     return (
-      <div className="profile-error">
-        <h2>Foydalanuvchi topilmadi</h2>
-        <p>Kechirasiz, ushbu profil mavjud emas.</p>
+      <div className="profile-page">
+        <div className="error-container">
+          <h2>Profil topilmadi</h2>
+          <button onClick={() => navigate('/login')} className="login-button">
+            Qayta kirish
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="user-profile-page">
-      {/* Profile Header */}
+    <div className="profile-page">
       <div className="profile-header">
-        <div className="cover-image">
-          <img src={user.coverImage} alt="Cover" />
-          <div className="cover-overlay"></div>
+        <div className="profile-avatar">
+          {profile.avatar ? (
+            <img src={profile.avatar} alt="Avatar" />
+          ) : (
+            <div className="avatar-placeholder">
+              {profile.firstName.charAt(0)}{profile.lastName.charAt(0)}
+            </div>
+          )}
         </div>
-
         <div className="profile-info">
-          <div className="container">
-            <div className="profile-main">
-              <div className="avatar-section">
-                <img src={user.avatar} alt={user.fullName} className="avatar" />
-                {user.verified && <span className="verified-badge">✓</span>}
-              </div>
-
-              <div className="user-details">
-                <h1>
-                  {user.fullNameUz}
-                  <span className="username">@{user.username}</span>
-                </h1>
-                <p className="location">📍 {user.locationUz}</p>
-                <p className="bio">{user.bioUz}</p>
-
-                <div className="user-meta">
-                  <span>📅 {formatDate(user.joinDate)} dan beri</span>
-                  <span>⚡ Oxirgi faollik: {formatDate(user.lastActive)}</span>
-                </div>
-              </div>
-
-              <div className="level-section">
-                <div className="level-badge">
-                  <span className="level-number">{user.level}</span>
-                  <span className="level-text">Level</span>
-                </div>
-                <div className="xp-progress">
-                  <div className="xp-bar">
-                    <div className="xp-fill" style={{ width: `${getProgressPercentage()}%` }}></div>
-                  </div>
-                  <span className="xp-text">
-                    {user.experiencePoints} / {user.nextLevelXP} XP
-                  </span>
-                </div>
-              </div>
+          <h1>{profile.firstName} {profile.lastName}</h1>
+          <div className="profile-stats">
+            <div className="stat">
+              <span className="stat-label">Darajangiz:</span>
+              <span 
+                className="account-level"
+                style={{ color: accountLevelColors[profile.accountLevel] }}
+              >
+                {accountLevelTexts[profile.accountLevel]}
+              </span>
+            </div>
+            <div className="stat">
+              <span className="stat-label">Bonuslar:</span>
+              <span className="stat-value">{profile.loyaltyPoints.toLocaleString()} ball</span>
+            </div>
+            <div className="stat">
+              <span className="stat-label">Buyurtmalar:</span>
+              <span className="stat-value">{profile.orderCount} ta</span>
+            </div>
+            <div className="stat">
+              <span className="stat-label">Jami xarid:</span>
+              <span className="stat-value">{formatPrice(profile.totalSpent)}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="profile-nav">
-        <div className="container">
-          <div className="nav-tabs">
-            <button
-              className={`nav-tab ${activeTab === 'overview' ? 'active' : ''}`}
-              onClick={() => setActiveTab('overview')}
-            >
-              📊 Umumiy
-            </button>
-            <button
-              className={`nav-tab ${activeTab === 'builds' ? 'active' : ''}`}
-              onClick={() => setActiveTab('builds')}
-            >
-              🖥️ Buildlar ({user.stats.publicBuilds})
-            </button>
-            <button
-              className={`nav-tab ${activeTab === 'achievements' ? 'active' : ''}`}
-              onClick={() => setActiveTab('achievements')}
-            >
-              🏆 Yutuqlar ({user.badges.length})
-            </button>
-            <button
-              className={`nav-tab ${activeTab === 'activity' ? 'active' : ''}`}
-              onClick={() => setActiveTab('activity')}
-            >
-              📈 Faollik
-            </button>
-            {isOwnProfile && (
-              <button
-                className={`nav-tab ${activeTab === 'settings' ? 'active' : ''}`}
-                onClick={() => setActiveTab('settings')}
-              >
-                ⚙️ Sozlamalar
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Profile Content */}
       <div className="profile-content">
-        <div className="container">
-          {activeTab === 'overview' && (
-            <div className="overview-tab">
-              <div className="overview-grid">
-                {/* Stats Cards */}
-                <div className="stats-section">
-                  <h3>📊 Statistika</h3>
-                  <div className="stats-grid">
-                    <div className="stat-card">
-                      <span className="stat-icon">🏗️</span>
-                      <div className="stat-content">
-                        <span className="stat-number">{user.stats.totalBuilds}</span>
-                        <span className="stat-label">Jami buildlar</span>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <span className="stat-icon">❤️</span>
-                      <div className="stat-content">
-                        <span className="stat-number">{user.stats.totalLikes}</span>
-                        <span className="stat-label">Yoqishlar</span>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <span className="stat-icon">👁️</span>
-                      <div className="stat-content">
-                        <span className="stat-number">
-                          {user.stats.totalViews.toLocaleString()}
-                        </span>
-                        <span className="stat-label">Ko'rishlar</span>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <span className="stat-icon">⭐</span>
-                      <div className="stat-content">
-                        <span className="stat-number">{user.stats.averageRating}</span>
-                        <span className="stat-label">O'rtacha reyting</span>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <span className="stat-icon">🔥</span>
-                      <div className="stat-content">
-                        <span className="stat-number">{user.stats.buildingStreak}</span>
-                        <span className="stat-label">Kun ketma-ket</span>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <span className="stat-icon">🎮</span>
-                      <div className="stat-content">
-                        <span className="stat-number">{user.stats.favoriteCategory}</span>
-                        <span className="stat-label">Sevimli kategoriya</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+        <div className="profile-tabs">
+          <button
+            className={`tab ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => setActiveTab('profile')}
+          >
+            Shaxsiy ma'lumotlar
+          </button>
+          <button
+            className={`tab ${activeTab === 'addresses' ? 'active' : ''}`}
+            onClick={() => setActiveTab('addresses')}
+          >
+            Manzillarim
+          </button>
+          <button
+            className={`tab ${activeTab === 'orders' ? 'active' : ''}`}
+            onClick={() => setActiveTab('orders')}
+          >
+            Buyurtmalarim
+          </button>
+          <button
+            className={`tab ${activeTab === 'security' ? 'active' : ''}`}
+            onClick={() => setActiveTab('security')}
+          >
+            Xavfsizlik
+          </button>
+          <button
+            className={`tab ${activeTab === 'preferences' ? 'active' : ''}`}
+            onClick={() => setActiveTab('preferences')}
+          >
+            Sozlamalar
+          </button>
+        </div>
 
-                {/* Recent Builds */}
-                <div className="recent-builds">
-                  <h3>🖥️ So'nggi Buildlar</h3>
-                  <div className="builds-preview">
-                    {builds.slice(0, 3).map((build) => (
-                      <div key={build.id} className="build-preview-card">
-                        <img src={build.thumbnail} alt={build.name} />
-                        <div className="build-preview-content">
-                          <h4>{build.nameUz}</h4>
-                          <p>{formatPrice(build.totalPrice)}</p>
-                          <div className="build-meta">
-                            <span>❤️ {build.likes}</span>
-                            <span>👁️ {build.views}</span>
-                            <span className={`status ${build.status}`}>
-                              {build.status === 'completed'
-                                ? '✅ Tugallangan'
-                                : build.status === 'in-progress'
-                                  ? '🔄 Jarayonda'
-                                  : '📝 Rejalashtirilgan'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <Link to="/profile/builds" className="view-all-builds">
-                    Barcha buildlarni ko'rish →
-                  </Link>
+        <div className="tab-content">
+          {activeTab === 'profile' && (
+            <div className="profile-form">
+              <h3>Shaxsiy ma'lumotlar</h3>
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Ism *</label>
+                  <input
+                    type="text"
+                    value={profileForm.firstName}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, firstName: e.target.value }))}
+                    placeholder="Ismingizni kiriting"
+                  />
                 </div>
-
-                {/* Recent Badges */}
-                <div className="recent-badges">
-                  <h3>🏆 So'nggi Yutuqlar</h3>
-                  <div className="badges-preview">
-                    {user.badges.slice(0, 4).map((badge) => (
-                      <div
-                        key={badge.id}
-                        className="badge-card"
-                        style={{ borderColor: getRarityColor(badge.rarity) }}
-                      >
-                        <span className="badge-icon">{badge.icon}</span>
-                        <div className="badge-content">
-                          <h4>{badge.nameUz}</h4>
-                          <p>{badge.descriptionUz}</p>
-                          <span className="badge-date">{formatDate(badge.unlockedAt)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="form-group">
+                  <label>Familiya *</label>
+                  <input
+                    type="text"
+                    value={profileForm.lastName}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, lastName: e.target.value }))}
+                    placeholder="Familiyangizni kiriting"
+                  />
                 </div>
               </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Telefon raqam *</label>
+                  <input
+                    type="tel"
+                    value={profileForm.phone}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="+998 90 123 45 67"
+                  />
+                  {!profile.isPhoneVerified && (
+                    <span className="verification-status unverified">Tasdiqlanmagan</span>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={profile.email}
+                    disabled
+                    className="disabled"
+                  />
+                  {profile.isEmailVerified ? (
+                    <span className="verification-status verified">✅ Tasdiqlangan</span>
+                  ) : (
+                    <span className="verification-status unverified">Tasdiqlanmagan</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Tug'ilgan sana</label>
+                  <input
+                    type="date"
+                    value={profileForm.dateOfBirth}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Jins</label>
+                  <select
+                    value={profileForm.gender}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, gender: e.target.value }))}
+                  >
+                    <option value="">Tanlang</option>
+                    <option value="MALE">Erkak</option>
+                    <option value="FEMALE">Ayol</option>
+                    <option value="OTHER">Boshqa</option>
+                  </select>
+                </div>
+              </div>
+
+              {error && (
+                <div className="error-message">
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={updateProfile}
+                disabled={saving}
+                className="save-button"
+              >
+                {saving ? 'Saqlanmoqda...' : 'O\'zgarishlarni saqlash'}
+              </button>
             </div>
           )}
 
-          {activeTab === 'builds' && (
-            <div className="builds-tab">
-              <div className="builds-header">
-                <h3>🖥️ Mening Buildlarim</h3>
-                {isOwnProfile && (
-                  <Link to="/pc-builder" className="new-build-btn">
-                    + Yangi Build
-                  </Link>
+          {activeTab === 'addresses' && (
+            <div className="addresses-section">
+              <div className="section-header">
+                <h3>Manzillarim</h3>
+                <button
+                  onClick={() => {
+                    resetAddressForm();
+                    setEditingAddress(null);
+                    setShowAddAddress(true);
+                  }}
+                  className="add-address-button"
+                >
+                  + Manzil qo'shish
+                </button>
+              </div>
+
+              <div className="addresses-grid">
+                {profile.addresses.map(address => (
+                  <div key={address.id} className={`address-card ${address.isDefault ? 'default' : ''}`}>
+                    <div className="address-header">
+                      <h4>{address.title}</h4>
+                      {address.isDefault && <span className="default-badge">Asosiy</span>}
+                    </div>
+                    <div className="address-details">
+                      <p>{address.firstName} {address.lastName}</p>
+                      <p>{address.phone}</p>
+                      <p>{address.region}, {address.district}</p>
+                      <p>{address.address}</p>
+                      {address.landmark && <p>Mo'ljal: {address.landmark}</p>}
+                    </div>
+                    <div className="address-actions">
+                      <button onClick={() => editAddress(address)} className="edit-button">
+                        Tahrirlash
+                      </button>
+                      <button
+                        onClick={() => deleteAddress(address.id)}
+                        className="delete-button"
+                        disabled={profile.addresses.length === 1}
+                      >
+                        O'chirish
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {showAddAddress && (
+                <div className="modal-overlay" onClick={() => setShowAddAddress(false)}>
+                  <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <h3>{editingAddress ? 'Manzilni tahrirlash' : 'Yangi manzil qo\'shish'}</h3>
+                      <button onClick={() => setShowAddAddress(false)} className="close-button">✕</button>
+                    </div>
+
+                    <div className="address-form">
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Turi *</label>
+                          <select
+                            value={addressForm.type}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, type: e.target.value as any }))}
+                          >
+                            <option value="HOME">Uy</option>
+                            <option value="WORK">Ish</option>
+                            <option value="OTHER">Boshqa</option>
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Sarlavha *</label>
+                          <input
+                            type="text"
+                            value={addressForm.title}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, title: e.target.value }))}
+                            placeholder="Masalan: Uyim, Ishim"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Ism *</label>
+                          <input
+                            type="text"
+                            value={addressForm.firstName}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, firstName: e.target.value }))}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Familiya *</label>
+                          <input
+                            type="text"
+                            value={addressForm.lastName}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, lastName: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Telefon *</label>
+                        <input
+                          type="tel"
+                          value={addressForm.phone}
+                          onChange={(e) => setAddressForm(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="+998 90 123 45 67"
+                        />
+                      </div>
+
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Viloyat *</label>
+                          <select
+                            value={addressForm.region}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, region: e.target.value }))}
+                          >
+                            <option value="">Viloyatni tanlang</option>
+                            {uzbekRegions.map(region => (
+                              <option key={region} value={region}>{region}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Tuman/Shahar *</label>
+                          <input
+                            type="text"
+                            value={addressForm.district}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, district: e.target.value }))}
+                            placeholder="Tuman yoki shahar"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label>To'liq manzil *</label>
+                        <input
+                          type="text"
+                          value={addressForm.address}
+                          onChange={(e) => setAddressForm(prev => ({ ...prev, address: e.target.value }))}
+                          placeholder="Ko'cha, uy raqami, kvartira"
+                        />
+                      </div>
+
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Pochta indeksi</label>
+                          <input
+                            type="text"
+                            value={addressForm.postalCode}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, postalCode: e.target.value }))}
+                            placeholder="100000"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Mo'ljal</label>
+                          <input
+                            type="text"
+                            value={addressForm.landmark}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, landmark: e.target.value }))}
+                            placeholder="Yaqin atrofdagi mashhur joy"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={addressForm.isDefault}
+                            onChange={(e) => setAddressForm(prev => ({ ...prev, isDefault: e.target.checked }))}
+                          />
+                          <span>Asosiy manzil sifatida belgilash</span>
+                        </label>
+                      </div>
+
+                      {error && (
+                        <div className="error-message">
+                          {error}
+                        </div>
+                      )}
+
+                      <div className="modal-actions">
+                        <button
+                          onClick={() => setShowAddAddress(false)}
+                          className="cancel-button"
+                        >
+                          Bekor qilish
+                        </button>
+                        <button
+                          onClick={saveAddress}
+                          disabled={saving}
+                          className="save-button"
+                        >
+                          {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'orders' && (
+            <div className="orders-section">
+              <div className="section-header">
+                <h3>Buyurtmalarim</h3>
+                <button onClick={() => navigate('/orders')} className="view-all-button">
+                  Barcha buyurtmalarni ko'rish
+                </button>
+              </div>
+
+              <div className="orders-list">
+                {orders.length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-icon">📦</div>
+                    <h4>Hozircha buyurtma yo'q</h4>
+                    <p>Birinchi buyurtmangizni bering!</p>
+                    <button onClick={() => navigate('/products')} className="shop-button">
+                      Xarid qilish
+                    </button>
+                  </div>
+                ) : (
+                  orders.map(order => (
+                    <div key={order.id} className="order-card">
+                      <div className="order-header">
+                        <div className="order-number">#{order.orderNumber}</div>
+                        <div
+                          className="order-status"
+                          style={{ color: getStatusColor(order.status) }}
+                        >
+                          {getStatusText(order.status)}
+                        </div>
+                      </div>
+                      <div className="order-details">
+                        <div className="order-items">
+                          {order.items.slice(0, 3).map(item => (
+                            <div key={item.id} className="order-item">
+                              <img src={item.product.image} alt={item.product.name} />
+                              <span>{item.quantity}x</span>
+                            </div>
+                          ))}
+                          {order.items.length > 3 && (
+                            <div className="more-items">+{order.items.length - 3}</div>
+                          )}
+                        </div>
+                        <div className="order-info">
+                          <div className="order-total">{formatPrice(order.total)}</div>
+                          <div className="order-date">{formatDate(order.createdAt)}</div>
+                        </div>
+                      </div>
+                      <div className="order-actions">
+                        <button onClick={() => navigate(`/order/${order.id}`)} className="view-order-button">
+                          Batafsil ko'rish
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
-
-              <div className="builds-grid">
-                {builds.map((build) => (
-                  <div key={build.id} className="build-card">
-                    <div className="build-image">
-                      <img src={build.thumbnail} alt={build.name} />
-                      <div className="build-overlay">
-                        <div className="build-actions">
-                          <button className="action-btn">👁️ Ko'rish</button>
-                          <button className="action-btn">❤️ {build.likes}</button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="build-content">
-                      <h4>{build.nameUz}</h4>
-                      <p>{build.descriptionUz}</p>
-
-                      <div className="build-tags">
-                        {build.tags.map((tag) => (
-                          <span key={tag} className="build-tag">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-
-                      <div className="build-performance">
-                        <div className="performance-bar">
-                          <span>🎮 Gaming</span>
-                          <div
-                            className="performance-fill"
-                            style={{ width: `${build.performance.gaming4k}%` }}
-                          ></div>
-                          <span>{build.performance.gaming4k}%</span>
-                        </div>
-                        <div className="performance-bar">
-                          <span>💼 Productivity</span>
-                          <div
-                            className="performance-fill"
-                            style={{ width: `${build.performance.productivity}%` }}
-                          ></div>
-                          <span>{build.performance.productivity}%</span>
-                        </div>
-                      </div>
-
-                      <div className="build-footer">
-                        <span className="build-price">{formatPrice(build.totalPrice)}</span>
-                        <span className="build-rating">⭐ {build.rating}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 
-          {activeTab === 'achievements' && (
-            <div className="achievements-tab">
-              <h3>🏆 Yutuqlar va Badgelar</h3>
-              <div className="achievements-grid">
-                {user.badges.map((badge) => (
-                  <div
-                    key={badge.id}
-                    className="achievement-card"
-                    style={{ borderColor: getRarityColor(badge.rarity) }}
+          {activeTab === 'security' && (
+            <div className="security-section">
+              <h3>Xavfsizlik sozlamalari</h3>
+
+              <div className="security-settings">
+                <div className="security-item">
+                  <div className="security-info">
+                    <h4>Parolni o'zgartirish</h4>
+                    <p>Hisobingizni himoya qilish uchun muntazam ravishda parolni o'zgartiring</p>
+                  </div>
+                  <button
+                    onClick={() => setShowChangePassword(true)}
+                    className="security-button"
                   >
-                    <div
-                      className="achievement-icon"
-                      style={{ backgroundColor: getRarityColor(badge.rarity) }}
-                    >
-                      {badge.icon}
+                    Parolni o'zgartirish
+                  </button>
+                </div>
+
+                <div className="security-item">
+                  <div className="security-info">
+                    <h4>Ikki bosqichli autentifikatsiya</h4>
+                    <p>Qo'shimcha xavfsizlik qatlami qo'shing</p>
+                  </div>
+                  <button
+                    className={`security-button ${profile.twoFactorEnabled ? 'enabled' : ''}`}
+                    disabled
+                  >
+                    {profile.twoFactorEnabled ? 'Yoqilgan' : 'O\'chiriq'} (Tez orada)
+                  </button>
+                </div>
+
+                <div className="security-item">
+                  <div className="security-info">
+                    <h4>Login tarixi</h4>
+                    <p>Hisobga kirgan tarixni ko'ring</p>
+                    {profile.lastLoginAt && (
+                      <small>Oxirgi kirish: {formatDate(profile.lastLoginAt)}</small>
+                    )}
+                  </div>
+                  <button className="security-button" disabled>
+                    Ko'rish (Tez orada)
+                  </button>
+                </div>
+              </div>
+
+              {showChangePassword && (
+                <div className="modal-overlay" onClick={() => setShowChangePassword(false)}>
+                  <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <h3>Parolni o'zgartirish</h3>
+                      <button onClick={() => setShowChangePassword(false)} className="close-button">✕</button>
                     </div>
-                    <div className="achievement-content">
-                      <h4>{badge.nameUz}</h4>
-                      <p>{badge.descriptionUz}</p>
-                      <div className="achievement-meta">
-                        <span className={`rarity ${badge.rarity}`}>{badge.rarity}</span>
-                        <span className="unlock-date">{formatDate(badge.unlockedAt)}</span>
+
+                    <div className="password-form">
+                      <div className="form-group">
+                        <label>Joriy parol *</label>
+                        <input
+                          type="password"
+                          value={passwordForm.currentPassword}
+                          onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                          placeholder="Joriy parolingizni kiriting"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Yangi parol *</label>
+                        <input
+                          type="password"
+                          value={passwordForm.newPassword}
+                          onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                          placeholder="Yangi parolni kiriting"
+                        />
+                        <small>Kamida 8 ta belgi, katta va kichik harflar, raqam bo'lishi kerak</small>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Yangi parolni tasdiqlang *</label>
+                        <input
+                          type="password"
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          placeholder="Yangi parolni qayta kiriting"
+                        />
+                      </div>
+
+                      {error && (
+                        <div className="error-message">
+                          {error}
+                        </div>
+                      )}
+
+                      <div className="modal-actions">
+                        <button
+                          onClick={() => setShowChangePassword(false)}
+                          className="cancel-button"
+                        >
+                          Bekor qilish
+                        </button>
+                        <button
+                          onClick={changePassword}
+                          disabled={saving}
+                          className="save-button"
+                        >
+                          {saving ? 'O\'zgartirilmoqda...' : 'Parolni o\'zgartirish'}
+                        </button>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
-          {activeTab === 'activity' && (
-            <div className="activity-tab">
-              <h3>📈 Faollik Tarixi</h3>
-              <div className="activity-timeline">
-                <div className="activity-item">
-                  <div className="activity-icon">🏗️</div>
-                  <div className="activity-content">
-                    <h4>Yangi build yaratildi</h4>
-                    <p>"Ultimate Gaming Beast 2024" build ommaga e'lon qilindi</p>
-                    <span className="activity-time">2 soat oldin</span>
-                  </div>
-                </div>
-                <div className="activity-item">
-                  <div className="activity-icon">🏆</div>
-                  <div className="activity-content">
-                    <h4>Yangi badge olindi</h4>
-                    <p>"Master Builder" badge olindi</p>
-                    <span className="activity-time">1 kun oldin</span>
-                  </div>
-                </div>
-                <div className="activity-item">
-                  <div className="activity-icon">❤️</div>
-                  <div className="activity-content">
-                    <h4>Build yoqtirildi</h4>
-                    <p>"Budget Gaming Starter" build 50 ta like oldi</p>
-                    <span className="activity-time">3 kun oldin</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {activeTab === 'preferences' && (
+            <div className="preferences-section">
+              <h3>Sozlamalar</h3>
 
-          {activeTab === 'settings' && isOwnProfile && (
-            <div className="settings-tab">
-              <h3>⚙️ Profil Sozlamalari</h3>
-              <div className="settings-sections">
-                <div className="settings-section">
-                  <h4>👤 Shaxsiy Ma'lumotlar</h4>
-                  <form className="settings-form">
-                    <div className="form-group">
-                      <label>To'liq ism</label>
-                      <input type="text" defaultValue={user.fullNameUz} />
-                    </div>
-                    <div className="form-group">
-                      <label>Bio</label>
-                      <textarea defaultValue={user.bioUz}></textarea>
-                    </div>
-                    <div className="form-group">
-                      <label>Joylashuv</label>
-                      <input type="text" defaultValue={user.locationUz} />
-                    </div>
-                  </form>
+              <div className="preferences-form">
+                <div className="form-group">
+                  <label>Til</label>
+                  <select
+                    value={profileForm.preferredLanguage}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, preferredLanguage: e.target.value as any }))}
+                  >
+                    <option value="UZ">O'zbek tili</option>
+                    <option value="RU">Русский язык</option>
+                    <option value="EN">English</option>
+                  </select>
                 </div>
 
-                <div className="settings-section">
-                  <h4>🔔 Bildirishnomalar</h4>
-                  <div className="toggle-settings">
-                    <div className="toggle-item">
-                      <span>Narx tushishi</span>
-                      <input
-                        type="checkbox"
-                        defaultChecked={user.preferences.notifications.priceDrops}
-                      />
-                    </div>
-                    <div className="toggle-item">
-                      <span>Yangi mahsulotlar</span>
-                      <input
-                        type="checkbox"
-                        defaultChecked={user.preferences.notifications.newProducts}
-                      />
-                    </div>
-                    <div className="toggle-item">
-                      <span>Build yangilanishlari</span>
-                      <input
-                        type="checkbox"
-                        defaultChecked={user.preferences.notifications.buildUpdates}
-                      />
-                    </div>
-                  </div>
+                <div className="form-group">
+                  <label>Valyuta</label>
+                  <select
+                    value={profileForm.preferredCurrency}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, preferredCurrency: e.target.value as any }))}
+                  >
+                    <option value="UZS">O'zbek so'mi (UZS)</option>
+                    <option value="USD">US Dollar (USD)</option>
+                  </select>
                 </div>
 
-                <div className="settings-section">
-                  <h4>🔒 Maxfiylik</h4>
-                  <div className="toggle-settings">
-                    <div className="toggle-item">
-                      <span>Xarajatlarni ko'rsatish</span>
-                      <input
-                        type="checkbox"
-                        defaultChecked={user.preferences.privacy.showSpending}
-                      />
-                    </div>
-                    <div className="toggle-item">
-                      <span>Buildlarni ko'rsatish</span>
-                      <input type="checkbox" defaultChecked={user.preferences.privacy.showBuilds} />
-                    </div>
-                    <div className="toggle-item">
-                      <span>Faollikni ko'rsatish</span>
-                      <input
-                        type="checkbox"
-                        defaultChecked={user.preferences.privacy.showActivity}
-                      />
-                    </div>
-                  </div>
+                <div className="form-group">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={profileForm.marketingOptIn}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, marketingOptIn: e.target.checked }))}
+                    />
+                    <span>Marketing xabarlarini olish</span>
+                  </label>
+                  <small>Yangi mahsulotlar va chegirmalar haqida xabar olish</small>
                 </div>
+
+                {error && (
+                  <div className="error-message">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  onClick={updateProfile}
+                  disabled={saving}
+                  className="save-button"
+                >
+                  {saving ? 'Saqlanmoqda...' : 'Sozlamalarni saqlash'}
+                </button>
               </div>
             </div>
           )}
