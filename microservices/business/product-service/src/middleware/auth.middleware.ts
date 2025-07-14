@@ -5,7 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '@ultramarket/shared';
 
 // Extend Request interface to include user
 declare global {

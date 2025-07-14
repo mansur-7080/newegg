@@ -4,7 +4,7 @@
  */
 
 import Redis from 'ioredis';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '@ultramarket/shared';
 
 // Initialize Redis client
 const redis = new Redis({

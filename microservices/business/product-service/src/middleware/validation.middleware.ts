@@ -4,7 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '@ultramarket/shared';
 
 /**
  * Generic validation middleware factory

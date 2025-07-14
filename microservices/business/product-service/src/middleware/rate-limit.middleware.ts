@@ -5,7 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import Redis from 'ioredis';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '@ultramarket/shared';
 
 // Initialize Redis client for rate limiting
 const redis = new Redis({

@@ -13,8 +13,7 @@
  */
 
 import { PrismaClient, Prisma } from '@prisma/client';
-import { logger } from '@ultramarket/shared/logging/logger';
-import { NotFoundError, ValidationError, ConflictError } from '@ultramarket/shared/errors';
+import { logger, NotFoundError, ValidationError, ConflictError } from '@ultramarket/shared';
 import { generateSlug } from '../utils/slug.utils';
 import { optimizeImageUrls } from '../utils/image.utils';
 import { calculateProductMetrics } from '../utils/metrics.utils';
