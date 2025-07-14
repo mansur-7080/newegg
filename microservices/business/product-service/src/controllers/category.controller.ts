@@ -74,7 +74,7 @@ export class CategoryController {
           categories: hierarchicalCategories.map(category => ({
             ...category,
             productCount: category._count.products,
-            products: category.products?.map(product => ({
+            products: category.products?.map((product: any) => ({
               ...product,
               images: product.images ? JSON.parse(product.images) : []
             }))
