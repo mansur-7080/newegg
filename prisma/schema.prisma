@@ -18,7 +18,7 @@ model User {
   lastName  String
   phone     String?
   address   String?
-  role      String   @default("CUSTOMER")
+  role      UserRole @default(CUSTOMER)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -90,13 +90,13 @@ model CartItem {
 model Order {
   id            String      @id @default(cuid())
   orderNumber   String      @unique
-  status        String      @default("PENDING")
+  status        OrderStatus @default(PENDING)
   totalAmount   Float
   shippingCost  Float       @default(0)
   taxAmount     Float       @default(0)
   discountAmount Float      @default(0)
   paymentMethod String?
-  paymentStatus String      @default("PENDING")
+  paymentStatus PaymentStatus @default(PENDING)
   shippingAddress String
   notes         String?
   createdAt     DateTime    @default(now())
@@ -144,7 +144,25 @@ model Review {
   @@map("reviews")
 }
 
-// Enums are replaced with string literals for SQLite compatibility
-// UserRole: "CUSTOMER" | "ADMIN" | "MODERATOR"
-// OrderStatus: "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "REFUNDED"
-// PaymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED"
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  MODERATOR
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
