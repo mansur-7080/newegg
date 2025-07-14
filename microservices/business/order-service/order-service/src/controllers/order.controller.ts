@@ -1,662 +1,876 @@
-import { Request, Response, NextFunction } from 'express';
-import { body, query, validationResult } from 'express-validator';
-import { prisma } from '../config/prisma-shim';
+import { Request, Response } from 'express';
+import { OrderService, CreateOrderData, UpdateOrderStatusData } from '../services/order.service';
 import { logger } from '../utils/logger';
-import { AppError } from '../utils/errors';
+import { 
+  OrderNotFoundError, 
+  InvalidOrderStatusError, 
+  InsufficientStockError,
+  PaymentValidationError,
+  OrderValidationError 
+} from '../utils/errors';
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+  };
+  sessionId?: string;
+}
 
 export class OrderController {
+  private orderService: OrderService;
+
+  constructor() {
+    this.orderService = new OrderService();
+  }
+
   /**
-   * Get all orders with pagination and filtering
+   * Create new order from cart
    */
-  static async getOrders(req: Request, res: Response, next: NextFunction) {
+  public createOrder = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new AppError(400, 'Validation failed', 'VALIDATION_ERROR', errors.array());
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'User authentication required to create order'
+          }
+        });
+        return;
       }
 
-      const userId = (req as any).user?.id;
-      const { page = 1, limit = 20, status, startDate, endDate, orderNumber } = req.query;
+      const {
+        cartId,
+        shippingAddress,
+        billingAddress,
+        paymentMethod,
+        notes,
+        couponCode
+      } = req.body;
 
-      const pageNum = parseInt(page as string);
-      const limitNum = parseInt(limit as string);
-      const skip = (pageNum - 1) * limitNum;
-
-      // Build where clause
-      const where: any = {};
-
-      // Filter by user if not admin
-      if (!['admin', 'super_admin'].includes((req as any).user?.role)) {
-        where.user_id = userId;
+      // Validation
+      if (!cartId) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_CART_ID',
+            message: 'Cart ID is required'
+          }
+        });
+        return;
       }
 
-      if (status) {
-        where.status = status as string;
+      if (!shippingAddress) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_SHIPPING_ADDRESS',
+            message: 'Shipping address is required'
+          }
+        });
+        return;
       }
 
-      if (orderNumber) {
-        where.order_number = { contains: orderNumber as string, mode: 'insensitive' };
+      // Validate shipping address fields
+      const requiredAddressFields = ['firstName', 'lastName', 'phone', 'address', 'city', 'region', 'country'];
+      for (const field of requiredAddressFields) {
+        if (!shippingAddress[field]) {
+          res.status(400).json({
+            success: false,
+            error: {
+              code: 'INVALID_SHIPPING_ADDRESS',
+              message: `Shipping address field '${field}' is required`
+            }
+          });
+          return;
+        }
       }
 
-      if (startDate || endDate) {
-        where.created_at = {};
-        if (startDate) where.created_at.gte = new Date(startDate as string);
-        if (endDate) where.created_at.lte = new Date(endDate as string);
+      if (!paymentMethod) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_PAYMENT_METHOD',
+            message: 'Payment method is required'
+          }
+        });
+        return;
       }
 
-      // Get orders with items and user info
-      const [orders, total] = await Promise.all([
-        prisma.order.findMany({
-          where,
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                username: true,
-                first_name: true,
-                last_name: true,
-              },
-            },
-            order_items: {
-              include: {
-                products: {
-                  select: {
-                    id: true,
-                    name: true,
-                    sku: true,
-                    price: true,
-                  },
-                },
-              },
-            },
-          },
-          orderBy: { created_at: 'desc' },
-          skip,
-          take: limitNum,
-        }),
-        prisma.order.count({ where }),
-      ]);
+      const validPaymentMethods = ['CLICK', 'PAYME', 'UZCARD', 'CASH_ON_DELIVERY', 'BANK_TRANSFER'];
+      if (!validPaymentMethods.includes(paymentMethod)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_PAYMENT_METHOD',
+            message: `Payment method must be one of: ${validPaymentMethods.join(', ')}`
+          }
+        });
+        return;
+      }
 
-      const totalPages = Math.ceil(total / limitNum);
+      const orderData: CreateOrderData = {
+        userId,
+        cartId,
+        shippingAddress,
+        billingAddress,
+        paymentMethod,
+        notes,
+        couponCode
+      };
 
-      logger.info('Orders retrieved successfully', {
-        count: orders.length,
-        total,
-        page: pageNum,
-        limit: limitNum,
-      });
+      logger.info('Creating order', { userId, cartId, paymentMethod });
 
-      res.json({
+      const order = await this.orderService.createOrder(orderData);
+
+      res.status(201).json({
         success: true,
         data: {
-          orders,
-          pagination: {
-            page: pageNum,
-            limit: limitNum,
-            total,
-            totalPages,
-            hasNextPage: pageNum < totalPages,
-            hasPrevPage: pageNum > 1,
-          },
+          order: {
+            id: order.id,
+            status: order.status,
+            paymentStatus: order.paymentStatus,
+            totals: {
+              subtotal: order.subtotal.toNumber(),
+              taxAmount: order.taxAmount.toNumber(),
+              shippingAmount: order.shippingAmount.toNumber(),
+              discountAmount: order.discountAmount.toNumber(),
+              totalAmount: order.totalAmount.toNumber()
+            },
+            currency: order.currency,
+            paymentMethod: order.paymentMethod,
+            trackingNumber: order.trackingNumber,
+            createdAt: order.createdAt,
+            estimatedDelivery: this.calculateEstimatedDelivery(order.shippingAddress)
+          }
         },
+        message: 'Order created successfully'
       });
     } catch (error) {
-      next(error);
+      logger.error('Error creating order:', error);
+
+      if (error instanceof OrderValidationError) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'ORDER_VALIDATION_ERROR',
+            message: error.message
+          }
+        });
+      } else if (error instanceof InsufficientStockError) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INSUFFICIENT_STOCK',
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'ORDER_CREATION_FAILED',
+            message: error instanceof Error ? error.message : 'Failed to create order'
+          }
+        });
+      }
     }
-  }
+  };
 
   /**
    * Get order by ID
    */
-  static async getOrderById(req: Request, res: Response, next: NextFunction) {
+  public getOrder = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
-      const userId = (req as any).user?.id;
+      const { orderId } = req.params;
+      const userId = req.user?.id;
 
-      const order = await prisma.order.findUnique({
-        where: { id },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              username: true,
-              first_name: true,
-              last_name: true,
-            },
-          },
-          orderItems: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  sku: true,
-                  price: true,
-                  description: true,
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (!order) {
-        throw new AppError(404, 'Order not found');
+      if (!orderId) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_ORDER_ID',
+            message: 'Order ID is required'
+          }
+        });
+        return;
       }
 
-      // Check if user has permission to view this order
-      if (order.user_id !== userId && !['admin', 'super_admin'].includes((req as any).user?.role)) {
-        throw new AppError(403, 'You can only view your own orders');
-      }
+      logger.info('Getting order', { orderId, userId });
 
-      logger.info('Order retrieved successfully', { orderId: id });
+      // For regular users, only allow access to their own orders
+      // For admin users, allow access to any order
+      const order = await this.orderService.getOrderById(
+        orderId, 
+        req.user?.role === 'admin' ? undefined : userId
+      );
 
       res.json({
         success: true,
-        data: { order },
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Create new order
-   */
-  static async createOrder(req: Request, res: Response, next: NextFunction) {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new AppError(400, 'Validation failed', 'VALIDATION_ERROR', errors.array());
-      }
-
-      const userId = (req as any).user?.id;
-      const {
-        items,
-        shipping_address,
-        billing_address,
-        payment_method,
-        currency = 'USD',
-        notes,
-      } = req.body;
-
-      if (!items || !Array.isArray(items) || items.length === 0) {
-        throw new AppError(400, 'Order must contain at least one item');
-      }
-
-      // Calculate totals and validate items
-      let subtotal = 0;
-      let total = 0;
-      const orderItems = [];
-
-      for (const item of items) {
-        const product = await prisma.product.findFirst({
-          where: {
-            id: item.product_id,
-            is_active: true,
-            status: 'active',
-          },
-        });
-
-        if (!product) {
-          throw new AppError(404, `Product ${item.product_id} not found`);
-        }
-
-        if (product.stock_quantity < item.quantity && product.track_inventory) {
-          throw new AppError(400, `Insufficient stock for product ${product.name}`);
-        }
-
-        const itemTotal = product.price * item.quantity;
-        subtotal += itemTotal;
-
-        orderItems.push({
-          product_id: item.product_id,
-          quantity: item.quantity,
-          unit_price: product.price,
-          total_price: itemTotal,
-        });
-      }
-
-      // Calculate tax and shipping (simplified)
-      const tax = subtotal * 0.1; // 10% tax
-      const shipping = 10; // Fixed shipping cost
-      total = subtotal + tax + shipping;
-
-      // Generate order number
-      const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      // Create order
-      const order = await prisma.order.create({
         data: {
-          order_number: orderNumber,
-          user_id: userId,
-          status: 'pending',
-          currency,
-          subtotal,
-          tax,
-          shipping_cost: shipping,
-          total,
-          payment_status: 'pending',
-          shipping_address: JSON.stringify(shipping_address),
-          billing_address: JSON.stringify(billing_address),
-          payment_method,
-          notes,
-          created_at: new Date(),
-          updated_at: new Date(),
-        },
-      });
-
-      // Create order items
-      await Promise.all(
-        orderItems.map((item) =>
-          prisma.orderItem.create({
-            data: {
-              order_id: order.id,
-              product_id: item.product_id,
+          order: {
+            id: order.id,
+            userId: order.userId,
+            status: order.status,
+            paymentStatus: order.paymentStatus,
+            totals: {
+              subtotal: order.subtotal.toNumber(),
+              taxAmount: order.taxAmount.toNumber(),
+              shippingAmount: order.shippingAmount.toNumber(),
+              discountAmount: order.discountAmount.toNumber(),
+              totalAmount: order.totalAmount.toNumber()
+            },
+            currency: order.currency,
+            paymentMethod: order.paymentMethod,
+            shippingAddress: order.shippingAddress,
+            billingAddress: order.billingAddress,
+            notes: order.notes,
+            trackingNumber: order.trackingNumber,
+            items: order.orderItems.map(item => ({
+              id: item.id,
+              productId: item.productId,
+              variantId: item.variantId,
+              name: item.name,
+              sku: item.sku,
+              price: item.price.toNumber(),
               quantity: item.quantity,
-              unit_price: item.unit_price,
-              total_price: item.total_price,
-            },
-          })
-        )
-      );
-
-      // Update product stock
-      await Promise.all(
-        orderItems.map((item) =>
-          prisma.product.update({
-            where: { id: item.product_id },
-            data: {
-              stock_quantity: {
-                decrement: item.quantity,
-              },
-            },
-          })
-        )
-      );
-
-      logger.info('Order created successfully', {
-        orderId: order.id,
-        orderNumber: order.order_number,
-        userId,
-      });
-
-      res.status(201).json({
-        success: true,
-        message: 'Order created successfully',
-        data: { order },
+              subtotal: item.subtotal.toNumber(),
+              weight: item.weight?.toNumber(),
+              dimensions: item.dimensions,
+              image: item.image,
+              attributes: item.attributes
+            })),
+            history: order.orderHistory.map(history => ({
+              id: history.id,
+              status: history.status,
+              previousStatus: history.previousStatus,
+              notes: history.notes,
+              trackingNumber: history.trackingNumber,
+              createdBy: history.createdBy,
+              createdAt: history.createdAt
+            })),
+            payments: order.payments.map(payment => ({
+              id: payment.id,
+              amount: payment.amount.toNumber(),
+              currency: payment.currency,
+              method: payment.method,
+              status: payment.status,
+              transactionId: payment.transactionId,
+              createdAt: payment.createdAt
+            })),
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
+            estimatedDelivery: this.calculateEstimatedDelivery(order.shippingAddress)
+          }
+        },
+        message: 'Order retrieved successfully'
       });
     } catch (error) {
-      next(error);
+      logger.error('Error getting order:', error);
+
+      if (error instanceof OrderNotFoundError) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'ORDER_RETRIEVAL_FAILED',
+            message: error instanceof Error ? error.message : 'Failed to retrieve order'
+          }
+        });
+      }
     }
-  }
+  };
 
   /**
-   * Update order status
+   * Get user orders with pagination
    */
-  static async updateOrderStatus(req: Request, res: Response, next: NextFunction) {
+  public getUserOrders = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new AppError(400, 'Validation failed', 'VALIDATION_ERROR', errors.array());
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'User authentication required'
+          }
+        });
+        return;
       }
 
-      const { id } = req.params;
-      const { status, payment_status } = req.body;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 10, 50); // Max 50 orders per page
+      const status = req.query.status as string;
 
-      const order = await prisma.order.findUnique({
-        where: { id },
-      });
-
-      if (!order) {
-        throw new AppError(404, 'Order not found');
+      if (page < 1 || limit < 1) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_PAGINATION',
+            message: 'Page and limit must be positive numbers'
+          }
+        });
+        return;
       }
 
-      // Only admins can update order status
-      if (!['admin', 'super_admin'].includes((req as any).user?.role)) {
-        throw new AppError(403, 'Only administrators can update order status');
-      }
+      logger.info('Getting user orders', { userId, page, limit, status });
 
-      const updateData: any = {};
-      if (status) updateData.status = status;
-      if (payment_status) updateData.payment_status = payment_status;
-      updateData.updatedAt = new Date();
-
-      const updatedOrder = await prisma.order.update({
-        where: { id },
-        data: updateData,
-      });
-
-      logger.info('Order status updated successfully', {
-        orderId: id,
-        status: status || updatedOrder.status,
-        paymentStatus: payment_status || updatedOrder.payment_status,
-      });
+      const result = await this.orderService.getUserOrders(userId, page, limit, status as any);
 
       res.json({
         success: true,
-        message: 'Order status updated successfully',
-        data: { order: updatedOrder },
+        data: {
+          orders: result.orders.map(order => ({
+            id: order.id,
+            status: order.status,
+            paymentStatus: order.paymentStatus,
+            totalAmount: order.totalAmount.toNumber(),
+            currency: order.currency,
+            itemCount: order.orderItems.length,
+            paymentMethod: order.paymentMethod,
+            trackingNumber: order.trackingNumber,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
+            latestStatus: order.orderHistory[0] || null,
+            estimatedDelivery: this.calculateEstimatedDelivery(order.shippingAddress)
+          })),
+          pagination: {
+            page: result.page,
+            limit: limit,
+            total: result.total,
+            totalPages: result.totalPages,
+            hasNext: result.page < result.totalPages,
+            hasPrev: result.page > 1
+          }
+        },
+        message: 'User orders retrieved successfully'
       });
     } catch (error) {
-      next(error);
+      logger.error('Error getting user orders:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'USER_ORDERS_RETRIEVAL_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to retrieve user orders'
+        }
+      });
     }
-  }
+  };
 
   /**
-   * Get cart items
+   * Update order status (admin only)
    */
-  static async getCart(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<Response | undefined> {
+  public updateOrderStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const userId = (req as any).user?.id;
-      const sessionId = req.session?.id;
+      // Check admin permission
+      if (req.user?.role !== 'admin') {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: 'INSUFFICIENT_PERMISSIONS',
+            message: 'Admin access required to update order status'
+          }
+        });
+        return;
+      }
 
-      const where: any = {};
-      if (userId) {
-        where.user_id = userId;
-      } else if (sessionId) {
-        where.session_id = sessionId;
+      const { orderId } = req.params;
+      const { status, notes, trackingNumber } = req.body;
+
+      if (!orderId) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_ORDER_ID',
+            message: 'Order ID is required'
+          }
+        });
+        return;
+      }
+
+      if (!status) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_STATUS',
+            message: 'Status is required'
+          }
+        });
+        return;
+      }
+
+      const validStatuses = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'];
+      if (!validStatuses.includes(status)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_STATUS',
+            message: `Status must be one of: ${validStatuses.join(', ')}`
+          }
+        });
+        return;
+      }
+
+      const updateData: UpdateOrderStatusData = {
+        status,
+        notes,
+        trackingNumber
+      };
+
+      logger.info('Updating order status', { orderId, status, updatedBy: req.user.id });
+
+      const order = await this.orderService.updateOrderStatus(orderId, updateData, req.user.id);
+
+      res.json({
+        success: true,
+        data: {
+          orderId: order.id,
+          status: order.status,
+          trackingNumber: order.trackingNumber,
+          updatedAt: order.updatedAt
+        },
+        message: 'Order status updated successfully'
+      });
+    } catch (error) {
+      logger.error('Error updating order status:', error);
+
+      if (error instanceof OrderNotFoundError) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: error.message
+          }
+        });
+      } else if (error instanceof InvalidOrderStatusError) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_STATUS_TRANSITION',
+            message: error.message
+          }
+        });
       } else {
-        return res.json({
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'ORDER_STATUS_UPDATE_FAILED',
+            message: error instanceof Error ? error.message : 'Failed to update order status'
+          }
+        });
+      }
+    }
+  };
+
+  /**
+   * Cancel order
+   */
+  public cancelOrder = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const { orderId } = req.params;
+      const { reason } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'User authentication required'
+          }
+        });
+        return;
+      }
+
+      if (!orderId) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_ORDER_ID',
+            message: 'Order ID is required'
+          }
+        });
+        return;
+      }
+
+      if (!reason) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_REASON',
+            message: 'Cancellation reason is required'
+          }
+        });
+        return;
+      }
+
+      // Verify order belongs to user (unless admin)
+      if (req.user.role !== 'admin') {
+        const order = await this.orderService.getOrderById(orderId, userId);
+        if (!order) {
+          res.status(404).json({
+            success: false,
+            error: {
+              code: 'ORDER_NOT_FOUND',
+              message: 'Order not found or access denied'
+            }
+          });
+          return;
+        }
+      }
+
+      logger.info('Cancelling order', { orderId, reason, cancelledBy: userId });
+
+      const order = await this.orderService.cancelOrder(orderId, reason, userId);
+
+      res.json({
+        success: true,
+        data: {
+          orderId: order.id,
+          status: order.status,
+          updatedAt: order.updatedAt
+        },
+        message: 'Order cancelled successfully'
+      });
+    } catch (error) {
+      logger.error('Error cancelling order:', error);
+
+      if (error instanceof OrderNotFoundError) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: error.message
+          }
+        });
+      } else if (error instanceof InvalidOrderStatusError) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'CANNOT_CANCEL_ORDER',
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'ORDER_CANCELLATION_FAILED',
+            message: error instanceof Error ? error.message : 'Failed to cancel order'
+          }
+        });
+      }
+    }
+  };
+
+  /**
+   * Process payment for order
+   */
+  public processPayment = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const { orderId } = req.params;
+      const paymentData = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'User authentication required'
+          }
+        });
+        return;
+      }
+
+      if (!orderId) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_ORDER_ID',
+            message: 'Order ID is required'
+          }
+        });
+        return;
+      }
+
+      // Verify order belongs to user (unless admin)
+      if (req.user.role !== 'admin') {
+        const order = await this.orderService.getOrderById(orderId, userId);
+        if (!order) {
+          res.status(404).json({
+            success: false,
+            error: {
+              code: 'ORDER_NOT_FOUND',
+              message: 'Order not found or access denied'
+            }
+          });
+          return;
+        }
+      }
+
+      logger.info('Processing payment', { orderId, userId });
+
+      const result = await this.orderService.processPayment(orderId, paymentData);
+
+      if (result.success) {
+        res.json({
           success: true,
-          data: { items: [], total: 0 },
-        });
-      }
-
-      const cartItems = await prisma.cartItem.findMany({
-        where: {
-          ...where,
-          expires_at: { gt: new Date() },
-        },
-        include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-              price: true,
-            },
-          },
-        },
-        orderBy: { created_at: 'desc' },
-      });
-
-      const total = cartItems.reduce(
-        (sum: number, item: any) => sum + Number(item.price) * item.quantity,
-        0
-      );
-
-      logger.info('Cart retrieved successfully', {
-        userId,
-        sessionId,
-        itemCount: cartItems.length,
-        total,
-      });
-
-      return res.json({
-        success: true,
-        data: {
-          items: cartItems,
-          total,
-        },
-      });
-    } catch (error) {
-      next(error);
-      return undefined;
-    }
-  }
-
-  /**
-   * Add item to cart
-   */
-  static async addToCart(req: Request, res: Response, next: NextFunction) {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new AppError(400, 'Validation failed', 'VALIDATION_ERROR', errors.array());
-      }
-
-      const userId = (req as any).user?.id;
-      const sessionId = req.session?.id;
-      const { product_id, quantity = 1 } = req.body;
-
-      if (!userId && !sessionId) {
-        throw new AppError(400, 'User session required');
-      }
-
-      // Check if product exists and is available
-      const product = await prisma.product.findFirst({
-        where: {
-          id: product_id,
-          is_active: true,
-          status: 'active',
-        },
-      });
-
-      if (!product) {
-        throw new AppError(404, 'Product not found');
-      }
-
-      if (product.stock_quantity < quantity && product.track_inventory) {
-        throw new AppError(400, 'Insufficient stock');
-      }
-
-      // Check if item already exists in cart
-      const existingItem = await prisma.cartItem.findFirst({
-        where: {
-          product_id,
-          ...(userId ? { user_id: userId } : { session_id: sessionId }),
-        },
-      });
-
-      if (existingItem) {
-        // Update quantity
-        const newQuantity = existingItem.quantity + quantity;
-        await prisma.cartItem.update({
-          where: { id: existingItem.id },
           data: {
-            quantity: newQuantity,
-            updatedAt: new Date(),
+            orderId: orderId,
+            paymentId: result.payment.id,
+            transactionId: result.transactionId,
+            status: 'completed'
           },
+          message: result.message || 'Payment processed successfully'
         });
       } else {
-        // Create new cart item
-        await prisma.cartItem.create({
-          data: {
-            product_id,
-            quantity,
-            unit_price: product.price,
-            user_id: userId,
-            session_id: sessionId,
-            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-          },
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'PAYMENT_FAILED',
+            message: result.message || 'Payment processing failed'
+          }
         });
       }
-
-      logger.info('Item added to cart successfully', {
-        productId: product_id,
-        quantity,
-        userId,
-        sessionId,
-      });
-
-      res.json({
-        success: true,
-        message: 'Item added to cart successfully',
-      });
     } catch (error) {
-      next(error);
-    }
-  }
+      logger.error('Error processing payment:', error);
 
-  /**
-   * Update cart item quantity
-   */
-  static async updateCartItem(req: Request, res: Response, next: NextFunction) {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new AppError(400, 'Validation failed', 'VALIDATION_ERROR', errors.array());
-      }
-
-      const { id } = req.params;
-      const { quantity } = req.body;
-
-      const cartItem = await prisma.cartItem.findUnique({
-        where: { id },
-        include: {
-          products: {
-            select: {
-              stock_quantity: true,
-              track_inventory: true,
-            },
-          },
-        },
-      });
-
-      if (!cartItem) {
-        throw new AppError(404, 'Cart item not found');
-      }
-
-      if (
-        cartItem.product &&
-        cartItem.product.stock_quantity &&
-        cartItem.product.stock_quantity < quantity
-      ) {
-        throw new AppError(400, 'Insufficient stock');
-      }
-
-      await prisma.cartItem.update({
-        where: { id },
-        data: {
-          quantity,
-          updated_at: new Date(),
-        },
-      });
-
-      logger.info('Cart item updated successfully', { itemId: id, quantity });
-
-      res.json({
-        success: true,
-        message: 'Cart item updated successfully',
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Remove item from cart
-   */
-  static async removeFromCart(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-
-      const cartItem = await prisma.cartItem.findUnique({
-        where: { id },
-      });
-
-      if (!cartItem) {
-        throw new AppError(404, 'Cart item not found');
-      }
-
-      await prisma.cartItem.delete({
-        where: { id },
-      });
-
-      logger.info('Cart item removed successfully', { itemId: id });
-
-      res.json({
-        success: true,
-        message: 'Cart item removed successfully',
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Clear cart
-   */
-  static async clearCart(req: Request, res: Response, next: NextFunction) {
-    try {
-      const userId = (req as any).user?.id;
-      const sessionId = req.session?.id;
-
-      const where: any = {};
-      if (userId) {
-        where.user_id = userId;
-      } else if (sessionId) {
-        where.session_id = sessionId;
+      if (error instanceof OrderNotFoundError) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: error.message
+          }
+        });
+      } else if (error instanceof PaymentValidationError) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'PAYMENT_VALIDATION_ERROR',
+            message: error.message
+          }
+        });
       } else {
-        throw new AppError(400, 'User session required');
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'PAYMENT_PROCESSING_FAILED',
+            message: error instanceof Error ? error.message : 'Failed to process payment'
+          }
+        });
+      }
+    }
+  };
+
+  /**
+   * Get order statistics (admin only)
+   */
+  public getOrderStatistics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      // Check admin permission
+      if (req.user?.role !== 'admin') {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: 'INSUFFICIENT_PERMISSIONS',
+            message: 'Admin access required'
+          }
+        });
+        return;
       }
 
-      await prisma.cartItem.deleteMany({
-        where,
-      });
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      const userId = req.query.userId as string;
 
-      logger.info('Cart cleared successfully', { userId, sessionId });
+      // Validate dates
+      if (startDate && isNaN(startDate.getTime())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_START_DATE',
+            message: 'Invalid start date format'
+          }
+        });
+        return;
+      }
+
+      if (endDate && isNaN(endDate.getTime())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_END_DATE',
+            message: 'Invalid end date format'
+          }
+        });
+        return;
+      }
+
+      logger.info('Getting order statistics', { startDate, endDate, userId });
+
+      const stats = await this.orderService.getOrderStatistics(startDate, endDate, userId);
 
       res.json({
         success: true,
-        message: 'Cart cleared successfully',
+        data: {
+          statistics: {
+            totalOrders: stats.totalOrders,
+            totalRevenue: stats.totalRevenue,
+            averageOrderValue: Math.round(stats.averageOrderValue * 100) / 100, // Round to 2 decimal places
+            statusBreakdown: stats.statusBreakdown,
+            paymentMethodBreakdown: stats.paymentMethodBreakdown,
+            period: {
+              startDate: startDate?.toISOString(),
+              endDate: endDate?.toISOString()
+            }
+          }
+        },
+        message: 'Order statistics retrieved successfully'
       });
     } catch (error) {
-      next(error);
+      logger.error('Error getting order statistics:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'STATISTICS_RETRIEVAL_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to retrieve order statistics'
+        }
+      });
     }
+  };
+
+  /**
+   * Get order tracking information
+   */
+  public getOrderTracking = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const { orderId } = req.params;
+      const userId = req.user?.id;
+
+      if (!orderId) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_ORDER_ID',
+            message: 'Order ID is required'
+          }
+        });
+        return;
+      }
+
+      logger.info('Getting order tracking', { orderId, userId });
+
+      // Allow tracking by order ID without strict user verification (for guest access)
+      const order = await this.orderService.getOrderById(orderId);
+
+      const trackingInfo = {
+        orderId: order.id,
+        status: order.status,
+        trackingNumber: order.trackingNumber,
+        estimatedDelivery: this.calculateEstimatedDelivery(order.shippingAddress),
+        history: order.orderHistory.map(history => ({
+          status: history.status,
+          notes: history.notes,
+          date: history.createdAt,
+          location: this.getStatusLocation(history.status)
+        })).reverse(), // Show chronological order
+        shippingAddress: {
+          city: order.shippingAddress.city,
+          region: order.shippingAddress.region,
+          country: order.shippingAddress.country
+        }
+      };
+
+      res.json({
+        success: true,
+        data: { tracking: trackingInfo },
+        message: 'Order tracking information retrieved successfully'
+      });
+    } catch (error) {
+      logger.error('Error getting order tracking:', error);
+
+      if (error instanceof OrderNotFoundError) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'TRACKING_RETRIEVAL_FAILED',
+            message: error instanceof Error ? error.message : 'Failed to retrieve tracking information'
+          }
+        });
+      }
+    }
+  };
+
+  /**
+   * Private helper methods
+   */
+
+  private calculateEstimatedDelivery(shippingAddress: any): string {
+    const now = new Date();
+    let deliveryDays = 3; // Default 3 days
+
+    // Adjust delivery time based on region (Uzbekistan specific)
+    switch (shippingAddress.region?.toLowerCase()) {
+      case 'toshkent':
+      case 'tashkent':
+        deliveryDays = 1; // Same day or next day for Tashkent
+        break;
+      case 'samarqand':
+      case 'samarkand':
+      case 'buxoro':
+      case 'bukhara':
+      case 'andijon':
+      case 'andijan':
+        deliveryDays = 2; // 2 days for major cities
+        break;
+      case 'qashqadaryo':
+      case 'surxondaryo':
+      case 'xorazm':
+        deliveryDays = 4; // 4 days for remote regions
+        break;
+      default:
+        deliveryDays = 3; // 3 days for other regions
+    }
+
+    const deliveryDate = new Date(now);
+    deliveryDate.setDate(deliveryDate.getDate() + deliveryDays);
+
+    return deliveryDate.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+  }
+
+  private getStatusLocation(status: string): string {
+    const statusLocations: Record<string, string> = {
+      'PENDING': 'Order Processing Center',
+      'CONFIRMED': 'Warehouse - Tashkent',
+      'PROCESSING': 'Packaging Department',
+      'SHIPPED': 'In Transit',
+      'DELIVERED': 'Customer Location',
+      'CANCELLED': 'Order Cancelled',
+      'REFUNDED': 'Refund Processed'
+    };
+
+    return statusLocations[status] || 'Unknown Location';
   }
 }
-
-// Validation middleware
-export const orderValidation = [
-  body('items').isArray({ min: 1 }).withMessage('Order must contain at least one item'),
-  body('items.*.product_id').isUUID().withMessage('Valid product ID is required'),
-  body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
-  body('shipping_address').isObject().withMessage('Shipping address is required'),
-  body('billing_address').isObject().withMessage('Billing address is required'),
-  body('payment_method').notEmpty().withMessage('Payment method is required'),
-  body('currency')
-    .optional()
-    .isIn(['USD', 'EUR', 'GBP', 'UZS'])
-    .withMessage('Valid currency is required'),
-];
-
-export const orderStatusValidation = [
-  body('status')
-    .optional()
-    .isIn(['pending', 'processing', 'shipped', 'delivered', 'cancelled'])
-    .withMessage('Valid status is required'),
-  body('payment_status')
-    .optional()
-    .isIn(['pending', 'paid', 'failed', 'refunded'])
-    .withMessage('Valid payment status is required'),
-];
-
-export const cartItemValidation = [
-  body('product_id').isUUID().withMessage('Valid product ID is required'),
-  body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
-];
-
-export const cartUpdateValidation = [
-  body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
-];
-
-export const orderQueryValidation = [
-  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
-  query('status')
-    .optional()
-    .isIn(['pending', 'processing', 'shipped', 'delivered', 'cancelled'])
-    .withMessage('Valid status is required'),
-  query('startDate').optional().isISO8601().withMessage('Valid start date is required'),
-  query('endDate').optional().isISO8601().withMessage('Valid end date is required'),
-];
