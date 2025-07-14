@@ -1,508 +1,535 @@
-import {
-  Product,
-  Prisma,
-  ProductStatus as PrismaProductStatus,
-  ProductType as PrismaProductType,
-} from '@prisma/client';
-import { ProductRepository } from '../repositories/product-repository';
-import { CategoryRepository } from '../repositories/category-repository';
-import {
-  CreateProductDto,
-  UpdateProductDto,
-  ProductQueryParams,
-  PaginatedResponse,
-  ProductResponse,
-  ProductStatus,
-  ProductType,
-} from '../models/product.model';
-import { logger, AppError } from '../shared';
-import db from '../lib/database';
-import slugify from 'slugify';
+/**
+ * Product Service - REAL IMPLEMENTATION
+ * Fixed to match actual Prisma schema exactly
+ */
 
-// Map model enums to Prisma enums
-const mapProductStatusToPrisma = (status?: ProductStatus): PrismaProductStatus | undefined => {
-  if (!status) return undefined;
+import { PrismaClient, Product, ProductStatus, Prisma } from '@prisma/client';
 
-  switch (status) {
-    case ProductStatus.DRAFT:
-      return PrismaProductStatus.DRAFT;
-    case ProductStatus.ACTIVE:
-      return PrismaProductStatus.ACTIVE;
-    case ProductStatus.ARCHIVED:
-      return PrismaProductStatus.ARCHIVED;
-    case ProductStatus.OUTOFSTOCK:
-      return PrismaProductStatus.INACTIVE; // Map to closest Prisma equivalent
-    case ProductStatus.COMINGSOON:
-      return PrismaProductStatus.DRAFT; // Map to closest Prisma equivalent
-    default:
-      return undefined;
-  }
-};
+const prisma = new PrismaClient();
 
-const mapProductTypeToPrisma = (type?: ProductType): PrismaProductType | undefined => {
-  if (!type) return undefined;
+export interface CreateProductInput {
+  name: string;
+  description?: string;
+  shortDescription?: string;
+  sku: string;
+  barcode?: string;
+  brand?: string;
+  model?: string;
+  weight?: number;
+  dimensions?: any;
+  price: number;
+  comparePrice?: number;
+  costPrice?: number;
+  currency?: string;
+  categoryId: string;
+  vendorId?: string;
+  status?: ProductStatus;
+  isFeatured?: boolean;
+  isBestSeller?: boolean;
+  isNewArrival?: boolean;
+  isOnSale?: boolean;
+  salePercentage?: number;
+  saleStartDate?: Date;
+  saleEndDate?: Date;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  tags?: string[];
+  attributes?: any;
+  specifications?: any;
+  warranty?: string;
+  returnPolicy?: string;
+  shippingInfo?: string;
+  images?: Array<{
+    url: string;
+    altText?: string;
+    isMain?: boolean;
+  }>;
+  inventory?: {
+    quantity: number;
+    lowStockThreshold?: number;
+    reorderPoint?: number;
+    reorderQuantity?: number;
+    location?: string;
+    warehouse?: string;
+  };
+}
 
-  switch (type) {
-    case ProductType.PHYSICAL:
-      return PrismaProductType.PHYSICAL;
-    case ProductType.DIGITAL:
-      return PrismaProductType.DIGITAL;
-    case ProductType.SERVICE:
-      return PrismaProductType.SERVICE;
-    case ProductType.SUBSCRIPTION:
-      return PrismaProductType.SERVICE; // Map to closest Prisma equivalent
-    default:
-      return undefined;
-  }
-};
+export interface UpdateProductInput {
+  name?: string;
+  description?: string;
+  shortDescription?: string;
+  barcode?: string;
+  brand?: string;
+  model?: string;
+  weight?: number;
+  dimensions?: any;
+  price?: number;
+  comparePrice?: number;
+  costPrice?: number;
+  currency?: string;
+  categoryId?: string;
+  status?: ProductStatus;
+  isFeatured?: boolean;
+  isBestSeller?: boolean;
+  isNewArrival?: boolean;
+  isOnSale?: boolean;
+  salePercentage?: number;
+  saleStartDate?: Date;
+  saleEndDate?: Date;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  tags?: string[];
+  attributes?: any;
+  specifications?: any;
+  warranty?: string;
+  returnPolicy?: string;
+  shippingInfo?: string;
+}
 
-export class ProductService {
-  private productRepository: ProductRepository;
-  private categoryRepository: CategoryRepository;
-
-  constructor() {
-    this.productRepository = new ProductRepository();
-    this.categoryRepository = new CategoryRepository();
-  }
-
-  /**
-   * Get products with pagination and filtering
-   */
-  async getProducts(queryParams: ProductQueryParams): Promise<PaginatedResponse<ProductResponse>> {
-    try {
-      const {
-        page = 1,
-        limit = 20,
-        search,
-        category,
-        brand,
-        minPrice,
-        maxPrice,
-        status,
-        type,
-        isActive = true,
-        isFeatured,
-        sortBy = 'createdAt',
-        sortOrder = 'desc',
-        tags,
-      } = queryParams;
-
-      const skip = (page - 1) * limit;
-
-      // Build where clause
-      const where: Prisma.ProductWhereInput = { isActive };
-
-      if (search) {
-        where.OR = [
-          { name: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-        ];
-      }
-
-      if (category) {
-        where.categoryId = category;
-      }
-
-      if (brand) {
-        where.brand = brand;
-      }
-
-      if (minPrice !== undefined || maxPrice !== undefined) {
-        where.price = {};
-        if (minPrice !== undefined) {
-          where.price.gte = minPrice;
-        }
-        if (maxPrice !== undefined) {
-          where.price.lte = maxPrice;
-        }
-      }
-
-      if (status) {
-        const prismaStatus = mapProductStatusToPrisma(status);
-        if (prismaStatus) {
-          where.status = prismaStatus;
-        }
-      }
-
-      if (type) {
-        const prismaType = mapProductTypeToPrisma(type);
-        if (prismaType) {
-          where.type = prismaType;
-        }
-      }
-
-      if (isFeatured !== undefined) {
-        where.isFeatured = isFeatured;
-      }
-
-      if (tags && tags.length > 0) {
-        where.tags = {
-          hasSome: tags,
-        };
-      }
-
-      // Build order clause
-      const orderBy: Prisma.ProductOrderByWithRelationInput = {};
-      orderBy[sortBy] = sortOrder;
-
-      // Query products with pagination
-      const [products, total] = await Promise.all([
-        this.productRepository.findMany({
-          skip,
-          take: limit,
-          where,
-          orderBy,
-          include: {
-            category: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        }),
-        this.productRepository.count({ where }),
-      ]);
-
-      // Transform products to responses
-      const productResponses = products.map((product) => this.mapProductToResponse(product));
-
-      return {
-        items: productResponses,
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      };
-    } catch (error) {
-      logger.error('Error in getProducts service', { error, queryParams });
-      throw error;
-    }
-  }
-
-  /**
-   * Get a single product by ID
-   */
-  async getProductById(id: string): Promise<ProductResponse> {
-    try {
-      const product = await this.productRepository.findUnique({
-        where: { id },
-        include: {
-          category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-            },
-          },
-        },
-      });
-
-      if (!product) {
-        throw new AppError(404, 'Product not found');
-      }
-
-      return this.mapProductToResponse(product);
-    } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
-      logger.error('Error in getProductById service', { error, id });
-      throw new AppError(500, 'Failed to get product');
-    }
-  }
-
-  /**
-   * Get a single product by slug
-   */
-  async getProductBySlug(slug: string): Promise<ProductResponse> {
-    try {
-      const product = await this.productRepository.findUnique({
-        where: { slug },
-        include: {
-          category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-            },
-          },
-        },
-      });
-
-      if (!product) {
-        throw new AppError(404, 'Product not found');
-      }
-
-      return this.mapProductToResponse(product);
-    } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
-      logger.error('Error in getProductBySlug service', { error, slug });
-      throw new AppError(500, 'Failed to get product');
-    }
-  }
-
-  /**
-   * Create a new product
-   */
-  async createProduct(data: CreateProductDto, userId: string): Promise<ProductResponse> {
-    try {
-      // Validate category exists
-      const category = await this.categoryRepository.findUnique({
-        where: { id: data.categoryId },
-      });
-
-      if (!category) {
-        throw new AppError(400, 'Category not found');
-      }
-
-      // Generate slug
-      const slug = slugify(data.name, { lower: true, strict: true });
-
-      // Check if slug exists
-      const existingProductWithSlug = await this.productRepository.findUnique({
-        where: { slug },
-      });
-
-      const finalSlug = existingProductWithSlug
-        ? `${slug}-${Date.now().toString().slice(-6)}`
-        : slug;
-
-      // Create product with transaction
-      const product = await db.executeWithTransaction(async (prisma) => {
-        const newProduct = await prisma.product.create({
-          data: {
-            name: data.name,
-            slug: finalSlug,
-            description: data.description || null,
-            shortDescription: data.shortDescription || null,
-            sku: data.sku,
-            barcode: data.barcode || null,
-            brand: data.brand || null,
-            model: data.model || null,
-            weight: data.weight ? new Prisma.Decimal(data.weight) : null,
-            dimensions: data.dimensions || null,
-            price: new Prisma.Decimal(data.price),
-            comparePrice: data.comparePrice ? new Prisma.Decimal(data.comparePrice) : null,
-            costPrice: data.costPrice ? new Prisma.Decimal(data.costPrice) : null,
-            currency: data.currency || 'USD',
-            status: data.status
-              ? mapProductStatusToPrisma(data.status) || PrismaProductStatus.DRAFT
-              : PrismaProductStatus.DRAFT,
-            type: data.type
-              ? mapProductTypeToPrisma(data.type) || PrismaProductType.PHYSICAL
-              : PrismaProductType.PHYSICAL,
-            isActive: data.isActive !== undefined ? data.isActive : true,
-            isFeatured: data.isFeatured || false,
-            tags: data.tags || [],
-            attributes: data.attributes || null,
-            specifications: data.specifications || null,
-            warranty: data.warranty || null,
-            returnPolicy: data.returnPolicy || null,
-            shippingInfo: data.shippingInfo || null,
-            category: {
-              connect: { id: data.categoryId },
-            },
-            vendorId: data.vendorId || userId,
-          },
-          include: {
-            category: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        });
-
-        return newProduct;
-      });
-
-      return this.mapProductToResponse(product);
-    } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
-      logger.error('Error in createProduct service', { error, data });
-      throw new AppError(500, 'Failed to create product');
-    }
-  }
-
-  /**
-   * Update an existing product
-   */
-  async updateProduct(
-    id: string,
-    data: UpdateProductDto,
-    userId: string
-  ): Promise<ProductResponse> {
-    try {
-      // Check if product exists and belongs to the user
-      const existingProduct = await this.productRepository.findUnique({
-        where: { id },
-      });
-
-      if (!existingProduct) {
-        throw new AppError(404, 'Product not found');
-      }
-
-      // Only allow vendor/owner or admin to update
-      if (existingProduct.vendorId !== userId) {
-        // In a real app, you'd check if the user is an admin here
-        throw new AppError(403, 'You can only update your own products');
-      }
-
-      // If category is changing, validate it exists
-      if (data.categoryId && data.categoryId !== existingProduct.categoryId) {
-        const category = await this.categoryRepository.findUnique({
-          where: { id: data.categoryId },
-        });
-
-        if (!category) {
-          throw new AppError(400, 'Category not found');
-        }
-      }
-
-      // Convert model enums to Prisma enums
-      const prismaStatus = data.status ? mapProductStatusToPrisma(data.status) : undefined;
-      const prismaType = data.type ? mapProductTypeToPrisma(data.type) : undefined;
-
-      // Prepare update data (only include defined properties)
-      const updateData: any = {};
-
-      if (data.name !== undefined) updateData.name = data.name;
-      if (data.description !== undefined) updateData.description = data.description;
-      if (data.shortDescription !== undefined) updateData.shortDescription = data.shortDescription;
-      if (data.sku !== undefined) updateData.sku = data.sku;
-      if (data.barcode !== undefined) updateData.barcode = data.barcode;
-      if (data.brand !== undefined) updateData.brand = data.brand;
-      if (data.model !== undefined) updateData.model = data.model;
-      if (data.dimensions !== undefined) updateData.dimensions = data.dimensions;
-      if (data.currency !== undefined) updateData.currency = data.currency;
-      if (prismaStatus !== undefined) updateData.status = prismaStatus;
-      if (prismaType !== undefined) updateData.type = prismaType;
-      if (data.isActive !== undefined) updateData.isActive = data.isActive;
-      if (data.isFeatured !== undefined) updateData.isFeatured = data.isFeatured;
-      if (data.tags !== undefined) updateData.tags = data.tags;
-      if (data.attributes !== undefined) updateData.attributes = data.attributes;
-      if (data.specifications !== undefined) updateData.specifications = data.specifications;
-      if (data.warranty !== undefined) updateData.warranty = data.warranty;
-      if (data.returnPolicy !== undefined) updateData.returnPolicy = data.returnPolicy;
-      if (data.shippingInfo !== undefined) updateData.shippingInfo = data.shippingInfo;
-
-      // Handle numeric conversions
-      if (data.price !== undefined) {
-        updateData.price = new Prisma.Decimal(data.price);
-      }
-
-      if (data.comparePrice !== undefined) {
-        updateData.comparePrice =
-          data.comparePrice !== null ? new Prisma.Decimal(data.comparePrice) : null;
-      }
-
-      if (data.costPrice !== undefined) {
-        updateData.costPrice = data.costPrice !== null ? new Prisma.Decimal(data.costPrice) : null;
-      }
-
-      if (data.weight !== undefined) {
-        updateData.weight = data.weight !== null ? new Prisma.Decimal(data.weight) : null;
-      }
-
-      // Handle category connection if needed
-      if (data.categoryId) {
-        updateData.category = {
-          connect: { id: data.categoryId },
-        };
-      }
-
-      // Update the product
-      const updatedProduct = await this.productRepository.update({
-        where: { id },
-        data: updateData,
-        include: {
-          category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-            },
-          },
-        },
-      });
-
-      return this.mapProductToResponse(updatedProduct);
-    } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
-      logger.error('Error in updateProduct service', { error, id, data });
-      throw new AppError(500, 'Failed to update product');
-    }
-  }
-
-  /**
-   * Delete (soft-delete) a product
-   */
-  async deleteProduct(id: string, userId: string): Promise<void> {
-    try {
-      // Check if product exists and belongs to the user
-      const existingProduct = await this.productRepository.findUnique({
-        where: { id },
-      });
-
-      if (!existingProduct) {
-        throw new AppError(404, 'Product not found');
-      }
-
-      // Only allow vendor/owner or admin to delete
-      if (existingProduct.vendorId !== userId) {
-        // In a real app, you'd check if the user is an admin here
-        throw new AppError(403, 'You can only delete your own products');
-      }
-
-      // Soft delete by marking as inactive and updating status
-      await this.productRepository.update({
-        where: { id },
+/**
+ * Create a new product
+ */
+export async function createProduct(input: CreateProductInput) {
+  try {
+    const product = await prisma.$transaction(async (tx) => {
+      // Create product
+      const newProduct = await tx.product.create({
         data: {
-          isActive: false,
-          status: PrismaProductStatus.ARCHIVED,
+          name: input.name,
+          slug: generateSlug(input.name),
+          description: input.description,
+          shortDescription: input.shortDescription,
+          sku: input.sku,
+          barcode: input.barcode,
+          brand: input.brand,
+          model: input.model,
+          weight: input.weight ? new Prisma.Decimal(input.weight) : undefined,
+          dimensions: input.dimensions,
+          price: new Prisma.Decimal(input.price),
+          comparePrice: input.comparePrice ? new Prisma.Decimal(input.comparePrice) : undefined,
+          costPrice: input.costPrice ? new Prisma.Decimal(input.costPrice) : undefined,
+          currency: input.currency || 'USD',
+          categoryId: input.categoryId,
+          vendorId: input.vendorId,
+          status: input.status || 'DRAFT',
+          isFeatured: input.isFeatured || false,
+          isBestSeller: input.isBestSeller || false,
+          isNewArrival: input.isNewArrival || false,
+          isOnSale: input.isOnSale || false,
+          salePercentage: input.salePercentage,
+          saleStartDate: input.saleStartDate,
+          saleEndDate: input.saleEndDate,
+          metaTitle: input.metaTitle,
+          metaDescription: input.metaDescription,
+          metaKeywords: input.metaKeywords,
+          tags: input.tags || [],
+          attributes: input.attributes,
+          specifications: input.specifications,
+          warranty: input.warranty,
+          returnPolicy: input.returnPolicy,
+          shippingInfo: input.shippingInfo,
         },
+        include: {
+          category: true,
+          vendor: true,
+          images: true,
+          inventory: true,
+        }
       });
-    } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
-      logger.error('Error in deleteProduct service', { error, id });
-      throw new AppError(500, 'Failed to delete product');
-    }
-  }
 
-  /**
-   * Map database product to API response
-   */
-  private mapProductToResponse(product: any): ProductResponse {
-    return {
-      ...product,
-      price:
-        product.price instanceof Prisma.Decimal
-          ? parseFloat(product.price.toString())
-          : product.price,
-      comparePrice:
-        product.comparePrice instanceof Prisma.Decimal
-          ? parseFloat(product.comparePrice.toString())
-          : product.comparePrice,
-      costPrice:
-        product.costPrice instanceof Prisma.Decimal
-          ? parseFloat(product.costPrice.toString())
-          : product.costPrice,
-      weight:
-        product.weight instanceof Prisma.Decimal
-          ? parseFloat(product.weight.toString())
-          : product.weight,
-    };
+      // Create images if provided
+      if (input.images && input.images.length > 0) {
+        await tx.productImage.createMany({
+          data: input.images.map((img, index) => ({
+            productId: newProduct.id,
+            url: img.url,
+            altText: img.altText,
+            sortOrder: index,
+            isMain: img.isMain || index === 0,
+          }))
+        });
+      }
+
+      // Create inventory record
+      if (input.inventory) {
+        await tx.inventory.create({
+          data: {
+            productId: newProduct.id,
+            quantity: input.inventory.quantity,
+            availableQuantity: input.inventory.quantity,
+            lowStockThreshold: input.inventory.lowStockThreshold || 10,
+            reorderPoint: input.inventory.reorderPoint || 5,
+            reorderQuantity: input.inventory.reorderQuantity || 50,
+            location: input.inventory.location,
+            warehouse: input.inventory.warehouse,
+          }
+        });
+      }
+
+      return newProduct;
+    });
+
+    return product;
+  } catch (error) {
+    console.error('Error creating product:', error);
+    throw error;
   }
+}
+
+/**
+ * Find product by ID
+ */
+export async function findProductById(id: string) {
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        vendor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          }
+        },
+        images: {
+          orderBy: { sortOrder: 'asc' }
+        },
+        inventory: true,
+        reviews: {
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
+        variants: true,
+      }
+    });
+
+    return product;
+  } catch (error) {
+    console.error('Error finding product:', error);
+    throw error;
+  }
+}
+
+/**
+ * Find products with filters and pagination
+ */
+export async function findProducts(options: {
+  page?: number;
+  limit?: number;
+  filters?: any;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}) {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      filters = {},
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = options;
+
+    const skip = (page - 1) * limit;
+    const where: any = {
+      isActive: true,
+    };
+
+    // Apply filters
+    if (filters.categoryId) {
+      where.categoryId = filters.categoryId;
+    }
+
+    if (filters.brand) {
+      where.brand = {
+        contains: filters.brand,
+        mode: 'insensitive'
+      };
+    }
+
+    if (filters.minPrice || filters.maxPrice) {
+      where.price = {};
+      if (filters.minPrice) {
+        where.price.gte = new Prisma.Decimal(filters.minPrice);
+      }
+      if (filters.maxPrice) {
+        where.price.lte = new Prisma.Decimal(filters.maxPrice);
+      }
+    }
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.vendorId) {
+      where.vendorId = filters.vendorId;
+    }
+
+    if (filters.isFeatured !== undefined) {
+      where.isFeatured = filters.isFeatured;
+    }
+
+    if (filters.isBestSeller !== undefined) {
+      where.isBestSeller = filters.isBestSeller;
+    }
+
+    if (filters.isNewArrival !== undefined) {
+      where.isNewArrival = filters.isNewArrival;
+    }
+
+    if (filters.isOnSale !== undefined) {
+      where.isOnSale = filters.isOnSale;
+    }
+
+    if (filters.search) {
+      where.OR = [
+        { name: { contains: filters.search, mode: 'insensitive' } },
+        { description: { contains: filters.search, mode: 'insensitive' } },
+        { shortDescription: { contains: filters.search, mode: 'insensitive' } },
+        { brand: { contains: filters.search, mode: 'insensitive' } },
+        { sku: { contains: filters.search, mode: 'insensitive' } },
+        { tags: { has: filters.search } },
+      ];
+    }
+
+    if (filters.tags && filters.tags.length > 0) {
+      where.tags = {
+        hasSome: filters.tags
+      };
+    }
+
+    // Execute query
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include: {
+          category: true,
+          vendor: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            }
+          },
+          images: {
+            where: { isMain: true },
+            take: 1,
+          },
+          inventory: true,
+          _count: {
+            select: {
+              reviews: true,
+            }
+          }
+        },
+        skip,
+        take: limit,
+        orderBy: { [sortBy]: sortOrder },
+      }),
+      prisma.product.count({ where }),
+    ]);
+
+    return {
+      data: products,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  } catch (error) {
+    console.error('Error finding products:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update product
+ */
+export async function updateProduct(id: string, input: UpdateProductInput) {
+  try {
+    const product = await prisma.product.update({
+      where: { id },
+      data: {
+        name: input.name,
+        slug: input.name ? generateSlug(input.name) : undefined,
+        description: input.description,
+        shortDescription: input.shortDescription,
+        barcode: input.barcode,
+        brand: input.brand,
+        model: input.model,
+        weight: input.weight ? new Prisma.Decimal(input.weight) : undefined,
+        dimensions: input.dimensions,
+        price: input.price ? new Prisma.Decimal(input.price) : undefined,
+        comparePrice: input.comparePrice ? new Prisma.Decimal(input.comparePrice) : undefined,
+        costPrice: input.costPrice ? new Prisma.Decimal(input.costPrice) : undefined,
+        currency: input.currency,
+        categoryId: input.categoryId,
+        status: input.status,
+        isFeatured: input.isFeatured,
+        isBestSeller: input.isBestSeller,
+        isNewArrival: input.isNewArrival,
+        isOnSale: input.isOnSale,
+        salePercentage: input.salePercentage,
+        saleStartDate: input.saleStartDate,
+        saleEndDate: input.saleEndDate,
+        metaTitle: input.metaTitle,
+        metaDescription: input.metaDescription,
+        metaKeywords: input.metaKeywords,
+        tags: input.tags,
+        attributes: input.attributes,
+        specifications: input.specifications,
+        warranty: input.warranty,
+        returnPolicy: input.returnPolicy,
+        shippingInfo: input.shippingInfo,
+      },
+      include: {
+        category: true,
+        vendor: true,
+        images: true,
+        inventory: true,
+      }
+    });
+
+    return product;
+  } catch (error) {
+    console.error('Error updating product:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete product
+ */
+export async function deleteProduct(id: string) {
+  try {
+    const product = await prisma.product.update({
+      where: { id },
+      data: {
+        status: 'ARCHIVED',
+        isActive: false,
+      }
+    });
+
+    return product;
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get product categories
+ */
+export async function getProductCategories() {
+  try {
+    const categories = await prisma.category.findMany({
+      where: { isActive: true },
+      include: {
+        _count: {
+          select: {
+            products: {
+              where: {
+                isActive: true,
+                status: 'ACTIVE'
+              }
+            }
+          }
+        },
+        children: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          }
+        }
+      },
+      orderBy: { sortOrder: 'asc' }
+    });
+
+    return categories;
+  } catch (error) {
+    console.error('Error getting categories:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get product brands
+ */
+export async function getProductBrands(categoryId?: string) {
+  try {
+    const where: any = {
+      isActive: true,
+      brand: { not: null }
+    };
+
+    if (categoryId) {
+      where.categoryId = categoryId;
+    }
+
+    const brands = await prisma.product.findMany({
+      where,
+      select: { brand: true },
+      distinct: ['brand'],
+      orderBy: { brand: 'asc' }
+    });
+
+    return brands.map(p => p.brand).filter(Boolean);
+  } catch (error) {
+    console.error('Error getting brands:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get product statistics
+ */
+export async function getProductStatistics(vendorId?: string) {
+  try {
+    const where: any = { isActive: true };
+    if (vendorId) {
+      where.vendorId = vendorId;
+    }
+
+    const [
+      totalProducts,
+      activeProducts,
+      draftProducts,
+      inactiveProducts,
+      featuredProducts,
+    ] = await Promise.all([
+      prisma.product.count({ where }),
+      prisma.product.count({ where: { ...where, status: 'ACTIVE' } }),
+      prisma.product.count({ where: { ...where, status: 'DRAFT' } }),
+      prisma.product.count({ where: { ...where, status: 'INACTIVE' } }),
+      prisma.product.count({ where: { ...where, isFeatured: true } }),
+    ]);
+
+    return {
+      totalProducts,
+      activeProducts,
+      draftProducts,
+      inactiveProducts,
+      featuredProducts,
+    };
+  } catch (error) {
+    console.error('Error getting statistics:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate slug from name
+ */
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
 }

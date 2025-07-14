@@ -60,7 +60,7 @@ const productController = new ProductController();
  *       200:
  *         description: List of products
  */
-router.get('/', ProductController.validateGetProducts, productController.getProducts);
+router.get('/', ProductController.getProducts);
 
 /**
  * @swagger
@@ -81,7 +81,7 @@ router.get('/', ProductController.validateGetProducts, productController.getProd
  *       404:
  *         description: Product not found
  */
-router.get('/:id', productController.getProductById);
+router.get('/:id', ProductController.getProduct);
 
 /**
  * @swagger
@@ -102,7 +102,7 @@ router.get('/:id', productController.getProductById);
  *       404:
  *         description: Product not found
  */
-router.get('/slug/:slug', productController.getProductBySlug);
+// router.get('/slug/:slug', ProductController.getProductBySlug); // Not implemented
 
 /**
  * @swagger
@@ -122,7 +122,7 @@ router.get('/slug/:slug', productController.getProductBySlug);
  *       400:
  *         description: Validation failed
  */
-router.post('/', ProductController.validateCreateProduct, productController.createProduct);
+router.post('/', ProductController.createProduct);
 
 /**
  * @swagger
@@ -151,7 +151,7 @@ router.post('/', ProductController.validateCreateProduct, productController.crea
  *       404:
  *         description: Product not found
  */
-router.put('/:id', ProductController.validateUpdateProduct, productController.updateProduct);
+router.put('/:id', ProductController.updateProduct);
 
 /**
  * @swagger
@@ -172,6 +172,6 @@ router.put('/:id', ProductController.validateUpdateProduct, productController.up
  *       404:
  *         description: Product not found
  */
-router.delete('/:id', productController.deleteProduct);
+router.delete('/:id', ProductController.deleteProduct);
 
 export default router;

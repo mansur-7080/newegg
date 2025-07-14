@@ -1,11 +1,10 @@
 /**
- * Product Controller
- * Simplified and functional product management
+ * Product Controller - REAL IMPLEMENTATION  
+ * Fixed to work with corrected service
  */
 
 import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { logger, ValidationError, NotFoundError } from '@ultramarket/shared';
 import {
   createProduct,
   findProductById,
@@ -36,7 +35,7 @@ export class ProductController {
         vendorId: userId,
       });
 
-      logger.info('Product created successfully', {
+      console.log('Product created successfully', {
         productId: product.id,
         vendorId: userId,
       });
@@ -62,7 +61,10 @@ export class ProductController {
       const product = await findProductById(id);
 
       if (!product) {
-        throw new NotFoundError('Product not found');
+        return res.status(404).json({
+          success: false,
+          message: 'Product not found',
+        });
       }
 
       res.status(200).json({
@@ -95,7 +97,6 @@ export class ProductController {
         isBestSeller,
         isNewArrival,
         isOnSale,
-        inStock,
         tags,
       } = req.query;
 
@@ -110,7 +111,6 @@ export class ProductController {
         isBestSeller: isBestSeller ? isBestSeller === 'true' : undefined,
         isNewArrival: isNewArrival ? isNewArrival === 'true' : undefined,
         isOnSale: isOnSale ? isOnSale === 'true' : undefined,
-        inStock: inStock ? inStock === 'true' : undefined,
         tags: tags ? (tags as string).split(',') : undefined,
       };
 
@@ -236,7 +236,10 @@ export class ProductController {
       const { q, page = 1, limit = 20 } = req.query;
 
       if (!q) {
-        throw new ValidationError('Search query is required');
+        return res.status(400).json({
+          success: false,
+          message: 'Search query is required',
+        });
       }
 
       const filters = {
@@ -301,7 +304,10 @@ export class ProductController {
       // Get product to find same category
       const product = await findProductById(id);
       if (!product) {
-        throw new NotFoundError('Product not found');
+        return res.status(404).json({
+          success: false,
+          message: 'Product not found',
+        });
       }
 
       const filters = {
