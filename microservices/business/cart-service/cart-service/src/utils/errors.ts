@@ -1,126 +1,165 @@
-// Base error class
-export class AppError extends Error {
+export class BaseError extends Error {
   public readonly statusCode: number;
+  public readonly code: string;
   public readonly isOperational: boolean;
-  public readonly code?: string;
 
-  constructor(message: string, statusCode: number = 500, isOperational = true, code?: string) {
+  constructor(message: string, statusCode: number, code: string, isOperational = true) {
     super(message);
+    
+    this.name = this.constructor.name;
     this.statusCode = statusCode;
-    this.isOperational = isOperational;
     this.code = code;
+    this.isOperational = isOperational;
 
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
-// HTTP status codes
-export enum HttpStatusCode {
-  OK = 200,
-  CREATED = 201,
-  BAD_REQUEST = 400,
-  UNAUTHORIZED = 401,
-  FORBIDDEN = 403,
-  NOT_FOUND = 404,
-  CONFLICT = 409,
-  UNPROCESSABLE_ENTITY = 422,
-  INTERNAL_SERVER_ERROR = 500,
-}
-
-// Error codes
-export enum ErrorCode {
-  // Authentication & Authorization
-  INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
-  TOKEN_EXPIRED = 'TOKEN_EXPIRED',
-  INSUFFICIENT_PERMISSIONS = 'INSUFFICIENT_PERMISSIONS',
-
-  // Resource errors
-  RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND',
-  RESOURCE_ALREADY_EXISTS = 'RESOURCE_ALREADY_EXISTS',
-
-  // Validation errors
-  VALIDATION_ERROR = 'VALIDATION_ERROR',
-
-  // Business logic errors
-  BUSINESS_RULE_VIOLATION = 'BUSINESS_RULE_VIOLATION',
-  INSUFFICIENT_STOCK = 'INSUFFICIENT_STOCK',
-
-  // System errors
-  INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR',
-  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
-}
-
-// Specific error classes
-export class BadRequestError extends AppError {
-  constructor(message: string = 'Bad Request', code?: string) {
-    super(message, HttpStatusCode.BAD_REQUEST, true, code || ErrorCode.VALIDATION_ERROR);
+export class CartNotFoundError extends BaseError {
+  constructor(message = 'Cart not found') {
+    super(message, 404, 'CART_NOT_FOUND');
   }
 }
 
-export class UnauthorizedError extends AppError {
-  constructor(message: string = 'Unauthorized', code?: string) {
-    super(message, HttpStatusCode.UNAUTHORIZED, true, code || ErrorCode.INVALID_CREDENTIALS);
+export class CartItemNotFoundError extends BaseError {
+  constructor(message = 'Cart item not found') {
+    super(message, 404, 'CART_ITEM_NOT_FOUND');
   }
 }
 
-export class ForbiddenError extends AppError {
-  constructor(message: string = 'Forbidden', code?: string) {
-    super(message, HttpStatusCode.FORBIDDEN, true, code || ErrorCode.INSUFFICIENT_PERMISSIONS);
+export class SavedItemNotFoundError extends BaseError {
+  constructor(message = 'Saved item not found') {
+    super(message, 404, 'SAVED_ITEM_NOT_FOUND');
   }
 }
 
-export class NotFoundError extends AppError {
-  constructor(message: string = 'Resource not found', code?: string) {
-    super(message, HttpStatusCode.NOT_FOUND, true, code || ErrorCode.RESOURCE_NOT_FOUND);
+export class InvalidQuantityError extends BaseError {
+  constructor(message = 'Invalid quantity specified') {
+    super(message, 400, 'INVALID_QUANTITY');
   }
 }
 
-export class ConflictError extends AppError {
-  constructor(message: string = 'Resource already exists', code?: string) {
-    super(message, HttpStatusCode.CONFLICT, true, code || ErrorCode.RESOURCE_ALREADY_EXISTS);
+export class ProductNotAvailableError extends BaseError {
+  constructor(message = 'Product is not available') {
+    super(message, 400, 'PRODUCT_NOT_AVAILABLE');
   }
 }
 
-export class ValidationError extends AppError {
-  constructor(message: string = 'Validation failed', details?: any) {
-    super(message, HttpStatusCode.UNPROCESSABLE_ENTITY, true, ErrorCode.VALIDATION_ERROR);
-    this.details = details;
-  }
-
-  details?: any;
-}
-
-export class InternalServerError extends AppError {
-  constructor(message: string = 'Internal Server Error', code?: string) {
-    super(
-      message,
-      HttpStatusCode.INTERNAL_SERVER_ERROR,
-      false,
-      code || ErrorCode.INTERNAL_SERVER_ERROR
-    );
+export class InsufficientStockError extends BaseError {
+  constructor(message = 'Insufficient stock available') {
+    super(message, 400, 'INSUFFICIENT_STOCK');
   }
 }
 
-export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
-
-/**
- * Create an error instance based on status code
- */
-export function createError(status: number, message: string, details?: any): AppError {
-  switch (status) {
-    case 400:
-      return new BadRequestError(message);
-    case 401:
-      return new UnauthorizedError(message);
-    case 403:
-      return new ForbiddenError(message);
-    case 404:
-      return new NotFoundError(message);
-    case 409:
-      return new ConflictError(message);
-    case 422:
-      return new ValidationError(message, details);
-    default:
-      return new InternalServerError(message);
+export class CartValidationError extends BaseError {
+  constructor(message = 'Cart validation failed') {
+    super(message, 400, 'CART_VALIDATION_ERROR');
   }
 }
+
+export class CouponValidationError extends BaseError {
+  constructor(message = 'Coupon validation failed') {
+    super(message, 400, 'COUPON_VALIDATION_ERROR');
+  }
+}
+
+export class CartExpiredError extends BaseError {
+  constructor(message = 'Cart has expired') {
+    super(message, 410, 'CART_EXPIRED');
+  }
+}
+
+export class CartLimitExceededError extends BaseError {
+  constructor(message = 'Cart item limit exceeded') {
+    super(message, 400, 'CART_LIMIT_EXCEEDED');
+  }
+}
+
+export class PriceValidationError extends BaseError {
+  constructor(message = 'Price validation failed') {
+    super(message, 400, 'PRICE_VALIDATION_ERROR');
+  }
+}
+
+export class AuthenticationError extends BaseError {
+  constructor(message = 'Authentication required') {
+    super(message, 401, 'AUTHENTICATION_REQUIRED');
+  }
+}
+
+export class AuthorizationError extends BaseError {
+  constructor(message = 'Insufficient permissions') {
+    super(message, 403, 'INSUFFICIENT_PERMISSIONS');
+  }
+}
+
+export class DatabaseError extends BaseError {
+  constructor(message = 'Database operation failed') {
+    super(message, 500, 'DATABASE_ERROR');
+  }
+}
+
+export class ValidationError extends BaseError {
+  public readonly errors: Array<{
+    field: string;
+    message: string;
+    value?: any;
+  }>;
+
+  constructor(
+    errors: Array<{ field: string; message: string; value?: any }>,
+    message = 'Validation failed'
+  ) {
+    super(message, 400, 'VALIDATION_ERROR');
+    this.errors = errors;
+  }
+}
+
+export class RateLimitError extends BaseError {
+  constructor(message = 'Rate limit exceeded') {
+    super(message, 429, 'RATE_LIMIT_EXCEEDED');
+  }
+}
+
+export class ServiceUnavailableError extends BaseError {
+  constructor(message = 'Service temporarily unavailable') {
+    super(message, 503, 'SERVICE_UNAVAILABLE');
+  }
+}
+
+// Error handler utility function
+export const handleError = (error: unknown): BaseError => {
+  if (error instanceof BaseError) {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    return new BaseError(error.message, 500, 'INTERNAL_ERROR');
+  }
+
+  return new BaseError('Unknown error occurred', 500, 'UNKNOWN_ERROR');
+};
+
+// Error response formatter
+export const formatErrorResponse = (error: BaseError) => {
+  const response: any = {
+    success: false,
+    error: {
+      code: error.code,
+      message: error.message,
+      statusCode: error.statusCode,
+    },
+  };
+
+  // Add validation errors if present
+  if (error instanceof ValidationError) {
+    response.error.validationErrors = error.errors;
+  }
+
+  // Add stack trace in development
+  if (process.env.NODE_ENV === 'development') {
+    response.error.stack = error.stack;
+  }
+
+  return response;
+};
