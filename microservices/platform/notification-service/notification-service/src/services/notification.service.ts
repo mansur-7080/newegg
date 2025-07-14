@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
-import { logger } from '@ultramarket/common';
+import { logger } from '../utils/logger';
 import { PrismaClient } from '@prisma/client';
+import EmailService from '../config/email.config';
 
 const prisma = new PrismaClient();
 
@@ -56,37 +57,12 @@ export interface InAppNotification {
 }
 
 export class NotificationService {
-  private emailTransporter: nodemailer.Transporter;
+  private emailService: EmailService;
   private templates: Map<string, any> = new Map();
 
   constructor() {
-    this.initializeEmailService();
+    this.emailService = new EmailService();
     this.loadTemplates();
-  }
-
-  /**
-   * Initialize email service
-   */
-  private initializeEmailService(): void {
-    if (process.env.NODE_ENV === 'production') {
-      this.emailTransporter = nodemailer.createTransporter({
-        service: process.env.EMAIL_SERVICE || 'sendgrid',
-        auth: {
-          user: process.env.EMAIL_USER || '',
-          pass: process.env.EMAIL_PASS || '',
-        },
-      });
-    } else {
-      this.emailTransporter = nodemailer.createTransporter({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.ETHEREAL_USER || 'test@example.com',
-          pass: process.env.ETHEREAL_PASS || 'test123',
-        },
-      });
-    }
   }
 
   /**
@@ -144,34 +120,118 @@ export class NotificationService {
    */
   async sendEmail(notification: EmailNotification): Promise<void> {
     try {
-      const template = this.templates.get(notification.template);
-      if (!template) {
-        throw new Error(`Email template '${notification.template}' not found`);
-      }
-
-      const subject = this.renderTemplate(template.subject, notification.data);
-      const html = this.renderTemplate(template.html, notification.data);
-      const text = this.renderTemplate(template.text, notification.data);
-
-      const mailOptions = {
-        from: process.env.EMAIL_FROM || 'noreply@ultramarket.com',
+      logger.info('Sending email notification', {
         to: notification.to,
-        subject,
-        html,
-        text,
-        attachments: notification.attachments,
-      };
-
-      const info = await this.emailTransporter.sendMail(mailOptions);
-
-      logger.info('Email sent successfully', {
-        messageId: info.messageId,
-        to: notification.to,
-        subject,
+        subject: notification.subject,
         template: notification.template,
       });
+
+      const result = await this.emailService.sendEmail({
+        to: notification.to,
+        subject: notification.subject,
+        template: {
+          name: notification.template,
+          data: notification.data,
+        },
+        attachments: notification.attachments,
+        priority: 'normal',
+      });
+
+      logger.info('Email sent successfully', {
+        messageId: result.messageId,
+        to: notification.to,
+        subject: notification.subject,
+        template: notification.template,
+      });
+
+      return result;
     } catch (error) {
-      logger.error('Failed to send email', error);
+      logger.error('Failed to send email', {
+        error: error.message,
+        to: notification.to,
+        template: notification.template,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Send welcome email
+   */
+  async sendWelcomeEmail(to: string, name: string, verificationUrl: string): Promise<void> {
+    await this.emailService.sendEmail({
+      to,
+      subject: 'UltraMarket ga xush kelibsiz!',
+      template: {
+        name: 'welcome',
+        data: { name, verificationUrl },
+      },
+      priority: 'high',
+    });
+  }
+
+  /**
+   * Send order confirmation email
+   */
+  async sendOrderConfirmation(
+    to: string,
+    customerName: string,
+    orderNumber: string,
+    totalAmount: number,
+    deliveryAddress: string
+  ): Promise<void> {
+    await this.emailService.sendEmail({
+      to,
+      subject: `Buyurtma #${orderNumber} tasdiqlandi`,
+      template: {
+        name: 'orderConfirmation',
+        data: {
+          customerName,
+          orderNumber,
+          totalAmount,
+          deliveryAddress,
+        },
+      },
+      priority: 'high',
+    });
+  }
+
+  /**
+   * Send password reset email
+   */
+  async sendPasswordReset(to: string, resetUrl: string): Promise<void> {
+    await this.emailService.sendEmail({
+      to,
+      subject: 'Parolni tiklash - UltraMarket',
+      template: {
+        name: 'passwordReset',
+        data: { resetUrl },
+      },
+      priority: 'high',
+    });
+  }
+
+  /**
+   * Send bulk emails
+   */
+  async sendBulkEmails(emails: Array<{
+    to: string;
+    subject: string;
+    template: string;
+    data: Record<string, any>;
+  }>): Promise<void> {
+    try {
+      logger.info('Sending bulk emails', { count: emails.length });
+      
+      const results = await this.emailService.sendBulkEmail(emails);
+      
+      logger.info('Bulk emails sent', {
+        total: emails.length,
+        successful: results.length,
+        failed: emails.length - results.length,
+      });
+    } catch (error) {
+      logger.error('Bulk email sending failed', error);
       throw error;
     }
   }
