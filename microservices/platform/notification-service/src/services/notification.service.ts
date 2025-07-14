@@ -1,395 +1,896 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import nodemailer from 'nodemailer';
 import axios from 'axios';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { NotificationEntity } from '../entities/notification.entity';
-import { NotificationTemplate } from '../entities/notification-template.entity';
+import * as admin from 'firebase-admin';
+import { createHash } from 'crypto';
+import Handlebars from 'handlebars';
+import { logger } from '../utils/logger';
+import { prisma } from '../config/database';
+import { RedisService } from '../config/redis';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
-export interface NotificationData {
-  type: 'email' | 'sms' | 'push';
-  recipient: string;
+export interface NotificationPayload {
+  userId: string;
+  type: 'email' | 'sms' | 'push' | 'in-app';
   template: string;
   data: Record<string, any>;
-  priority?: 'low' | 'medium' | 'high';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  channels?: string[];
   scheduledAt?: Date;
+  metadata?: Record<string, any>;
 }
 
-export interface SMSProvider {
-  name: string;
-  apiUrl: string;
-  apiKey: string;
-  sender: string;
+export interface EmailNotification {
+  to: string;
+  subject: string;
+  template: string;
+  data: Record<string, any>;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer | string;
+    contentType?: string;
+  }>;
 }
 
-@Injectable()
+export interface SMSNotification {
+  to: string;
+  message: string;
+  template?: string;
+  data?: Record<string, any>;
+}
+
+export interface PushNotification {
+  userId: string;
+  title: string;
+  body: string;
+  data?: Record<string, any>;
+  badge?: number;
+  sound?: string;
+  icon?: string;
+  clickAction?: string;
+}
+
+export interface InAppNotification {
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  actionUrl?: string;
+  actionText?: string;
+  metadata?: Record<string, any>;
+}
+
 export class NotificationService {
-  private readonly logger = new Logger(NotificationService.name);
   private emailTransporter: nodemailer.Transporter;
-  private smsProviders: SMSProvider[];
+  private templates: Map<string, any> = new Map();
+  private redis: RedisService;
+  private firebaseApp?: admin.app.App;
 
-  constructor(
-    private configService: ConfigService,
-    @InjectRepository(NotificationEntity)
-    private notificationRepository: Repository<NotificationEntity>,
-    @InjectRepository(NotificationTemplate)
-    private templateRepository: Repository<NotificationTemplate>
-  ) {
-    this.initializeEmailTransporter();
-    this.initializeSMSProviders();
+  constructor() {
+    this.initializeEmailService();
+    this.initializeSMSService();
+    this.initializePushService();
+    this.loadTemplates();
+    this.redis = new RedisService();
   }
 
-  private initializeEmailTransporter() {
-    this.emailTransporter = nodemailer.createTransporter({
-      host: this.configService.get('SMTP_HOST'),
-      port: this.configService.get('SMTP_PORT'),
-      secure: this.configService.get('SMTP_SECURE') === 'true',
+  /**
+   * Initialize email service with SMTP configuration
+   */
+  private initializeEmailService(): void {
+    this.emailTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
       auth: {
-        user: this.configService.get('SMTP_USER'),
-        pass: this.configService.get('SMTP_PASS'),
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
       },
+    });
+
+    // Verify email configuration
+    this.emailTransporter.verify((error, success) => {
+      if (error) {
+        logger.error('Email service initialization failed:', error);
+      } else {
+        logger.info('Email service initialized successfully');
+      }
     });
   }
 
-  private initializeSMSProviders() {
-    // O'zbekiston SMS provayderlari
-    this.smsProviders = [
-      {
-        name: 'ESKIZ',
-        apiUrl: 'https://notify.eskiz.uz/api',
-        apiKey: this.configService.get('ESKIZ_API_KEY'),
-        sender: this.configService.get('ESKIZ_SENDER'),
-      },
-      {
-        name: 'PLAY_MOBILE',
-        apiUrl: 'https://send.smsxabar.uz/broker-api',
-        apiKey: this.configService.get('PLAY_MOBILE_API_KEY'),
-        sender: this.configService.get('PLAY_MOBILE_SENDER'),
-      },
-    ];
+  /**
+   * Initialize SMS service (ESKIZ integration for Uzbekistan)
+   */
+  private initializeSMSService(): void {
+    if (!process.env.ESKIZ_EMAIL || !process.env.ESKIZ_PASSWORD) {
+      logger.warn('ESKIZ SMS credentials not configured');
+    } else {
+      logger.info('SMS service initialized with ESKIZ');
+    }
   }
 
-  async sendNotification(notificationData: NotificationData): Promise<void> {
+  /**
+   * Initialize push notification service (Firebase)
+   */
+  private initializePushService(): void {
     try {
-      const notification = this.notificationRepository.create({
-        type: notificationData.type,
-        recipient: notificationData.recipient,
-        template: notificationData.template,
-        data: notificationData.data,
-        priority: notificationData.priority || 'medium',
-        scheduledAt: notificationData.scheduledAt || new Date(),
-        status: 'pending',
-      });
+      if (process.env.FIREBASE_CREDENTIALS) {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+        
+        this.firebaseApp = admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        });
 
-      await this.notificationRepository.save(notification);
+        logger.info('Push notification service initialized with Firebase');
+      } else {
+        logger.warn('Firebase credentials not configured');
+      }
+    } catch (error) {
+      logger.error('Failed to initialize push service:', error);
+    }
+  }
 
-      if (notificationData.scheduledAt && notificationData.scheduledAt > new Date()) {
-        // Schedule for later
-        this.scheduleNotification(notification);
+  /**
+   * Send notification based on payload
+   */
+  async sendNotification(payload: NotificationPayload): Promise<void> {
+    try {
+      // Check user preferences
+      const preferences = await this.getUserPreferences(payload.userId);
+      
+      if (!preferences || !preferences[payload.type]) {
+        logger.info('User has disabled notifications', {
+          userId: payload.userId,
+          type: payload.type,
+        });
         return;
       }
 
-      switch (notificationData.type) {
+      // Schedule if needed
+      if (payload.scheduledAt && payload.scheduledAt > new Date()) {
+        await this.scheduleNotification(payload);
+        return;
+      }
+
+      // Send based on type
+      switch (payload.type) {
         case 'email':
-          await this.sendEmail(notification);
+          await this.sendEmailFromPayload(payload);
           break;
         case 'sms':
-          await this.sendSMS(notification);
+          await this.sendSMSFromPayload(payload);
           break;
         case 'push':
-          await this.sendPushNotification(notification);
+          await this.sendPushFromPayload(payload);
+          break;
+        case 'in-app':
+          await this.sendInAppFromPayload(payload);
           break;
       }
+
+      // Store notification history
+      await this.storeNotificationHistory(payload);
     } catch (error) {
-      this.logger.error('Notification yuborishda xatolik:', error);
+      logger.error('Failed to send notification', error);
       throw error;
     }
   }
 
-  private async sendEmail(notification: NotificationEntity): Promise<void> {
+  /**
+   * Send email notification
+   */
+  async sendEmail(notification: EmailNotification): Promise<void> {
     try {
-      const template = await this.getTemplate(notification.template, 'email');
-      const content = this.renderTemplate(template.content, notification.data);
-      const subject = this.renderTemplate(template.subject, notification.data);
+      const template = this.templates.get(notification.template);
+      if (!template) {
+        throw new Error(`Template not found: ${notification.template}`);
+      }
 
-      await this.emailTransporter.sendMail({
-        from: this.configService.get('SMTP_FROM'),
-        to: notification.recipient,
-        subject,
-        html: content,
+      const compiledTemplate = Handlebars.compile(template.html);
+      const html = compiledTemplate(notification.data);
+
+      const mailOptions = {
+        from: process.env.SMTP_FROM || 'noreply@ultramarket.uz',
+        to: notification.to,
+        subject: notification.subject,
+        html,
+        attachments: notification.attachments,
+      };
+
+      const result = await this.emailTransporter.sendMail(mailOptions);
+      
+      logger.info('Email sent successfully', {
+        messageId: result.messageId,
+        to: notification.to,
+        template: notification.template,
       });
-
-      notification.status = 'sent';
-      notification.sentAt = new Date();
-      await this.notificationRepository.save(notification);
-
-      this.logger.log(`Email yuborildi: ${notification.recipient}`);
     } catch (error) {
-      notification.status = 'failed';
-      notification.error = error.message;
-      await this.notificationRepository.save(notification);
+      logger.error('Failed to send email', error);
       throw error;
     }
   }
 
-  private async sendSMS(notification: NotificationEntity): Promise<void> {
+  /**
+   * Send SMS notification using ESKIZ API
+   */
+  async sendSMS(notification: SMSNotification): Promise<void> {
     try {
-      const template = await this.getTemplate(notification.template, 'sms');
-      const content = this.renderTemplate(template.content, notification.data);
-
-      // Try primary SMS provider first
-      let sent = false;
-      for (const provider of this.smsProviders) {
-        try {
-          await this.sendSMSWithProvider(provider, notification.recipient, content);
-          sent = true;
-          break;
-        } catch (error) {
-          this.logger.warn(`SMS yuborishda xatolik (${provider.name}):`, error);
-          continue;
-        }
+      // Get ESKIZ token
+      const token = await this.getEskizToken();
+      
+      if (!token) {
+        throw new Error('Failed to get ESKIZ token');
       }
 
-      if (!sent) {
-        throw new Error('Barcha SMS provayderlar ishlamadi');
+      // Format phone number (remove +998 if present)
+      let phoneNumber = notification.to.replace(/\s+/g, '');
+      if (phoneNumber.startsWith('+998')) {
+        phoneNumber = phoneNumber.substring(4);
       }
 
-      notification.status = 'sent';
-      notification.sentAt = new Date();
-      await this.notificationRepository.save(notification);
-
-      this.logger.log(`SMS yuborildi: ${notification.recipient}`);
-    } catch (error) {
-      notification.status = 'failed';
-      notification.error = error.message;
-      await this.notificationRepository.save(notification);
-      throw error;
-    }
-  }
-
-  private async sendSMSWithProvider(
-    provider: SMSProvider,
-    recipient: string,
-    message: string
-  ): Promise<void> {
-    const phoneNumber = this.normalizePhoneNumber(recipient);
-
-    if (provider.name === 'ESKIZ') {
-      await this.sendEskizSMS(provider, phoneNumber, message);
-    } else if (provider.name === 'PLAY_MOBILE') {
-      await this.sendPlayMobileSMS(provider, phoneNumber, message);
-    }
-  }
-
-  private async sendEskizSMS(
-    provider: SMSProvider,
-    phoneNumber: string,
-    message: string
-  ): Promise<void> {
-    const response = await axios.post(
-      `${provider.apiUrl}/message/sms/send`,
-      {
-        mobile_phone: phoneNumber,
-        message,
-        from: provider.sender,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${provider.apiKey}`,
-        },
-      }
-    );
-
-    if (response.data.status !== 'success') {
-      throw new Error(`ESKIZ SMS xatolik: ${response.data.message}`);
-    }
-  }
-
-  private async sendPlayMobileSMS(
-    provider: SMSProvider,
-    phoneNumber: string,
-    message: string
-  ): Promise<void> {
-    const response = await axios.post(
-      `${provider.apiUrl}/send`,
-      {
-        messages: [
-          {
-            recipient: phoneNumber,
-            'message-id': `msg_${Date.now()}`,
-            sms: {
-              originator: provider.sender,
-              content: {
-                text: message,
-              },
-            },
-          },
-        ],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${provider.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    if (response.status !== 200) {
-      throw new Error(`Play Mobile SMS xatolik: ${response.statusText}`);
-    }
-  }
-
-  private async sendPushNotification(notification: NotificationEntity): Promise<void> {
-    try {
-      const template = await this.getTemplate(notification.template, 'push');
-      const title = this.renderTemplate(template.subject, notification.data);
-      const body = this.renderTemplate(template.content, notification.data);
-
-      // Firebase Cloud Messaging orqali push notification
+      // Send SMS via ESKIZ API
       const response = await axios.post(
-        'https://fcm.googleapis.com/fcm/send',
+        'https://notify.eskiz.uz/api/message/sms/send',
         {
-          to: notification.recipient, // FCM token
-          notification: {
-            title,
-            body,
-            icon: 'icon-192x192.png',
-            badge: 'badge-72x72.png',
-          },
-          data: notification.data,
+          mobile_phone: phoneNumber,
+          message: notification.message,
+          from: process.env.ESKIZ_SENDER_NAME || '4546',
         },
         {
           headers: {
-            Authorization: `key=${this.configService.get('FCM_SERVER_KEY')}`,
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.status === 'success') {
+        logger.info('SMS sent successfully', {
+          to: notification.to,
+          messageId: response.data.id,
+        });
+      } else {
+        throw new Error(`SMS sending failed: ${response.data.message}`);
+      }
+    } catch (error) {
+      logger.error('Failed to send SMS', error);
+      
+      // Fallback to PlayMobile if ESKIZ fails
+      if (process.env.PLAYMOBILE_API_KEY) {
+        await this.sendSMSViaPlayMobile(notification);
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Get ESKIZ authentication token
+   */
+  private async getEskizToken(): Promise<string | null> {
+    try {
+      // Check if we have a cached token
+      const cachedToken = await this.redis.get('eskiz:token');
+      if (cachedToken) {
+        return cachedToken;
+      }
+
+      // Get new token
+      const response = await axios.post('https://notify.eskiz.uz/api/auth/login', {
+        email: process.env.ESKIZ_EMAIL,
+        password: process.env.ESKIZ_PASSWORD,
+      });
+
+      if (response.data.status === 'success' && response.data.data.token) {
+        const token = response.data.data.token;
+        
+        // Cache token for 25 days (ESKIZ tokens expire in 30 days)
+        await this.redis.setex('eskiz:token', 25 * 24 * 60 * 60, token);
+        
+        return token;
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to get ESKIZ token', error);
+      return null;
+    }
+  }
+
+  /**
+   * Send SMS via PlayMobile (backup provider)
+   */
+  private async sendSMSViaPlayMobile(notification: SMSNotification): Promise<void> {
+    try {
+      const response = await axios.post(
+        'https://send.smsxabar.uz/broker-api/send',
+        {
+          messages: [
+            {
+              recipient: notification.to,
+              message_id: Date.now().toString(),
+              sms: {
+                originator: '3700',
+                content: {
+                  text: notification.message,
+                },
+              },
+            },
+          ],
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.PLAYMOBILE_API_KEY}`,
             'Content-Type': 'application/json',
           },
         }
       );
 
-      if (response.data.success !== 1) {
-        throw new Error(`Push notification xatolik: ${JSON.stringify(response.data)}`);
-      }
-
-      notification.status = 'sent';
-      notification.sentAt = new Date();
-      await this.notificationRepository.save(notification);
-
-      this.logger.log(`Push notification yuborildi: ${notification.recipient}`);
+      logger.info('SMS sent via PlayMobile', {
+        to: notification.to,
+        response: response.data,
+      });
     } catch (error) {
-      notification.status = 'failed';
-      notification.error = error.message;
-      await this.notificationRepository.save(notification);
+      logger.error('Failed to send SMS via PlayMobile', error);
       throw error;
     }
   }
 
-  private normalizePhoneNumber(phoneNumber: string): string {
-    // O'zbekiston telefon raqamlarini normalizatsiya qilish
-    let normalized = phoneNumber.replace(/[^\d+]/g, '');
-
-    if (normalized.startsWith('998')) {
-      normalized = '+' + normalized;
-    } else if (normalized.startsWith('8')) {
-      normalized = '+998' + normalized.substring(1);
-    } else if (normalized.length === 9) {
-      normalized = '+998' + normalized;
-    }
-
-    return normalized;
-  }
-
-  private async getTemplate(templateName: string, type: string): Promise<NotificationTemplate> {
-    const template = await this.templateRepository.findOne({
-      where: { name: templateName, type },
-    });
-
-    if (!template) {
-      throw new Error(`Template topilmadi: ${templateName} (${type})`);
-    }
-
-    return template;
-  }
-
-  private renderTemplate(template: string, data: Record<string, any>): string {
-    let rendered = template;
-
-    for (const [key, value] of Object.entries(data)) {
-      const placeholder = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
-      rendered = rendered.replace(placeholder, String(value));
-    }
-
-    return rendered;
-  }
-
-  private scheduleNotification(notification: NotificationEntity): void {
-    const delay = notification.scheduledAt.getTime() - Date.now();
-
-    setTimeout(async () => {
-      try {
-        await this.sendNotification({
-          type: notification.type as any,
-          recipient: notification.recipient,
-          template: notification.template,
-          data: notification.data,
-          priority: notification.priority as any,
-        });
-      } catch (error) {
-        this.logger.error('Scheduled notification xatolik:', error);
+  /**
+   * Send push notification
+   */
+  async sendPush(notification: PushNotification): Promise<void> {
+    try {
+      if (!this.firebaseApp) {
+        logger.warn('Firebase not initialized, skipping push notification');
+        return;
       }
-    }, delay);
+
+      // Get user's FCM tokens
+      const userTokens = await this.getUserFCMTokens(notification.userId);
+      
+      if (!userTokens || userTokens.length === 0) {
+        logger.info('No FCM tokens found for user', { userId: notification.userId });
+        return;
+      }
+
+      const message = {
+        notification: {
+          title: notification.title,
+          body: notification.body,
+        },
+        data: notification.data || {},
+        android: {
+          notification: {
+            icon: notification.icon || 'ic_notification',
+            sound: notification.sound || 'default',
+            clickAction: notification.clickAction,
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              badge: notification.badge,
+              sound: notification.sound || 'default',
+            },
+          },
+        },
+        tokens: userTokens,
+      };
+
+      const response = await admin.messaging().sendMulticast(message);
+      
+      logger.info('Push notification sent', {
+        userId: notification.userId,
+        successCount: response.successCount,
+        failureCount: response.failureCount,
+      });
+
+      // Remove invalid tokens
+      if (response.failureCount > 0) {
+        const failedTokens: string[] = [];
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            failedTokens.push(userTokens[idx]);
+          }
+        });
+        
+        if (failedTokens.length > 0) {
+          await this.removeInvalidFCMTokens(notification.userId, failedTokens);
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to send push notification', error);
+      throw error;
+    }
   }
 
-  // Bulk notification methods
-  async sendBulkNotifications(notifications: NotificationData[]): Promise<void> {
-    const promises = notifications.map((notification) =>
-      this.sendNotification(notification).catch((error) => {
-        this.logger.error(`Bulk notification xatolik: ${notification.recipient}`, error);
-        return null;
-      })
+  /**
+   * Send in-app notification
+   */
+  async sendInApp(notification: InAppNotification): Promise<void> {
+    try {
+      // Store in database
+      await prisma.inAppNotification.create({
+        data: {
+          userId: notification.userId,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          actionUrl: notification.actionUrl,
+          actionText: notification.actionText,
+          metadata: notification.metadata || {},
+          read: false,
+        },
+      });
+
+      // Emit real-time event if user is online
+      // This would integrate with your WebSocket service
+      logger.info('In-app notification created', {
+        userId: notification.userId,
+        title: notification.title,
+      });
+    } catch (error) {
+      logger.error('Failed to send in-app notification', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send bulk notifications
+   */
+  async sendBulkNotifications(notifications: NotificationPayload[]): Promise<void> {
+    const results = await Promise.allSettled(
+      notifications.map(notification => this.sendNotification(notification))
     );
 
-    await Promise.all(promises);
-  }
+    const failed = results.filter(r => r.status === 'rejected').length;
+    const succeeded = results.filter(r => r.status === 'fulfilled').length;
 
-  // Analytics methods
-  async getNotificationStats(startDate: Date, endDate: Date) {
-    const stats = await this.notificationRepository
-      .createQueryBuilder('notification')
-      .select(['notification.type', 'notification.status', 'COUNT(*) as count'])
-      .where('notification.createdAt BETWEEN :startDate AND :endDate', {
-        startDate,
-        endDate,
-      })
-      .groupBy('notification.type, notification.status')
-      .getRawMany();
-
-    return stats;
-  }
-
-  async getFailedNotifications(limit: number = 100) {
-    return await this.notificationRepository.find({
-      where: { status: 'failed' },
-      order: { createdAt: 'DESC' },
-      take: limit,
+    logger.info('Bulk notifications sent', {
+      total: notifications.length,
+      succeeded,
+      failed,
     });
   }
 
-  async retryFailedNotifications(): Promise<void> {
-    const failedNotifications = await this.getFailedNotifications();
-
-    for (const notification of failedNotifications) {
-      try {
-        await this.sendNotification({
-          type: notification.type as any,
-          recipient: notification.recipient,
-          template: notification.template,
-          data: notification.data,
-          priority: notification.priority as any,
-        });
-      } catch (error) {
-        this.logger.error(`Retry failed notification xatolik: ${notification.id}`, error);
+  /**
+   * Get user notification preferences
+   */
+  async getUserPreferences(userId: string): Promise<any> {
+    try {
+      const cacheKey = `user:preferences:${userId}`;
+      const cached = await this.redis.get(cacheKey);
+      
+      if (cached) {
+        return JSON.parse(cached);
       }
+
+      const preferences = await prisma.notificationPreference.findUnique({
+        where: { userId },
+      });
+
+      if (!preferences) {
+        // Default preferences
+        const defaultPrefs = {
+          userId,
+          email: true,
+          sms: true,
+          push: true,
+          inApp: true,
+        };
+
+        await prisma.notificationPreference.create({
+          data: defaultPrefs,
+        });
+
+        await this.redis.setex(cacheKey, 3600, JSON.stringify(defaultPrefs));
+        return defaultPrefs;
+      }
+
+      await this.redis.setex(cacheKey, 3600, JSON.stringify(preferences));
+      return preferences;
+    } catch (error) {
+      logger.error('Failed to get user preferences', error);
+      return null;
     }
+  }
+
+  /**
+   * Update user notification preferences
+   */
+  async updateUserPreferences(userId: string, preferences: any): Promise<void> {
+    try {
+      await prisma.notificationPreference.upsert({
+        where: { userId },
+        update: preferences,
+        create: {
+          userId,
+          ...preferences,
+        },
+      });
+
+      // Clear cache
+      await this.redis.del(`user:preferences:${userId}`);
+      
+      logger.info('User preferences updated', { userId });
+    } catch (error) {
+      logger.error('Failed to update user preferences', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get notification history
+   */
+  async getNotificationHistory(
+    userId: string,
+    options: { limit?: number; offset?: number; type?: string }
+  ): Promise<any[]> {
+    try {
+      const where: any = { userId };
+      if (options.type) {
+        where.type = options.type;
+      }
+
+      const history = await prisma.notificationHistory.findMany({
+        where,
+        take: options.limit || 20,
+        skip: options.offset || 0,
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return history;
+    } catch (error) {
+      logger.error('Failed to get notification history', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark notification as read
+   */
+  async markAsRead(userId: string, notificationId: string): Promise<void> {
+    try {
+      await prisma.inAppNotification.update({
+        where: {
+          id: notificationId,
+          userId,
+        },
+        data: {
+          read: true,
+          readAt: new Date(),
+        },
+      });
+
+      logger.info('Notification marked as read', { userId, notificationId });
+    } catch (error) {
+      logger.error('Failed to mark notification as read', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Load email templates
+   */
+  private loadTemplates(): void {
+    const templatesDir = join(__dirname, '..', 'templates');
+    
+    const templates = [
+      { name: 'welcome', file: 'welcome.hbs' },
+      { name: 'order-confirmation', file: 'order-confirmation.hbs' },
+      { name: 'payment-success', file: 'payment-success.hbs' },
+      { name: 'shipping-update', file: 'shipping-update.hbs' },
+      { name: 'password-reset', file: 'password-reset.hbs' },
+      { name: 'verification', file: 'verification.hbs' },
+    ];
+
+    templates.forEach(template => {
+      try {
+        const content = readFileSync(join(templatesDir, template.file), 'utf-8');
+        this.templates.set(template.name, {
+          html: content,
+        });
+        logger.info(`Template loaded: ${template.name}`);
+      } catch (error) {
+        logger.warn(`Failed to load template: ${template.name}`, error);
+        // Set a default template
+        this.templates.set(template.name, {
+          html: '<p>{{message}}</p>',
+        });
+      }
+    });
+  }
+
+  /**
+   * Get user's FCM tokens
+   */
+  private async getUserFCMTokens(userId: string): Promise<string[]> {
+    try {
+      const tokens = await prisma.userDevice.findMany({
+        where: {
+          userId,
+          fcmToken: { not: null },
+          active: true,
+        },
+        select: { fcmToken: true },
+      });
+
+      return tokens.map(t => t.fcmToken!).filter(Boolean);
+    } catch (error) {
+      logger.error('Failed to get user FCM tokens', error);
+      return [];
+    }
+  }
+
+  /**
+   * Remove invalid FCM tokens
+   */
+  private async removeInvalidFCMTokens(userId: string, tokens: string[]): Promise<void> {
+    try {
+      await prisma.userDevice.updateMany({
+        where: {
+          userId,
+          fcmToken: { in: tokens },
+        },
+        data: {
+          active: false,
+          updatedAt: new Date(),
+        },
+      });
+
+      logger.info('Invalid FCM tokens removed', { userId, count: tokens.length });
+    } catch (error) {
+      logger.error('Failed to remove invalid FCM tokens', error);
+    }
+  }
+
+  /**
+   * Schedule notification for later
+   */
+  private async scheduleNotification(payload: NotificationPayload): Promise<void> {
+    await prisma.scheduledNotification.create({
+      data: {
+        userId: payload.userId,
+        type: payload.type,
+        template: payload.template,
+        data: payload.data,
+        priority: payload.priority,
+        scheduledAt: payload.scheduledAt!,
+        metadata: payload.metadata || {},
+        status: 'PENDING',
+      },
+    });
+
+    logger.info('Notification scheduled', {
+      userId: payload.userId,
+      type: payload.type,
+      scheduledAt: payload.scheduledAt,
+    });
+  }
+
+  /**
+   * Store notification history
+   */
+  private async storeNotificationHistory(payload: NotificationPayload): Promise<void> {
+    await prisma.notificationHistory.create({
+      data: {
+        userId: payload.userId,
+        type: payload.type,
+        template: payload.template,
+        data: payload.data,
+        priority: payload.priority,
+        metadata: payload.metadata || {},
+        sentAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Process scheduled notifications
+   */
+  async processScheduledNotifications(): Promise<void> {
+    try {
+      const now = new Date();
+      const notifications = await prisma.scheduledNotification.findMany({
+        where: {
+          scheduledAt: { lte: now },
+          status: 'PENDING',
+        },
+        take: 100,
+      });
+
+      for (const notification of notifications) {
+        try {
+          await this.sendNotification({
+            userId: notification.userId,
+            type: notification.type as any,
+            template: notification.template,
+            data: notification.data as any,
+            priority: notification.priority as any,
+            metadata: notification.metadata as any,
+          });
+
+          await prisma.scheduledNotification.update({
+            where: { id: notification.id },
+            data: {
+              status: 'SENT',
+              sentAt: new Date(),
+            },
+          });
+        } catch (error) {
+          logger.error('Failed to send scheduled notification', {
+            notificationId: notification.id,
+            error,
+          });
+
+          await prisma.scheduledNotification.update({
+            where: { id: notification.id },
+            data: {
+              status: 'FAILED',
+              error: error instanceof Error ? error.message : 'Unknown error',
+            },
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to process scheduled notifications', error);
+    }
+  }
+
+  /**
+   * Send notification based on payload type
+   */
+  private async sendEmailFromPayload(payload: NotificationPayload): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+    });
+
+    if (!user || !user.email) {
+      throw new Error('User email not found');
+    }
+
+    await this.sendEmail({
+      to: user.email,
+      subject: this.getEmailSubject(payload.template),
+      template: payload.template,
+      data: {
+        ...payload.data,
+        userName: user.name,
+      },
+    });
+  }
+
+  private async sendSMSFromPayload(payload: NotificationPayload): Promise<void> {
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+    });
+
+    if (!user || !user.phone) {
+      throw new Error('User phone not found');
+    }
+
+    const message = this.renderSMSTemplate(payload.template, payload.data);
+    
+    await this.sendSMS({
+      to: user.phone,
+      message,
+    });
+  }
+
+  private async sendPushFromPayload(payload: NotificationPayload): Promise<void> {
+    const pushData = this.getPushData(payload.template, payload.data);
+    
+    await this.sendPush({
+      userId: payload.userId,
+      title: pushData.title,
+      body: pushData.body,
+      data: payload.data,
+    });
+  }
+
+  private async sendInAppFromPayload(payload: NotificationPayload): Promise<void> {
+    const inAppData = this.getInAppData(payload.template, payload.data);
+    
+    await this.sendInApp({
+      userId: payload.userId,
+      title: inAppData.title,
+      message: inAppData.message,
+      type: inAppData.type,
+      actionUrl: payload.data.actionUrl,
+      actionText: payload.data.actionText,
+      metadata: payload.metadata,
+    });
+  }
+
+  /**
+   * Get email subject based on template
+   */
+  private getEmailSubject(template: string): string {
+    const subjects: Record<string, string> = {
+      'welcome': 'Welcome to UltraMarket!',
+      'order-confirmation': 'Order Confirmation - {{orderId}}',
+      'payment-success': 'Payment Successful - {{orderId}}',
+      'shipping-update': 'Your Order is {{status}}',
+      'password-reset': 'Reset Your Password',
+      'verification': 'Verify Your Email',
+    };
+
+    return subjects[template] || 'UltraMarket Notification';
+  }
+
+  /**
+   * Render SMS template
+   */
+  private renderSMSTemplate(template: string, data: Record<string, any>): string {
+    const templates: Record<string, string> = {
+      'order-confirmation': 'Buyurtmangiz qabul qilindi. Buyurtma raqami: {{orderId}}. Summa: {{amount}} UZS',
+      'payment-success': 'To\'lov muvaffaqiyatli amalga oshirildi. Buyurtma: {{orderId}}',
+      'shipping-update': 'Buyurtmangiz {{status}}. Kuzatish: {{trackingNumber}}',
+      'verification-code': 'Tasdiqlash kodi: {{code}}. 10 daqiqa ichida foydalaning.',
+    };
+
+    let message = templates[template] || 'UltraMarket xabari';
+    
+    // Replace placeholders
+    Object.keys(data).forEach(key => {
+      message = message.replace(new RegExp(`{{${key}}}`, 'g'), data[key]);
+    });
+
+    return message;
+  }
+
+  /**
+   * Get push notification data
+   */
+  private getPushData(template: string, data: Record<string, any>): { title: string; body: string } {
+    const templates: Record<string, { title: string; body: string }> = {
+      'order-confirmation': {
+        title: 'Buyurtma tasdiqlandi',
+        body: `Buyurtma #${data.orderId} qabul qilindi`,
+      },
+      'payment-success': {
+        title: 'To\'lov amalga oshirildi',
+        body: `${data.amount} UZS to'lov qabul qilindi`,
+      },
+      'shipping-update': {
+        title: 'Yetkazib berish yangilanishi',
+        body: `Buyurtmangiz ${data.status}`,
+      },
+    };
+
+    return templates[template] || { title: 'UltraMarket', body: 'Yangi xabar' };
+  }
+
+  /**
+   * Get in-app notification data
+   */
+  private getInAppData(template: string, data: Record<string, any>): {
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+  } {
+    const templates: Record<string, any> = {
+      'order-confirmation': {
+        title: 'Buyurtma tasdiqlandi',
+        message: `Sizning #${data.orderId} buyurtmangiz qabul qilindi va tez orada ishlov beriladi.`,
+        type: 'success',
+      },
+      'payment-success': {
+        title: 'To\'lov muvaffaqiyatli',
+        message: `${data.amount} UZS miqdoridagi to'lov qabul qilindi.`,
+        type: 'success',
+      },
+      'shipping-update': {
+        title: 'Yetkazib berish yangilandi',
+        message: `Buyurtmangiz holati: ${data.status}`,
+        type: 'info',
+      },
+    };
+
+    return templates[template] || {
+      title: 'Xabar',
+      message: data.message || 'Yangi xabar',
+      type: 'info',
+    };
   }
 }

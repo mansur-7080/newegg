@@ -1,6 +1,9 @@
-import crypto from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import axios from 'axios';
-import { logger } from '@ultramarket/shared';
+import { logger } from '../utils/logger';
+import { prisma } from '../config/database';
+import { PaymentStatus, PaymentProvider } from '@prisma/client';
+import { RedisService } from '../config/redis';
 
 export interface ClickPaymentRequest {
   amount: number;
@@ -24,7 +27,7 @@ export interface ClickWebhookPayload {
   service_id: string;
   click_paydoc_id: string;
   merchant_trans_id: string;
-  merchant_prepare_id: string;
+  merchant_prepare_id?: string;
   amount: number;
   action: number;
   error: number;
@@ -33,22 +36,39 @@ export interface ClickWebhookPayload {
   sign_string: string;
 }
 
+export interface ClickTransaction {
+  id: string;
+  clickTransId: string;
+  serviceId: string;
+  merchantTransId: string;
+  merchantPrepareId?: string;
+  amount: number;
+  status: string;
+  createdAt: Date;
+  completedAt?: Date;
+}
+
 export class ClickService {
   private readonly merchantId: string;
   private readonly serviceId: string;
   private readonly secretKey: string;
   private readonly userId: string;
   private readonly baseUrl: string;
+  private readonly redis: RedisService;
 
   constructor() {
     this.merchantId = process.env.CLICK_MERCHANT_ID || '';
     this.serviceId = process.env.CLICK_SERVICE_ID || '';
     this.secretKey = process.env.CLICK_SECRET_KEY || '';
     this.userId = process.env.CLICK_USER_ID || '';
-    this.baseUrl = process.env.CLICK_ENDPOINT || 'https://api.click.uz/v2';
+    this.baseUrl = process.env.CLICK_ENVIRONMENT === 'production'
+      ? 'https://api.click.uz'
+      : 'https://api.click.uz/sandbox';
+    
+    this.redis = new RedisService();
 
-    if (!this.merchantId || !this.serviceId || !this.secretKey || !this.userId) {
-      throw new Error('Click payment gateway configuration is missing');
+    if (!this.merchantId || !this.serviceId || !this.secretKey) {
+      logger.error('Click credentials not configured');
     }
   }
 
@@ -57,29 +77,64 @@ export class ClickService {
    */
   async createPayment(request: ClickPaymentRequest): Promise<ClickPaymentResponse> {
     try {
-      logger.info('Creating Click payment', {
-        orderId: request.orderId,
-        amount: request.amount,
-        userId: request.userId,
+      logger.info('Creating Click payment', { orderId: request.orderId, amount: request.amount });
+
+      // Verify order exists and matches amount
+      const order = await this.verifyOrder(request.orderId, request.amount);
+      if (!order) {
+        return {
+          success: false,
+          error: 'Invalid order or amount mismatch',
+        };
+      }
+
+      // Create payment record in database
+      const payment = await prisma.payment.create({
+        data: {
+          orderId: request.orderId,
+          userId: request.userId,
+          amount: request.amount,
+          currency: 'UZS',
+          provider: PaymentProvider.CLICK,
+          status: PaymentStatus.PENDING,
+          merchantTransId: request.merchantTransId,
+          metadata: {
+            description: request.description,
+            returnUrl: request.returnUrl,
+            cancelUrl: request.cancelUrl,
+          },
+        },
       });
 
-      // Create payment URL
-      const paymentUrl = this.generatePaymentUrl(request);
+      // Generate payment URL
+      const paymentUrl = this.generatePaymentUrl(request, payment.id);
+
+      // Cache payment data for quick lookup
+      await this.redis.setex(
+        `click:payment:${payment.id}`,
+        3600, // 1 hour
+        JSON.stringify({
+          paymentId: payment.id,
+          orderId: request.orderId,
+          amount: request.amount,
+          userId: request.userId,
+        })
+      );
 
       return {
         success: true,
         paymentUrl,
-        transactionId: request.merchantTransId,
+        transactionId: payment.id,
       };
     } catch (error) {
-      logger.error('Click payment creation failed', {
+      logger.error('Failed to create Click payment', {
         error: error instanceof Error ? error.message : 'Unknown error',
         orderId: request.orderId,
       });
 
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Payment creation failed',
+        error: 'Failed to create payment',
       };
     }
   }
@@ -87,21 +142,21 @@ export class ClickService {
   /**
    * Generate Click payment URL
    */
-  private generatePaymentUrl(request: ClickPaymentRequest): string {
+  private generatePaymentUrl(request: ClickPaymentRequest, paymentId: string): string {
     const params = new URLSearchParams({
       service_id: this.serviceId,
       merchant_id: this.merchantId,
       amount: request.amount.toString(),
       transaction_param: request.merchantTransId,
       return_url: request.returnUrl,
-      cancel_url: request.cancelUrl,
+      card_type: 'uzcard',
     });
 
-    return `${this.baseUrl}/services/pay?${params.toString()}`;
+    return `https://my.click.uz/services/pay?${params.toString()}`;
   }
 
   /**
-   * Handle Click webhook (PREPARE action)
+   * Handle Click prepare webhook
    */
   async handlePrepare(payload: ClickWebhookPayload): Promise<{
     click_trans_id: string;
@@ -111,7 +166,7 @@ export class ClickService {
     error_note: string;
   }> {
     try {
-      logger.info('Handling Click PREPARE webhook', {
+      logger.info('Handling Click prepare', {
         clickTransId: payload.click_trans_id,
         merchantTransId: payload.merchant_trans_id,
         amount: payload.amount,
@@ -119,31 +174,37 @@ export class ClickService {
 
       // Verify signature
       if (!this.verifySignature(payload)) {
-        logger.error('Click webhook signature verification failed', {
-          clickTransId: payload.click_trans_id,
-        });
+        logger.error('Invalid Click signature', { payload });
         return {
           click_trans_id: payload.click_trans_id,
           merchant_trans_id: payload.merchant_trans_id,
           merchant_prepare_id: '',
           error: -1,
-          error_note: 'Invalid signature',
+          error_note: 'SIGN_CHECK_FAILED',
         };
       }
 
       // Verify order exists and amount matches
       const orderValid = await this.verifyOrder(payload.merchant_trans_id, payload.amount);
       if (!orderValid) {
-        logger.error('Click order verification failed', {
-          merchantTransId: payload.merchant_trans_id,
-          amount: payload.amount,
-        });
         return {
           click_trans_id: payload.click_trans_id,
           merchant_trans_id: payload.merchant_trans_id,
           merchant_prepare_id: '',
           error: -5,
-          error_note: 'Order not found or amount mismatch',
+          error_note: 'ORDER_NOT_FOUND',
+        };
+      }
+
+      // Check if prepare already exists
+      const existingPrepare = await this.getPrepareTransaction(payload.click_trans_id);
+      if (existingPrepare) {
+        return {
+          click_trans_id: payload.click_trans_id,
+          merchant_trans_id: payload.merchant_trans_id,
+          merchant_prepare_id: existingPrepare.merchantPrepareId || '',
+          error: 0,
+          error_note: 'SUCCESS',
         };
       }
 
@@ -153,9 +214,18 @@ export class ClickService {
       // Store prepare transaction
       await this.storePrepareTransaction(payload, merchantPrepareId);
 
-      logger.info('Click PREPARE successful', {
-        clickTransId: payload.click_trans_id,
-        merchantPrepareId,
+      // Update payment status
+      await prisma.payment.updateMany({
+        where: {
+          merchantTransId: payload.merchant_trans_id,
+          provider: PaymentProvider.CLICK,
+          status: PaymentStatus.PENDING,
+        },
+        data: {
+          status: PaymentStatus.PROCESSING,
+          externalTransactionId: payload.click_trans_id,
+          updatedAt: new Date(),
+        },
       });
 
       return {
@@ -163,26 +233,25 @@ export class ClickService {
         merchant_trans_id: payload.merchant_trans_id,
         merchant_prepare_id: merchantPrepareId,
         error: 0,
-        error_note: 'Success',
+        error_note: 'SUCCESS',
       };
     } catch (error) {
-      logger.error('Click PREPARE handler error', {
+      logger.error('Click prepare failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        clickTransId: payload.click_trans_id,
       });
 
       return {
         click_trans_id: payload.click_trans_id,
         merchant_trans_id: payload.merchant_trans_id,
         merchant_prepare_id: '',
-        error: -1,
-        error_note: 'Internal error',
+        error: -8,
+        error_note: 'ERROR_INTERNAL',
       };
     }
   }
 
   /**
-   * Handle Click webhook (COMPLETE action)
+   * Handle Click complete webhook
    */
   async handleComplete(payload: ClickWebhookPayload): Promise<{
     click_trans_id: string;
@@ -191,115 +260,125 @@ export class ClickService {
     error_note: string;
   }> {
     try {
-      logger.info('Handling Click COMPLETE webhook', {
+      logger.info('Handling Click complete', {
         clickTransId: payload.click_trans_id,
         merchantTransId: payload.merchant_trans_id,
-        amount: payload.amount,
+        merchantPrepareId: payload.merchant_prepare_id,
       });
 
       // Verify signature
       if (!this.verifySignature(payload)) {
-        logger.error('Click webhook signature verification failed', {
-          clickTransId: payload.click_trans_id,
-        });
+        logger.error('Invalid Click signature', { payload });
         return {
           click_trans_id: payload.click_trans_id,
           merchant_trans_id: payload.merchant_trans_id,
           error: -1,
-          error_note: 'Invalid signature',
+          error_note: 'SIGN_CHECK_FAILED',
         };
       }
 
-      // Verify prepare transaction exists
-      const prepareExists = await this.verifyPrepareTransaction(
+      // Check if prepare transaction exists
+      const prepareValid = await this.verifyPrepareTransaction(
         payload.click_trans_id,
-        payload.merchant_prepare_id
+        payload.merchant_prepare_id || ''
       );
-      if (!prepareExists) {
-        logger.error('Click prepare transaction not found', {
-          clickTransId: payload.click_trans_id,
-          merchantPrepareId: payload.merchant_prepare_id,
-        });
+
+      if (!prepareValid) {
         return {
           click_trans_id: payload.click_trans_id,
           merchant_trans_id: payload.merchant_trans_id,
           error: -6,
-          error_note: 'Transaction not found',
+          error_note: 'TRANSACTION_NOT_FOUND',
+        };
+      }
+
+      // Check for error in payload
+      if (payload.error < 0) {
+        await this.cancelPayment(payload);
+        return {
+          click_trans_id: payload.click_trans_id,
+          merchant_trans_id: payload.merchant_trans_id,
+          error: -9,
+          error_note: 'TRANSACTION_CANCELLED',
         };
       }
 
       // Complete payment
       await this.completePayment(payload);
 
-      logger.info('Click COMPLETE successful', {
-        clickTransId: payload.click_trans_id,
-        merchantTransId: payload.merchant_trans_id,
-      });
-
       return {
         click_trans_id: payload.click_trans_id,
         merchant_trans_id: payload.merchant_trans_id,
         error: 0,
-        error_note: 'Success',
+        error_note: 'SUCCESS',
       };
     } catch (error) {
-      logger.error('Click COMPLETE handler error', {
+      logger.error('Click complete failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        clickTransId: payload.click_trans_id,
       });
 
       return {
         click_trans_id: payload.click_trans_id,
         merchant_trans_id: payload.merchant_trans_id,
-        error: -1,
-        error_note: 'Internal error',
+        error: -8,
+        error_note: 'ERROR_INTERNAL',
       };
     }
   }
 
   /**
-   * Verify Click webhook signature
+   * Verify webhook signature
    */
   private verifySignature(payload: ClickWebhookPayload): boolean {
     const signString = this.generateSignString(payload);
-    const hash = crypto.createHash('md5').update(signString).digest('hex');
-    return hash === payload.sign_string;
+    const expectedSign = createHash('md5')
+      .update(signString)
+      .digest('hex');
+
+    return payload.sign_string === expectedSign;
   }
 
   /**
-   * Generate signature string for Click
+   * Generate sign string for verification
    */
   private generateSignString(payload: ClickWebhookPayload): string {
-    return [
-      payload.click_trans_id,
-      payload.service_id,
-      this.secretKey,
-      payload.merchant_trans_id,
-      payload.merchant_prepare_id || '',
-      payload.amount,
-      payload.action,
-      payload.sign_time,
-    ].join('');
+    return `${payload.click_trans_id}${payload.service_id}${this.secretKey}${payload.merchant_trans_id}${payload.amount}${payload.action}${payload.sign_time}`;
   }
 
   /**
    * Verify order exists and amount matches
    */
-  private async verifyOrder(merchantTransId: string, amount: number): Promise<boolean> {
+  private async verifyOrder(orderId: string, amount: number): Promise<boolean> {
     try {
-      // This would typically call the Order Service
-      // For now, we'll simulate the check
-      logger.info('Verifying order', { merchantTransId, amount });
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { payment: true },
+      });
 
-      // TODO: Implement actual order verification
-      // const order = await orderService.getOrderByTransactionId(merchantTransId);
-      // return order && order.amount === amount && order.status === 'pending';
+      if (!order) {
+        logger.error('Order not found', { orderId });
+        return false;
+      }
 
-      return true; // Temporary for development
+      if (order.totalAmount !== amount) {
+        logger.error('Amount mismatch', { 
+          orderId, 
+          orderAmount: order.totalAmount, 
+          requestAmount: amount 
+        });
+        return false;
+      }
+
+      if (order.status !== 'PENDING' && order.status !== 'PAYMENT_PENDING') {
+        logger.error('Invalid order status', { orderId, status: order.status });
+        return false;
+      }
+
+      return true;
     } catch (error) {
       logger.error('Order verification failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        merchantTransId,
+        orderId,
       });
       return false;
     }
@@ -321,21 +400,71 @@ export class ClickService {
     payload: ClickWebhookPayload,
     merchantPrepareId: string
   ): Promise<void> {
-    try {
-      // TODO: Store in database
-      logger.info('Storing prepare transaction', {
-        clickTransId: payload.click_trans_id,
-        merchantTransId: payload.merchant_trans_id,
-        merchantPrepareId,
+    const transaction: ClickTransaction = {
+      id: payload.click_trans_id,
+      clickTransId: payload.click_trans_id,
+      serviceId: payload.service_id,
+      merchantTransId: payload.merchant_trans_id,
+      merchantPrepareId,
+      amount: payload.amount,
+      status: 'PREPARE',
+      createdAt: new Date(),
+    };
+
+    // Store in database
+    await prisma.transaction.create({
+      data: {
+        id: transaction.id,
+        provider: PaymentProvider.CLICK,
+        orderId: payload.merchant_trans_id,
         amount: payload.amount,
-      });
-    } catch (error) {
-      logger.error('Failed to store prepare transaction', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        clickTransId: payload.click_trans_id,
-      });
-      throw error;
+        currency: 'UZS',
+        status: 'PREPARE',
+        externalId: payload.click_trans_id,
+        metadata: transaction,
+      },
+    });
+
+    // Store in Redis for quick lookup
+    await this.redis.setex(
+      `click:prepare:${payload.click_trans_id}`,
+      86400, // 24 hours
+      JSON.stringify(transaction)
+    );
+  }
+
+  /**
+   * Get prepare transaction
+   */
+  private async getPrepareTransaction(clickTransId: string): Promise<ClickTransaction | null> {
+    // Try Redis first
+    const cached = await this.redis.get(`click:prepare:${clickTransId}`);
+    if (cached) {
+      return JSON.parse(cached);
     }
+
+    // Fallback to database
+    const dbTransaction = await prisma.transaction.findUnique({
+      where: { 
+        id: clickTransId,
+        provider: PaymentProvider.CLICK,
+      },
+    });
+
+    if (dbTransaction && dbTransaction.metadata) {
+      const transaction = dbTransaction.metadata as unknown as ClickTransaction;
+      
+      // Cache for future requests
+      await this.redis.setex(
+        `click:prepare:${clickTransId}`,
+        86400,
+        JSON.stringify(transaction)
+      );
+
+      return transaction;
+    }
+
+    return null;
   }
 
   /**
@@ -345,40 +474,148 @@ export class ClickService {
     clickTransId: string,
     merchantPrepareId: string
   ): Promise<boolean> {
-    try {
-      // TODO: Check in database
-      logger.info('Verifying prepare transaction', {
-        clickTransId,
-        merchantPrepareId,
-      });
+    const transaction = await this.getPrepareTransaction(clickTransId);
+    
+    if (!transaction) {
+      logger.error('Prepare transaction not found', { clickTransId });
+      return false;
+    }
 
-      return true; // Temporary for development
-    } catch (error) {
-      logger.error('Failed to verify prepare transaction', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+    if (transaction.merchantPrepareId !== merchantPrepareId) {
+      logger.error('Merchant prepare ID mismatch', {
         clickTransId,
+        expected: transaction.merchantPrepareId,
+        received: merchantPrepareId,
       });
       return false;
     }
+
+    return true;
   }
 
   /**
    * Complete payment
    */
   private async completePayment(payload: ClickWebhookPayload): Promise<void> {
+    // Update payment status
+    await prisma.payment.updateMany({
+      where: {
+        externalTransactionId: payload.click_trans_id,
+        provider: PaymentProvider.CLICK,
+      },
+      data: {
+        status: PaymentStatus.COMPLETED,
+        completedAt: new Date(),
+      },
+    });
+
+    // Update order status
+    await prisma.order.update({
+      where: { id: payload.merchant_trans_id },
+      data: {
+        status: 'PAYMENT_CONFIRMED',
+        paidAmount: payload.amount,
+        paidAt: new Date(),
+      },
+    });
+
+    // Update transaction
+    await prisma.transaction.update({
+      where: { id: payload.click_trans_id },
+      data: {
+        status: 'COMPLETED',
+        updatedAt: new Date(),
+      },
+    });
+
+    // Clear from cache
+    await this.redis.del(`click:prepare:${payload.click_trans_id}`);
+    await this.redis.del(`order:${payload.merchant_trans_id}`);
+
+    // Send notifications
+    await this.sendPaymentNotifications(payload.merchant_trans_id, payload.amount);
+
+    logger.info('Payment completed successfully', {
+      clickTransId: payload.click_trans_id,
+      orderId: payload.merchant_trans_id,
+      amount: payload.amount,
+    });
+  }
+
+  /**
+   * Cancel payment
+   */
+  private async cancelPayment(payload: ClickWebhookPayload): Promise<void> {
+    // Update payment status
+    await prisma.payment.updateMany({
+      where: {
+        externalTransactionId: payload.click_trans_id,
+        provider: PaymentProvider.CLICK,
+      },
+      data: {
+        status: PaymentStatus.CANCELLED,
+        cancelledAt: new Date(),
+        metadata: {
+          cancelReason: payload.error_note,
+        },
+      },
+    });
+
+    // Update order status
+    await prisma.order.update({
+      where: { id: payload.merchant_trans_id },
+      data: {
+        status: 'PAYMENT_FAILED',
+      },
+    });
+
+    // Update transaction
+    await prisma.transaction.update({
+      where: { id: payload.click_trans_id },
+      data: {
+        status: 'CANCELLED',
+        updatedAt: new Date(),
+      },
+    });
+
+    // Clear from cache
+    await this.redis.del(`click:prepare:${payload.click_trans_id}`);
+
+    logger.info('Payment cancelled', {
+      clickTransId: payload.click_trans_id,
+      orderId: payload.merchant_trans_id,
+      error: payload.error_note,
+    });
+  }
+
+  /**
+   * Send payment notifications
+   */
+  private async sendPaymentNotifications(orderId: string, amount: number): Promise<void> {
     try {
-      // TODO: Update order status, send notifications, etc.
-      logger.info('Completing payment', {
-        clickTransId: payload.click_trans_id,
-        merchantTransId: payload.merchant_trans_id,
-        amount: payload.amount,
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { user: true },
       });
+
+      if (!order) return;
+
+      // For now, we'll log the notification details
+      logger.info('Payment notification should be sent', {
+        userId: order.userId,
+        orderId,
+        amount,
+        email: order.user.email,
+        phone: order.user.phone,
+        paymentMethod: 'Click',
+      });
+
+      // TODO: When notification service is ready, integrate here
     } catch (error) {
-      logger.error('Failed to complete payment', {
+      logger.error('Failed to send payment notifications', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        clickTransId: payload.click_trans_id,
+        orderId,
       });
-      throw error;
     }
   }
 
@@ -391,11 +628,41 @@ export class ClickService {
     error?: string;
   }> {
     try {
-      // TODO: Implement status check
-      logger.info('Getting payment status', { transactionId });
+      const payment = await prisma.payment.findFirst({
+        where: {
+          OR: [
+            { id: transactionId },
+            { externalTransactionId: transactionId },
+          ],
+          provider: PaymentProvider.CLICK,
+        },
+      });
+
+      if (!payment) {
+        return {
+          status: 'failed',
+          error: 'Payment not found',
+        };
+      }
+
+      let status: 'pending' | 'completed' | 'failed' | 'cancelled';
+      switch (payment.status) {
+        case PaymentStatus.COMPLETED:
+          status = 'completed';
+          break;
+        case PaymentStatus.CANCELLED:
+          status = 'cancelled';
+          break;
+        case PaymentStatus.FAILED:
+          status = 'failed';
+          break;
+        default:
+          status = 'pending';
+      }
 
       return {
-        status: 'pending',
+        status,
+        amount: payment.amount,
       };
     } catch (error) {
       logger.error('Failed to get payment status', {
@@ -405,7 +672,7 @@ export class ClickService {
 
       return {
         status: 'failed',
-        error: 'Status check failed',
+        error: 'Failed to get payment status',
       };
     }
   }

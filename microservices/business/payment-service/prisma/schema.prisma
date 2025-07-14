@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+  EXPIRED
+}
+
+enum PaymentProvider {
+  CLICK
+  PAYME
+  UZCARD
+  HUMO
+  APELSIN
+  BANK_TRANSFER
+  CASH_ON_DELIVERY
+}
+
+enum TransactionType {
+  PAYMENT
+  REFUND
+  PARTIAL_REFUND
+  CHARGEBACK
+}
+
+model Payment {
+  id                    String          @id @default(cuid())
+  orderId               String          @unique
+  userId                String
+  amount                Float
+  currency              String          @default("UZS")
+  provider              PaymentProvider
+  status                PaymentStatus   @default(PENDING)
+  merchantTransId       String?         @unique
+  externalTransactionId String?
+  metadata              Json?
+  description           String?
+  
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  completedAt           DateTime?
+  cancelledAt           DateTime?
+  
+  transactions          Transaction[]
+  refunds               Refund[]
+  webhookEvents         WebhookEvent[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([provider])
+  @@index([createdAt])
+}
+
+model Transaction {
+  id              String          @id @default(cuid())
+  paymentId       String?
+  payment         Payment?        @relation(fields: [paymentId], references: [id])
+  provider        PaymentProvider
+  type            TransactionType @default(PAYMENT)
+  orderId         String
+  amount          Float
+  currency        String          @default("UZS")
+  status          String
+  externalId      String?         @unique
+  metadata        Json?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@index([paymentId])
+  @@index([orderId])
+  @@index([provider])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Refund {
+  id              String          @id @default(cuid())
+  paymentId       String
+  payment         Payment         @relation(fields: [paymentId], references: [id])
+  orderId         String
+  amount          Float
+  currency        String          @default("UZS")
+  provider        PaymentProvider
+  status          String          @default("PENDING")
+  reason          String?
+  externalId      String?         @unique
+  metadata        Json?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  completedAt     DateTime?
+  
+  @@index([paymentId])
+  @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model WebhookEvent {
+  id              String          @id @default(cuid())
+  paymentId       String?
+  payment         Payment?        @relation(fields: [paymentId], references: [id])
+  provider        PaymentProvider
+  eventType       String
+  payload         Json
+  signature       String?
+  processed       Boolean         @default(false)
+  attempts        Int             @default(0)
+  lastError       String?
+  
+  createdAt       DateTime        @default(now())
+  processedAt     DateTime?
+  
+  @@index([paymentId])
+  @@index([provider])
+  @@index([eventType])
+  @@index([processed])
+  @@index([createdAt])
+}
+
+model PaymentMethod {
+  id              String          @id @default(cuid())
+  userId          String
+  provider        PaymentProvider
+  token           String?         @unique
+  lastFour        String?
+  cardType        String?
+  expiryMonth     Int?
+  expiryYear      Int?
+  isDefault       Boolean         @default(false)
+  metadata        Json?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@index([userId])
+  @@index([provider])
+  @@index([isDefault])
+}
+
+// Models for integration with order service
+model Order {
+  id              String          @id @default(cuid())
+  userId          String
+  totalAmount     Float
+  status          String
+  paidAmount      Float?
+  refundedAmount  Float?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  paidAt          DateTime?
+  refundedAt      DateTime?
+  
+  orderItems      OrderItem[]
+  user            User            @relation(fields: [userId], references: [id])
+  payment         Payment?
+  
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id              String          @id @default(cuid())
+  orderId         String
+  order           Order           @relation(fields: [orderId], references: [id])
+  productId       String
+  product         Product         @relation(fields: [productId], references: [id])
+  quantity        Int
+  price           Float
+  
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Product {
+  id              String          @id @default(cuid())
+  name            String
+  sku             String?         @unique
+  price           Float
+  
+  orderItems      OrderItem[]
+}
+
+model User {
+  id              String          @id @default(cuid())
+  email           String          @unique
+  name            String
+  phone           String?
+  
+  orders          Order[]
+}
