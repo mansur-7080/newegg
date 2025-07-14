@@ -1,0 +1,298 @@
+// Real Product Service Database Schema
+// Professional e-commerce product management
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./products.db"
+}
+
+// Real Category Management
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  parentId    Int?
+  imageUrl    String?
+  status      String    @default("ACTIVE") // ACTIVE, INACTIVE
+  sortOrder   Int       @default(0)
+  seoTitle    String?
+  seoDescription String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  parent      Category? @relation("CategoryChildren", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryChildren")
+  products    Product[]
+
+  @@map("categories")
+}
+
+// Real Product Management
+model Product {
+  id              Int       @id @default(autoincrement())
+  name            String
+  slug            String    @unique
+  description     String?
+  shortDescription String?
+  sku             String    @unique
+  barcode         String?
+  price           Float
+  comparePrice    Float?
+  costPrice       Float?
+  categoryId      Int
+  brand           String?
+  weight          Float?
+  dimensions      String? // JSON: {length, width, height}
+  status          String    @default("ACTIVE") // ACTIVE, INACTIVE, DRAFT
+  stockQuantity   Int       @default(0)
+  lowStockAlert   Int       @default(10)
+  trackQuantity   Boolean   @default(true)
+  allowBackorder  Boolean   @default(false)
+  images          String?   // JSON array of image URLs
+  specifications  String?   // JSON object of specs
+  tags            String?   // JSON array of tags
+  seoTitle        String?
+  seoDescription  String?
+  metaKeywords    String?
+  featured        Boolean   @default(false)
+  sortOrder       Int       @default(0)
+  viewCount       Int       @default(0)
+  salesCount      Int       @default(0)
+  rating          Float     @default(0)
+  reviewCount     Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  category        Category  @relation(fields: [categoryId], references: [id])
+  variants        ProductVariant[]
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+  reviews         ProductReview[]
+  inventoryTransactions InventoryTransaction[]
+
+  @@map("products")
+}
+
+// Real Product Variants (size, color, storage, etc.)
+model ProductVariant {
+  id              Int       @id @default(autoincrement())
+  productId       Int
+  name            String
+  sku             String    @unique
+  price           Float
+  comparePrice    Float?
+  stockQuantity   Int       @default(0)
+  attributes      String    // JSON: {color: "Red", size: "M", storage: "256GB"}
+  images          String?   // JSON array of variant-specific images
+  barcode         String?
+  weight          Float?
+  status          String    @default("ACTIVE")
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+  inventoryTransactions InventoryTransaction[]
+
+  @@map("product_variants")
+}
+
+// Real Cart Management
+model Cart {
+  id          Int       @id @default(autoincrement())
+  userId      String?   // For logged-in users
+  sessionId   String?   // For guest users
+  status      String    @default("ACTIVE") // ACTIVE, ABANDONED, CONVERTED
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  items       CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id              Int       @id @default(autoincrement())
+  cartId          Int
+  productId       Int
+  variantId       Int?
+  quantity        Int       @default(1)
+  price           Float     // Price at time of adding to cart
+  addedAt         DateTime  @default(now())
+
+  // Relations
+  cart            Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product         Product   @relation(fields: [productId], references: [id])
+  variant         ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@unique([cartId, productId, variantId])
+  @@map("cart_items")
+}
+
+// Real Order Management
+model Order {
+  id                Int       @id @default(autoincrement())
+  orderNumber       String    @unique
+  userId            String
+  status            String    @default("PENDING") // PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+  paymentStatus     String    @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  paymentMethod     String?   // click, payme, cash, card
+  
+  // Pricing
+  subtotal          Float
+  taxAmount         Float     @default(0)
+  shippingAmount    Float     @default(0)
+  discountAmount    Float     @default(0)
+  totalAmount       Float
+  
+  // Addresses (JSON objects)
+  shippingAddress   String
+  billingAddress    String?
+  
+  // Additional info
+  customerEmail     String
+  customerPhone     String
+  notes             String?
+  adminNotes        String?
+  
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  confirmedAt       DateTime?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+
+  // Relations
+  items             OrderItem[]
+  statusHistory     OrderStatusHistory[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id                Int       @id @default(autoincrement())
+  orderId           Int
+  productId         Int
+  variantId         Int?
+  quantity          Int
+  price             Float     // Price at time of order
+  totalPrice        Float
+  productSnapshot   String    // JSON of product details at time of order
+
+  // Relations
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product           Product   @relation(fields: [productId], references: [id])
+  variant           ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("order_items")
+}
+
+// Real Order Status Tracking
+model OrderStatusHistory {
+  id          Int       @id @default(autoincrement())
+  orderId     Int
+  status      String
+  comment     String?
+  changedBy   String?   // admin user ID or system
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_status_history")
+}
+
+// Real Product Reviews
+model ProductReview {
+  id          Int       @id @default(autoincrement())
+  productId   Int
+  userId      String
+  orderId     Int?      // Optional: link to order for verified purchase
+  rating      Int       // 1-5 stars
+  title       String?
+  comment     String?
+  images      String?   // JSON array of review image URLs
+  helpful     Int       @default(0) // helpful votes count
+  status      String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  isVerified  Boolean   @default(false) // verified purchase
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_reviews")
+}
+
+// Real Admin User Management
+model AdminUser {
+  id            Int       @id @default(autoincrement())
+  username      String    @unique
+  email         String    @unique
+  passwordHash  String
+  firstName     String?
+  lastName      String?
+  role          String    @default("ADMIN") // SUPER_ADMIN, ADMIN, MANAGER, VIEWER
+  permissions   String?   // JSON array of specific permissions
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  lastLoginAt   DateTime?
+  lastLoginIp   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  logs          AdminLog[]
+
+  @@map("admin_users")
+}
+
+// Real Admin Activity Logging
+model AdminLog {
+  id          Int       @id @default(autoincrement())
+  adminId     Int
+  action      String    // CREATE, UPDATE, DELETE, VIEW, LOGIN, LOGOUT
+  resource    String    // PRODUCT, ORDER, USER, CATEGORY, etc.
+  resourceId  String?   // ID of the affected resource
+  details     String?   // JSON object with additional details
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  admin       AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@map("admin_logs")
+}
+
+// Real Inventory Tracking
+model InventoryTransaction {
+  id            Int       @id @default(autoincrement())
+  productId     Int
+  variantId     Int?
+  type          String    // PURCHASE, SALE, ADJUSTMENT, RETURN, DAMAGE
+  quantity      Int       // positive for increase, negative for decrease
+  previousStock Int
+  newStock      Int
+  reference     String?   // order number, purchase order, etc.
+  reason        String?
+  createdBy     String?   // admin user ID
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant       ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@map("inventory_transactions")
+}
