@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 import apiClient from '../lib/api';
 
 const HomePage = () => {
@@ -8,6 +10,26 @@ const HomePage = () => {
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
+
+  // Authentication state check
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    
+    if (token && userData) {
+      try {
+        setUser(JSON.parse(userData));
+        setIsAuthenticated(true);
+      } catch (error) {
+        // Invalid user data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    }
+  }, []);
 
   // Load data from API
   useEffect(() => {
@@ -35,6 +57,14 @@ const HomePage = () => {
 
     loadData();
   }, []);
+
+  // Logout function
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    setIsAuthenticated(false);
+  };
 
   // Format price
   const formatPrice = (price) => {
@@ -101,13 +131,54 @@ const HomePage = () => {
               </nav>
               
               <div className="flex items-center space-x-4">
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                  Kirish
-                </button>
+                {isAuthenticated ? (
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm text-gray-600">
+                      Salom, {user?.firstName}!
+                    </span>
+                    <button
+                      onClick={handleLogout}
+                      className="text-sm text-gray-600 hover:text-red-600"
+                    >
+                      Chiqish
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Link href="/auth/login">
+                      <button className="text-blue-600 hover:text-blue-700 px-3 py-2 text-sm">
+                        Kirish
+                      </button>
+                    </Link>
+                    <Link href="/auth/register">
+                      <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+                        Ro'yxatdan o'tish
+                      </button>
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </header>
+
+        {/* Authentication Status Banner */}
+        {isAuthenticated && (
+          <div className="bg-green-50 border-b border-green-200">
+            <div className="max-w-7xl mx-auto px-4 py-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <span className="text-green-700 text-sm">
+                    ✅ Siz tizimga kirdingiz
+                  </span>
+                </div>
+                <div className="text-xs text-green-600">
+                  Email: {user?.email}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Hero Section */}
         <section className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
@@ -116,7 +187,7 @@ const HomePage = () => {
               O'zbekiston #1 Marketplace
             </h2>
             <p className="text-xl mb-8 text-blue-100">
-              {stats ? `${stats.totalProducts} mahsulot, ${stats.totalStores} do'kon` : 'Eng yaxshi mahsulotlar'}
+              {stats ? `${stats.totalProducts} mahsulot, ${stats.totalStores} do'kon, ${stats.totalUsers} foydalanuvchi` : 'Eng yaxshi mahsulotlar'}
             </p>
             
             {/* Search */}
@@ -271,8 +342,8 @@ const HomePage = () => {
                   <div className="text-blue-200">Do'konlar</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold mb-2">{stats.totalCategories}+</div>
-                  <div className="text-blue-200">Kategoriyalar</div>
+                  <div className="text-3xl font-bold mb-2">{stats.totalUsers}+</div>
+                  <div className="text-blue-200">Foydalanuvchilar</div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold mb-2">4.8⭐</div>
@@ -324,6 +395,11 @@ const HomePage = () => {
             
             <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
               <p>&copy; 2024 UltraMarket. Barcha huquqlar himoyalangan.</p>
+              {isAuthenticated && (
+                <p className="mt-2 text-xs">
+                  Authenticated as: {user?.email} | Role: {user?.role}
+                </p>
+              )}
             </div>
           </div>
         </footer>

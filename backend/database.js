@@ -16,6 +16,26 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // Tables yaratish
 function initializeTables() {
+  // Users table - YANGI
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      firstName TEXT NOT NULL,
+      lastName TEXT NOT NULL,
+      phone TEXT,
+      address TEXT,
+      city TEXT DEFAULT 'Toshkent',
+      role TEXT DEFAULT 'customer',
+      isVerified BOOLEAN DEFAULT 0,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => {
+    if (err) console.error('Users table error:', err);
+    else console.log('✅ Users table ready');
+  });
+
   // Categories table
   db.run(`
     CREATE TABLE IF NOT EXISTS categories (
@@ -246,6 +266,46 @@ function insertInitialData() {
 
 // Database functions
 const dbOperations = {
+  // Users - YANGI AUTH FUNCTIONS
+  createUser: (userData) => {
+    return new Promise((resolve, reject) => {
+      const { email, password, firstName, lastName, phone, address, city } = userData;
+      
+      db.run(`
+        INSERT INTO users (email, password, firstName, lastName, phone, address, city) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [email, password, firstName, lastName, phone, address, city], function(err) {
+        if (err) {
+          if (err.code === 'SQLITE_CONSTRAINT') {
+            reject(new Error('Bu email allaqachon ro\'yxatdan o\'tgan'));
+          } else {
+            reject(err);
+          }
+        } else {
+          resolve({ id: this.lastID, email });
+        }
+      });
+    });
+  },
+
+  getUserByEmail: (email) => {
+    return new Promise((resolve, reject) => {
+      db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+  },
+
+  getUserById: (id) => {
+    return new Promise((resolve, reject) => {
+      db.get('SELECT id, email, firstName, lastName, phone, address, city, role, isVerified, createdAt FROM users WHERE id = ?', [id], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+  },
+
   // Categories
   getCategories: () => {
     return new Promise((resolve, reject) => {
@@ -504,7 +564,8 @@ const dbOperations = {
       const queries = [
         'SELECT COUNT(*) as totalProducts FROM products',
         'SELECT COUNT(*) as totalStores FROM stores',
-        'SELECT COUNT(*) as totalCategories FROM categories'
+        'SELECT COUNT(*) as totalCategories FROM categories',
+        'SELECT COUNT(*) as totalUsers FROM users'
       ];
       
       Promise.all(queries.map(query => {
@@ -519,6 +580,7 @@ const dbOperations = {
           totalProducts: results[0].totalProducts,
           totalStores: results[1].totalStores,
           totalCategories: results[2].totalCategories,
+          totalUsers: results[3].totalUsers,
           platform: 'UltraMarket',
           region: 'O\'zbekiston',
           currency: 'UZS',
