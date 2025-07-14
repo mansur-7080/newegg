@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { dbOperations } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -8,166 +9,131 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Mock data
-const products = [
-  {
-    id: '1',
-    name: 'iPhone 15 Pro Max',
-    nameUz: 'iPhone 15 Pro Max',
-    price: 14500000,
-    originalPrice: 16000000,
-    image: '/products/iphone-15.jpg',
-    rating: 4.8,
-    reviewCount: 234,
-    discount: 9,
-    category: 'Smartfonlar',
-    store: {
-      id: 'techstore',
-      name: 'TechStore UZ',
-      location: 'Toshkent'
-    },
-    isInStock: true
-  },
-  {
-    id: '2',
-    name: 'Samsung Galaxy S24',
-    nameUz: 'Samsung Galaxy S24',
-    price: 12000000,
-    image: '/products/samsung-s24.jpg',
-    rating: 4.7,
-    reviewCount: 189,
-    category: 'Smartfonlar',
-    store: {
-      id: 'samsung-store',
-      name: 'Samsung Official',
-      location: 'Toshkent'
-    },
-    isInStock: true
-  }
-];
-
-const categories = [
-  { id: 'electronics', name: 'Elektronika', nameUz: 'Elektronika', productCount: 25000 },
-  { id: 'fashion', name: 'Kiyim-kechak', nameUz: 'Kiyim-kechak', productCount: 18000 },
-  { id: 'home', name: 'Uy-rozgor', nameUz: 'Uy-ro\'zg\'or', productCount: 9500 },
-  { id: 'automotive', name: 'Avtomobil', nameUz: 'Avtomobil', productCount: 4500 }
-];
-
-const stores = [
-  {
-    id: 'techstore',
-    name: 'TechStore UZ',
-    description: 'Eng yangi texnologiyalar',
-    location: 'Toshkent',
-    rating: 4.9,
-    productCount: 1250,
-    isVerified: true
-  },
-  {
-    id: 'samsung-store',
-    name: 'Samsung Official',
-    description: 'Rasmiy Samsung do\'koni',
-    location: 'Toshkent',
-    rating: 4.8,
-    productCount: 890,
-    isVerified: true
-  }
-];
-
 // Routes
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
-    message: 'UltraMarket API ishlayapti',
+    message: 'UltraMarket API ishlayapti (SQLite Database)',
     timestamp: new Date().toISOString(),
-    service: 'ultramarket-backend'
+    service: 'ultramarket-backend',
+    database: 'SQLite'
   });
 });
 
 // Products
-app.get('/api/products', (req, res) => {
-  const { category, search, limit = 10 } = req.query;
-  
-  let filteredProducts = [...products];
-  
-  if (category) {
-    filteredProducts = filteredProducts.filter(p => 
-      p.category.toLowerCase().includes(category.toLowerCase())
-    );
-  }
-  
-  if (search) {
-    filteredProducts = filteredProducts.filter(p => 
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.nameUz.toLowerCase().includes(search.toLowerCase())
-    );
-  }
-  
-  const limitedProducts = filteredProducts.slice(0, parseInt(limit));
-  
-  res.json({
-    success: true,
-    data: limitedProducts,
-    total: filteredProducts.length,
-    limit: parseInt(limit)
-  });
-});
-
-app.get('/api/products/:id', (req, res) => {
-  const { id } = req.params;
-  const product = products.find(p => p.id === id);
-  
-  if (!product) {
-    return res.status(404).json({
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await dbOperations.getProducts(req.query);
+    
+    res.json({
+      success: true,
+      data: products,
+      total: products.length,
+      limit: req.query.limit ? parseInt(req.query.limit) : null
+    });
+  } catch (error) {
+    console.error('Products error:', error);
+    res.status(500).json({
       success: false,
-      message: 'Mahsulot topilmadi'
+      message: 'Ma\'lumotlarni olishda xatolik',
+      error: error.message
     });
   }
-  
-  res.json({
-    success: true,
-    data: product
-  });
+});
+
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const product = await dbOperations.getProduct(req.params.id);
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Mahsulot topilmadi'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: product
+    });
+  } catch (error) {
+    console.error('Product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Ma\'lumotni olishda xatolik',
+      error: error.message
+    });
+  }
 });
 
 // Categories
-app.get('/api/categories', (req, res) => {
-  res.json({
-    success: true,
-    data: categories
-  });
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await dbOperations.getCategories();
+    
+    res.json({
+      success: true,
+      data: categories
+    });
+  } catch (error) {
+    console.error('Categories error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Kategoriyalarni olishda xatolik',
+      error: error.message
+    });
+  }
 });
 
 // Stores
-app.get('/api/stores', (req, res) => {
-  res.json({
-    success: true,
-    data: stores
-  });
-});
-
-app.get('/api/stores/:id', (req, res) => {
-  const { id } = req.params;
-  const store = stores.find(s => s.id === id);
-  
-  if (!store) {
-    return res.status(404).json({
+app.get('/api/stores', async (req, res) => {
+  try {
+    const stores = await dbOperations.getStores();
+    
+    res.json({
+      success: true,
+      data: stores
+    });
+  } catch (error) {
+    console.error('Stores error:', error);
+    res.status(500).json({
       success: false,
-      message: 'Do\'kon topilmadi'
+      message: 'Do\'konlarni olishda xatolik',
+      error: error.message
     });
   }
-  
-  res.json({
-    success: true,
-    data: store
-  });
+});
+
+app.get('/api/stores/:id', async (req, res) => {
+  try {
+    const store = await dbOperations.getStore(req.params.id);
+    
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        message: 'Do\'kon topilmadi'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: store
+    });
+  } catch (error) {
+    console.error('Store error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Do\'kon ma\'lumotini olishda xatolik',
+      error: error.message
+    });
+  }
 });
 
 // Search
-app.get('/api/search', (req, res) => {
-  const { q, type = 'products' } = req.query;
+app.get('/api/search', async (req, res) => {
+  const { q } = req.query;
   
   if (!q) {
     return res.status(400).json({
@@ -176,97 +142,102 @@ app.get('/api/search', (req, res) => {
     });
   }
   
-  let results = [];
-  
-  if (type === 'products' || type === 'all') {
-    const productResults = products.filter(p => 
-      p.name.toLowerCase().includes(q.toLowerCase()) ||
-      p.nameUz.toLowerCase().includes(q.toLowerCase()) ||
-      p.category.toLowerCase().includes(q.toLowerCase())
-    );
-    results = [...results, ...productResults];
+  try {
+    const results = await dbOperations.search(q);
+    
+    res.json({
+      success: true,
+      data: results,
+      query: q,
+      total: results.length
+    });
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Qidiruvda xatolik',
+      error: error.message
+    });
   }
-  
-  res.json({
-    success: true,
-    data: results,
-    query: q,
-    type: type,
-    total: results.length
-  });
 });
 
-// Cart simulation
-let cart = [];
-
-app.get('/api/cart', (req, res) => {
-  res.json({
-    success: true,
-    data: cart,
-    total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-    itemCount: cart.reduce((sum, item) => sum + item.quantity, 0)
-  });
+// Cart
+app.get('/api/cart', async (req, res) => {
+  try {
+    const cart = await dbOperations.getCart();
+    
+    // Hisoblash
+    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+    
+    res.json({
+      success: true,
+      data: cart,
+      total: total,
+      itemCount: itemCount
+    });
+  } catch (error) {
+    console.error('Cart error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Savat ma\'lumotlarini olishda xatolik',
+      error: error.message
+    });
+  }
 });
 
-app.post('/api/cart', (req, res) => {
+app.post('/api/cart', async (req, res) => {
   const { productId, quantity = 1 } = req.body;
   
-  const product = products.find(p => p.id === productId);
-  if (!product) {
-    return res.status(404).json({
+  if (!productId) {
+    return res.status(400).json({
       success: false,
-      message: 'Mahsulot topilmadi'
+      message: 'Mahsulot ID kiritilmagan'
     });
   }
   
-  const existingItem = cart.find(item => item.productId === productId);
-  
-  if (existingItem) {
-    existingItem.quantity += quantity;
-  } else {
-    cart.push({
-      id: Date.now().toString(),
-      productId,
-      product,
-      quantity,
-      price: product.price,
-      addedAt: new Date().toISOString()
+  try {
+    const result = await dbOperations.addToCart(productId, quantity);
+    
+    res.json({
+      success: true,
+      message: result.message,
+      productId: productId,
+      quantity: quantity
+    });
+  } catch (error) {
+    console.error('Add to cart error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
-  
-  res.json({
-    success: true,
-    message: 'Mahsulot savatga qo\'shildi',
-    data: cart
-  });
 });
 
 // Stats
-app.get('/api/stats', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      totalProducts: products.length,
-      totalStores: stores.length,
-      totalCategories: categories.length,
-      platform: 'UltraMarket',
-      region: 'O\'zbekiston',
-      currency: 'UZS',
-      features: [
-        'Bepul yetkazib berish',
-        'Xavfsiz to\'lov',
-        '24/7 yordam',
-        'Click, Payme, Apelsin'
-      ]
-    }
-  });
+app.get('/api/stats', async (req, res) => {
+  try {
+    const stats = await dbOperations.getStats();
+    
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Statistikani olishda xatolik',
+      error: error.message
+    });
+  }
 });
 
-// Analytics
-app.get('/api/analytics', (req, res) => {
-  res.json({
-    success: true,
-    data: {
+// Analytics (mock for now)
+app.get('/api/analytics', async (req, res) => {
+  try {
+    // Bu yerda real analytics bo'lishi kerak
+    const analytics = {
       dailyVisitors: 15430,
       totalOrders: 2847,
       revenue: 45000000,
@@ -284,8 +255,20 @@ app.get('/api/analytics', (req, res) => {
           date: new Date().toISOString()
         }
       ]
-    }
-  });
+    };
+    
+    res.json({
+      success: true,
+      data: analytics
+    });
+  } catch (error) {
+    console.error('Analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Analitikani olishda xatolik',
+      error: error.message
+    });
+  }
 });
 
 // 404 handler
@@ -309,11 +292,13 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 UltraMarket Backend API ishga tushdi!`);
+  console.log(`🚀 UltraMarket Backend API ishga tushdi! (SQLite Database)`);
   console.log(`📍 Server: http://localhost:${PORT}`);
   console.log(`🏥 Health: http://localhost:${PORT}/health`);
   console.log(`📦 Products: http://localhost:${PORT}/api/products`);
   console.log(`🏪 Stores: http://localhost:${PORT}/api/stores`);
   console.log(`📊 Stats: http://localhost:${PORT}/api/stats`);
+  console.log(`🛒 Cart: http://localhost:${PORT}/api/cart`);
+  console.log(`🔍 Search: http://localhost:${PORT}/api/search?q=iphone`);
   console.log(`⏰ Started at: ${new Date().toLocaleString('uz-UZ')}`);
 });
