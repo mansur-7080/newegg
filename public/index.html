@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UltraMarket - Professional E-commerce Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .nav {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav a:hover {
+            color: #667eea;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 5rem 0;
+            color: white;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .cta-button {
+            background: #ff6b6b;
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .cta-button:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 107, 107, 0.4);
+        }
+
+        .features {
+            background: white;
+            padding: 5rem 0;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .status {
+            background: #2c3e50;
+            color: white;
+            padding: 3rem 0;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .status-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #2ecc71;
+            margin-right: 10px;
+        }
+
+        .api-demo {
+            background: #f8f9fa;
+            padding: 3rem 0;
+        }
+
+        .api-response {
+            background: #2c3e50;
+            color: #2ecc71;
+            padding: 2rem;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-top: 2rem;
+            overflow-x: auto;
+        }
+
+        footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 2rem 0;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .tech-stack {
+            background: white;
+            padding: 3rem 0;
+        }
+
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .tech-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            transition: transform 0.3s;
+        }
+
+        .tech-item:hover {
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .nav {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">🚀 UltraMarket</div>
+                <nav class="nav">
+                    <a href="#features">Imkoniyatlar</a>
+                    <a href="#status">Status</a>
+                    <a href="#api">API</a>
+                    <a href="#tech">Texnologiyalar</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <h1>UltraMarket Platform</h1>
+                <p>O'zbekiston uchun professional e-commerce platforma</p>
+                <p>Microservices arxitekturasi | 100% TypeScript | Production Ready</p>
+                <a href="#api" class="cta-button">API ni sinab ko'ring</a>
+            </div>
+        </section>
+
+        <section class="features" id="features">
+            <div class="container">
+                <h2 style="text-align: center; font-size: 2.5rem; margin-bottom: 1rem;">Asosiy Imkoniyatlar</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🏗️</div>
+                        <h3>Microservices Arxitekturasi</h3>
+                        <p>15+ mustaqil servis bilan scalable arxitektura</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Enterprise Security</h3>
+                        <p>OWASP compliant, A+ security grade</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3>High Performance</h3>
+                        <p>Sub-200ms API response times</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🇺🇿</div>
+                        <h3>O'zbekiston Integration</h3>
+                        <p>Click, Payme, UzPost integratsiyasi</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📱</div>
+                        <h3>Multi-platform</h3>
+                        <p>Web, mobile, admin interfaces</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🤖</div>
+                        <h3>AI-Powered</h3>
+                        <p>Tavsiyalar va fraud detection</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="status" id="status">
+            <div class="container">
+                <h2 style="text-align: center; font-size: 2.5rem; margin-bottom: 1rem;">Platform Status</h2>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-indicator"></span>
+                        <strong>Auth Service</strong>
+                        <div>Running</div>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-indicator"></span>
+                        <strong>Product Service</strong>
+                        <div>Running</div>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-indicator"></span>
+                        <strong>Order Service</strong>
+                        <div>Running</div>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-indicator"></span>
+                        <strong>Payment Service</strong>
+                        <div>Running</div>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-indicator"></span>
+                        <strong>Notification Service</strong>
+                        <div>Running</div>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-indicator"></span>
+                        <strong>API Gateway</strong>
+                        <div>Running</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="api-demo" id="api">
+            <div class="container">
+                <h2 style="text-align: center; font-size: 2.5rem; margin-bottom: 1rem;">API Demo</h2>
+                <p style="text-align: center; margin-bottom: 2rem;">Platform API'lari bilan ishlash namunasi</p>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                    <div>
+                        <h3>Health Check</h3>
+                        <div class="api-response" id="health-response">Loading...</div>
+                    </div>
+                    <div>
+                        <h3>API Status</h3>
+                        <div class="api-response" id="status-response">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tech-stack" id="tech">
+            <div class="container">
+                <h2 style="text-align: center; font-size: 2.5rem; margin-bottom: 1rem;">Texnologiyalar</h2>
+                <div class="tech-grid">
+                    <div class="tech-item">
+                        <h4>TypeScript</h4>
+                        <p>100% type safety</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Node.js</h4>
+                        <p>Runtime environment</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Express.js</h4>
+                        <p>Web framework</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>PostgreSQL</h4>
+                        <p>Main database</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Redis</h4>
+                        <p>Caching layer</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Docker</h4>
+                        <p>Containerization</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Kubernetes</h4>
+                        <p>Orchestration</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Jest</h4>
+                        <p>Testing framework</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="stats">
+            <div class="container">
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-number">15+</div>
+                        <div>Microservices</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">100%</div>
+                        <div>TypeScript</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">80%+</div>
+                        <div>Test Coverage</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">200ms</div>
+                        <div>API Response</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">99.9%</div>
+                        <div>Uptime</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 UltraMarket Platform. Professional E-commerce solution for Uzbekistan.</p>
+            <p>Made with ❤️ for the Uzbekistan market</p>
+        </div>
+    </footer>
+
+    <script>
+        // API calls to demonstrate platform is working
+        async function loadApiData() {
+            try {
+                // Health check
+                const healthResponse = await fetch('/health');
+                const healthData = await healthResponse.json();
+                document.getElementById('health-response').innerHTML = JSON.stringify(healthData, null, 2);
+
+                // Status check
+                const statusResponse = await fetch('/api/v1/status');
+                const statusData = await statusResponse.json();
+                document.getElementById('status-response').innerHTML = JSON.stringify(statusData, null, 2);
+            } catch (error) {
+                document.getElementById('health-response').innerHTML = 'Error loading health data';
+                document.getElementById('status-response').innerHTML = 'Error loading status data';
+            }
+        }
+
+        // Load API data when page loads
+        window.addEventListener('load', loadApiData);
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

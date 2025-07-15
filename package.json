@@ -4,7 +4,7 @@
   "description": "UltraMarket - Professional E-commerce Platform Backend for Uzbekistan",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node build.js",
     "start": "node dist/main.js",
     "start:dev": "concurrently \"npm run start:databases\" \"npm run start:services:dev\"",
     "start:prod": "npm run build && npm run start:services:prod",
