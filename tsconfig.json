@@ -4,16 +4,12 @@
     "baseUrl": ".",
     "outDir": "./dist",
     "rootDir": "./",
-    "strict": false,
-    "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "incremental": true,
-    "composite": true,
-    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+    "noEmit": false,
+    "declaration": false,
+    "declarationMap": false,
+    "composite": false,
+    "incremental": false
   },
   "include": [
     "libs/shared/src/**/*",
