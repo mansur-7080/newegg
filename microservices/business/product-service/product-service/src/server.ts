@@ -1,6 +1,6 @@
 /**
- * UltraMarket Product Service - TypeScript Implementation
- * Professional product management microservice
+ * UltraMarket Product Service - Complete TypeScript Implementation
+ * Professional product management microservice with full functionality
  */
 
 import express, { Application, Request, Response, NextFunction } from 'express';
@@ -32,6 +32,17 @@ import {
   DatabaseError,
   ServiceConfig
 } from './types/product.types';
+
+// Import validation middleware
+import {
+  validateCreateProduct,
+  validateCreateCategory,
+  validateProductQuery,
+  validateSearchQuery,
+  validateUUID,
+  validatePriceRange,
+  sanitizeInput
+} from './middleware/validation.middleware';
 
 // Load environment variables
 dotenv.config();
@@ -83,7 +94,7 @@ const swaggerOptions: Options = {
     info: {
       title: 'UltraMarket Product Service API',
       version: '2.0.0',
-      description: 'Professional TypeScript + Prisma + Express microservice',
+      description: 'Complete TypeScript + Prisma + Express microservice',
       contact: {
         name: 'UltraMarket Team',
         email: 'api@ultramarket.uz'
@@ -127,41 +138,6 @@ const swaggerOptions: Options = {
             name: { type: 'string', minLength: 1, maxLength: 100 },
             description: { type: 'string', maxLength: 500 },
             isActive: { type: 'boolean', default: true }
-          }
-        },
-        Error: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean', example: false },
-            error: { type: 'string' },
-            message: { type: 'string' },
-            code: { type: 'string' }
-          }
-        }
-      },
-      responses: {
-        BadRequest: {
-          description: 'Bad Request',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        NotFound: {
-          description: 'Resource Not Found',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        InternalServerError: {
-          description: 'Internal Server Error',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
           }
         }
       }
@@ -209,6 +185,7 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(rateLimiter);
+app.use(sanitizeInput);
 
 // Request logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -228,13 +205,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
  *   get:
  *     summary: Service information
  *     tags: [Service]
- *     responses:
- *       200:
- *         description: Service details
- *         content:
- *           application/json:
- *             schema:
- *               type: object
  */
 app.get('/', (req: Request, res: Response) => {
   const serviceInfo = {
@@ -242,7 +212,7 @@ app.get('/', (req: Request, res: Response) => {
     version: '2.0.0',
     status: 'RUNNING',
     technology: 'TypeScript + Prisma + Express + SQLite',
-    description: 'Professional product management microservice',
+    description: 'Complete TypeScript professional product management microservice',
     features: [
       '✅ TypeScript with strict type checking',
       '✅ Products CRUD with validation',
@@ -254,7 +224,8 @@ app.get('/', (req: Request, res: Response) => {
       '✅ Swagger OpenAPI documentation',
       '✅ Request/Response logging',
       '✅ Database ORM (Prisma)',
-      '✅ Input validation & sanitization'
+      '✅ Input validation & sanitization',
+      '✅ Complete TypeScript migration'
     ],
     endpoints: {
       docs: '/api-docs',
@@ -278,13 +249,8 @@ app.get('/', (req: Request, res: Response) => {
  *   get:
  *     summary: Health check endpoint
  *     tags: [Health]
- *     responses:
- *       200:
- *         description: Service is healthy
- *       500:
- *         description: Service is unhealthy
  */
-app.get('/health', async (req: Request, res: TypedResponse<HealthResponse>) => {
+app.get('/health', async (req: Request, res: Response) => {
   try {
     // Test database connection
     await prisma.$queryRaw`SELECT 1`;
@@ -337,44 +303,10 @@ app.get('/health', async (req: Request, res: TypedResponse<HealthResponse>) => {
  *   get:
  *     summary: Get products with pagination and filtering
  *     tags: [Products]
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 50
- *           default: 10
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *       - in: query
- *         name: category
- *         schema:
- *           type: string
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [DRAFT, ACTIVE, INACTIVE, ARCHIVED]
- *     responses:
- *       200:
- *         description: Products retrieved successfully
- *       400:
- *         $ref: '#/components/responses/BadRequest'
- *       500:
- *         $ref: '#/components/responses/InternalServerError'
  */
-app.get('/api/products', async (req: TypedRequest<ProductQueryParams>, res: TypedResponse<PaginatedResponse>) => {
+app.get('/api/products', validateProductQuery, async (req: Request, res: Response) => {
   try {
-    // Type-safe query parameter parsing
+    // Type-safe query parameter parsing (already validated by middleware)
     const page: number = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit: number = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
     const search: string | undefined = req.query.search as string;
@@ -387,9 +319,9 @@ app.get('/api/products', async (req: TypedRequest<ProductQueryParams>, res: Type
     
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { brand: { contains: search, mode: 'insensitive' } }
+        { name: { contains: search } },
+        { description: { contains: search } },
+        { brand: { contains: search } }
       ];
     }
     
@@ -448,20 +380,11 @@ app.get('/api/products', async (req: TypedRequest<ProductQueryParams>, res: Type
     
   } catch (error) {
     logger.error('Error fetching products:', error);
-    
-    if (error instanceof ValidationError) {
-      res.status(400).json({
-        success: false,
-        error: error.message,
-        code: error.code
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch products',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch products',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -471,26 +394,10 @@ app.get('/api/products', async (req: TypedRequest<ProductQueryParams>, res: Type
  *   get:
  *     summary: Get product by ID
  *     tags: [Products]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     responses:
- *       200:
- *         description: Product retrieved successfully
- *       404:
- *         $ref: '#/components/responses/NotFound'
  */
-app.get('/api/products/:id', async (req: Request, res: TypedResponse) => {
+app.get('/api/products/:id', validateUUID('id'), async (req: Request, res: Response) => {
   try {
     const productId: string = req.params.id;
-    
-    if (!productId) {
-      throw new ValidationError('Product ID is required');
-    }
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -504,11 +411,6 @@ app.get('/api/products/:id', async (req: Request, res: TypedResponse) => {
           orderBy: { createdAt: 'desc' }
         },
         reviews: {
-          include: {
-            user: {
-              select: { id: true, firstName: true, lastName: true }
-            }
-          },
           orderBy: { createdAt: 'desc' },
           take: 10
         }
@@ -516,7 +418,11 @@ app.get('/api/products/:id', async (req: Request, res: TypedResponse) => {
     });
 
     if (!product) {
-      throw new NotFoundError('Product not found');
+      return res.status(404).json({
+        success: false,
+        error: 'Product not found',
+        code: 'NOT_FOUND'
+      });
     }
 
     res.json({
@@ -527,26 +433,12 @@ app.get('/api/products/:id', async (req: Request, res: TypedResponse) => {
     logger.info(`Fetched product: ${product.name}`);
     
   } catch (error) {
-    if (error instanceof NotFoundError) {
-      res.status(404).json({
-        success: false,
-        error: error.message,
-        code: error.code
-      });
-    } else if (error instanceof ValidationError) {
-      res.status(400).json({
-        success: false,
-        error: error.message,
-        code: error.code
-      });
-    } else {
-      logger.error('Error fetching product:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch product',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    logger.error('Error fetching product:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch product',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -556,19 +448,8 @@ app.get('/api/products/:id', async (req: Request, res: TypedResponse) => {
  *   post:
  *     summary: Create a new product
  *     tags: [Products]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/Product'
- *     responses:
- *       201:
- *         description: Product created successfully
- *       400:
- *         $ref: '#/components/responses/BadRequest'
  */
-app.post('/api/products', async (req: TypedRequest<CreateProductRequest>, res: TypedResponse) => {
+app.post('/api/products', validateCreateProduct, async (req: Request, res: Response) => {
   try {
     const {
       name,
@@ -589,30 +470,17 @@ app.post('/api/products', async (req: TypedRequest<CreateProductRequest>, res: T
       specifications
     } = req.body;
 
-    // Validation with custom error messages
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      throw new ValidationError('Product name is required and must be a non-empty string');
-    }
-    
-    if (!price || typeof price !== 'number' || price <= 0) {
-      throw new ValidationError('Price is required and must be a positive number');
-    }
-    
-    if (!categoryId || typeof categoryId !== 'string') {
-      throw new ValidationError('Category ID is required');
-    }
-    
-    if (!sku || typeof sku !== 'string' || sku.trim().length === 0) {
-      throw new ValidationError('SKU is required and must be a non-empty string');
-    }
-
     // Check if category exists
     const categoryExists = await prisma.category.findUnique({
       where: { id: categoryId }
     });
     
     if (!categoryExists) {
-      throw new ValidationError('Category not found');
+      return res.status(400).json({
+        success: false,
+        error: 'Category not found',
+        code: 'CATEGORY_NOT_FOUND'
+      });
     }
 
     // Generate slug
@@ -634,12 +502,12 @@ app.post('/api/products', async (req: TypedRequest<CreateProductRequest>, res: T
         status,
         type,
         weight: weight ? Number(weight) : undefined,
-        dimensions,
+        dimensions: dimensions ? JSON.stringify(dimensions) : null,
         metaTitle: metaTitle?.trim(),
         metaDescription: metaDescription?.trim(),
         warranty: warranty?.trim(),
-        attributes,
-        specifications
+        attributes: attributes ? JSON.stringify(attributes) : null,
+        specifications: specifications ? JSON.stringify(specifications) : null
       },
       include: {
         category: true
@@ -654,14 +522,8 @@ app.post('/api/products', async (req: TypedRequest<CreateProductRequest>, res: T
     
     logger.info(`Created product: ${product.name} (ID: ${product.id})`);
     
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      res.status(400).json({
-        success: false,
-        error: error.message,
-        code: error.code
-      });
-    } else if (error instanceof Error && 'code' in error && error.code === 'P2002') {
+  } catch (error: any) {
+    if (error.code === 'P2002') {
       res.status(400).json({
         success: false,
         error: 'Product with this SKU or slug already exists',
@@ -678,20 +540,204 @@ app.post('/api/products', async (req: TypedRequest<CreateProductRequest>, res: T
   }
 });
 
-// Global error handler with TypeScript
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  logger.error('Unhandled error:', err);
-  
-  const statusCode = err.statusCode || 500;
-  const message = config.nodeEnv === 'development' ? err.message : 'Internal server error';
-  
-  res.status(statusCode).json({
-    success: false,
-    error: message,
-    code: err.code || 'INTERNAL_ERROR',
-    ...(config.nodeEnv === 'development' && { stack: err.stack })
-  });
+/**
+ * @swagger
+ * /api/categories:
+ *   get:
+ *     summary: Get all categories
+ *     tags: [Categories]
+ */
+app.get('/api/categories', async (req: Request, res: Response) => {
+  try {
+    const categories = await prisma.category.findMany({
+      include: {
+        products: {
+          select: { id: true },
+          where: { isActive: true }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    const result = categories.map(cat => ({
+      ...cat,
+      productCount: cat.products.length,
+      products: undefined // Remove products array, only keep count
+    }));
+
+    res.json({
+      success: true,
+      data: result
+    });
+    
+    logger.info(`Fetched ${categories.length} categories`);
+  } catch (error) {
+    logger.error('Error fetching categories:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch categories',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
+
+/**
+ * @swagger
+ * /api/categories:
+ *   post:
+ *     summary: Create new category
+ *     tags: [Categories]
+ */
+app.post('/api/categories', validateCreateCategory, async (req: Request, res: Response) => {
+  try {
+    const { name, description } = req.body;
+    
+    const slug: string = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+    const category = await prisma.category.create({
+      data: {
+        name: name.trim(),
+        slug,
+        description: description?.trim()
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: category,
+      message: 'Category created successfully'
+    });
+    
+    logger.info(`Created category: ${category.name}`);
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      res.status(400).json({
+        success: false,
+        error: 'Category with this name or slug already exists',
+        code: 'DUPLICATE_ENTRY'
+      });
+    } else {
+      logger.error('Error creating category:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to create category',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+});
+
+/**
+ * @swagger
+ * /api/search:
+ *   get:
+ *     summary: Search products
+ *     tags: [Search]
+ */
+app.get('/api/search', validateSearchQuery, async (req: Request, res: Response) => {
+  try {
+    const query: string = req.query.q as string;
+    const limit: number = Math.min(parseInt(req.query.limit as string) || 20, 50);
+    
+    const products = await prisma.product.findMany({
+      where: {
+        OR: [
+          { name: { contains: query } },
+          { description: { contains: query } },
+          { brand: { contains: query } }
+        ],
+        isActive: true
+      },
+      include: {
+        category: {
+          select: { id: true, name: true }
+        }
+      },
+      take: limit,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        query,
+        results: products,
+        count: products.length,
+        message: `Found ${products.length} products`
+      }
+    });
+    
+    logger.info(`Search "${query}" returned ${products.length} results`);
+  } catch (error) {
+    logger.error('Error searching products:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Search failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      data: {
+        query: req.query.q as string,
+        results: [],
+        count: 0
+      }
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/stats:
+ *   get:
+ *     summary: Get service statistics
+ *     tags: [Statistics]
+ */
+app.get('/api/stats', async (req: Request, res: Response) => {
+  try {
+    const [
+      totalProducts,
+      activeProducts,
+      totalCategories,
+      recentProducts
+    ] = await Promise.all([
+      prisma.product.count(),
+      prisma.product.count({ where: { isActive: true } }),
+      prisma.category.count(),
+      prisma.product.count({
+        where: {
+          createdAt: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+          }
+        }
+      })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        products: {
+          total: totalProducts,
+          active: activeProducts,
+          recent: recentProducts
+        },
+        categories: totalCategories,
+        lastUpdated: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Error fetching stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch statistics',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'UltraMarket Product Service API - TypeScript',
+  customfavIcon: '/favicon.ico'
+}));
 
 // 404 handler
 app.use('*', (req: Request, res: Response) => {
@@ -710,12 +756,20 @@ app.use('*', (req: Request, res: Response) => {
   });
 });
 
-// Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'UltraMarket Product Service API',
-  customfavIcon: '/favicon.ico'
-}));
+// Global error handler with TypeScript
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  logger.error('Unhandled error:', err);
+  
+  const statusCode = err.statusCode || 500;
+  const message = config.nodeEnv === 'development' ? err.message : 'Internal server error';
+  
+  res.status(statusCode).json({
+    success: false,
+    error: message,
+    code: err.code || 'INTERNAL_ERROR',
+    ...(config.nodeEnv === 'development' && { stack: err.stack })
+  });
+});
 
 // Graceful shutdown
 const gracefulShutdown = async (signal: string) => {
@@ -737,15 +791,19 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 // Start server only if not in test environment
 if (config.nodeEnv !== 'test') {
   app.listen(config.port, () => {
-    logger.info('='.repeat(50));
-    logger.info(`🚀 UltraMarket Product Service (TypeScript)`);
+    logger.info('='.repeat(60));
+    logger.info(`🚀 UltraMarket Product Service (Complete TypeScript)`);
     logger.info(`📡 Port: ${config.port}`);
     logger.info(`🌍 Environment: ${config.nodeEnv}`);
+    logger.info(`🔧 Technology: TypeScript + Prisma + Express`);
     logger.info(`📚 API Docs: http://localhost:${config.port}/api-docs`);
     logger.info(`🔍 Health: http://localhost:${config.port}/health`);
     logger.info(`📦 Products: http://localhost:${config.port}/api/products`);
-    logger.info('='.repeat(50));
-    logger.info('✅ Service ready for requests!');
+    logger.info(`🏷️  Categories: http://localhost:${config.port}/api/categories`);
+    logger.info(`🔎 Search: http://localhost:${config.port}/api/search`);
+    logger.info(`📊 Stats: http://localhost:${config.port}/api/stats`);
+    logger.info('='.repeat(60));
+    logger.info('✅ Complete TypeScript service ready for requests!');
   });
 }
 

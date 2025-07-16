@@ -1,150 +1,82 @@
 /**
- * Product Service Types
- * Professional TypeScript type definitions
+ * UltraMarket Product Service - TypeScript Type Definitions
+ * Complete type safety for the product service
  */
 
 import { Request, Response } from 'express';
+import { Product as PrismaProduct, Category as PrismaCategory } from '@prisma/client';
 
-// Basic Types
-export type ProductStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
-export type ProductType = 'PHYSICAL' | 'DIGITAL' | 'SERVICE';
-export type UserRole = 'CUSTOMER' | 'VENDOR' | 'ADMIN' | 'SUPER_ADMIN';
+// ================ BASIC TYPES ================
 
-// Database Models
-export interface Product {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  shortDescription?: string;
-  sku: string;
-  barcode?: string;
-  brand?: string;
-  model?: string;
-  weight?: number;
-  dimensions?: string;
-  price: number;
-  comparePrice?: number;
-  costPrice?: number;
-  currency: string;
-  status: ProductStatus;
-  type: ProductType;
-  isActive: boolean;
-  isFeatured: boolean;
-  isBestSeller: boolean;
-  isNewArrival: boolean;
-  isOnSale: boolean;
-  salePercentage?: number;
-  saleStartDate?: Date;
-  saleEndDate?: Date;
-  metaTitle?: string;
-  metaDescription?: string;
-  metaKeywords?: string;
-  tags?: string;
-  attributes?: string;
-  specifications?: string;
-  warranty?: string;
-  returnPolicy?: string;
-  shippingInfo?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt?: Date;
-  categoryId: string;
-  vendorId?: string;
-  category?: Category;
-  images?: ProductImage[];
-  variants?: ProductVariant[];
-  reviews?: Review[];
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  image?: string;
-  parentId?: string;
-  isActive: boolean;
-  sortOrder: number;
-  createdAt: Date;
-  updatedAt: Date;
-  products?: Product[];
-  parent?: Category;
-  children?: Category[];
-  productCount?: number;
-}
+export interface Product extends PrismaProduct {}
+export interface Category extends PrismaCategory {}
 
 export interface ProductImage {
   id: string;
-  productId: string;
   url: string;
   altText?: string;
   isMain: boolean;
   sortOrder: number;
+  productId: string;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ProductVariant {
   id: string;
-  productId: string;
   name: string;
   sku: string;
-  barcode?: string;
   price: number;
-  comparePrice?: number;
-  costPrice?: number;
-  weight?: number;
-  dimensions?: string;
-  attributes?: string;
+  stock: number;
   isActive: boolean;
+  attributes: Record<string, any>;
+  productId: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface Review {
   id: string;
+  rating: number;
+  comment?: string;
+  verified: boolean;
+  helpful: number;
   productId: string;
   userId: string;
-  rating: number;
-  title?: string;
-  comment?: string;
-  isVerified: boolean;
-  isHelpful: number;
-  isNotHelpful: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface User {
   id: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
-  username: string;
-  firstName: string;
-  lastName: string;
-  role: UserRole;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
-// API Request/Response Types
+// ================ REQUEST TYPES ================
+
 export interface CreateProductRequest {
   name: string;
   description?: string;
+  shortDescription?: string;
   price: number;
+  comparePrice?: number;
+  costPrice?: number;
   categoryId: string;
   brand?: string;
   sku: string;
-  status?: ProductStatus;
-  type?: ProductType;
+  status?: 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+  type?: 'PHYSICAL' | 'DIGITAL' | 'SERVICE';
   weight?: number;
-  dimensions?: string;
-  shortDescription?: string;
+  dimensions?: Record<string, any>;
   metaTitle?: string;
   metaDescription?: string;
   warranty?: string;
-  attributes?: string;
-  specifications?: string;
+  attributes?: Record<string, any>;
+  specifications?: Record<string, any>;
+  tags?: string[];
+  images?: string[];
 }
 
 export interface UpdateProductRequest extends Partial<CreateProductRequest> {
@@ -155,84 +87,78 @@ export interface CreateCategoryRequest {
   name: string;
   description?: string;
   parentId?: string;
-  image?: string;
-  sortOrder?: number;
+  isActive?: boolean;
 }
 
 export interface UpdateCategoryRequest extends Partial<CreateCategoryRequest> {
   id: string;
 }
 
-// Query Parameters
+// ================ QUERY PARAMS ================
+
 export interface ProductQueryParams {
-  page?: number;
-  limit?: number;
+  page?: string;
+  limit?: string;
   search?: string;
   category?: string;
-  status?: ProductStatus;
-  type?: ProductType;
+  status?: string;
   brand?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  sortBy?: 'name' | 'price' | 'createdAt' | 'updatedAt';
+  minPrice?: string;
+  maxPrice?: string;
+  sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-  isActive?: boolean;
-  isFeatured?: boolean;
-  isBestSeller?: boolean;
-  isNewArrival?: boolean;
-  isOnSale?: boolean;
+  tags?: string;
 }
 
 export interface CategoryQueryParams {
-  page?: number;
-  limit?: number;
+  page?: string;
+  limit?: string;
   search?: string;
+  isActive?: string;
   parentId?: string;
-  isActive?: boolean;
-  sortBy?: 'name' | 'sortOrder' | 'createdAt';
-  sortOrder?: 'asc' | 'desc';
 }
 
 export interface SearchQueryParams {
   q: string;
-  limit?: number;
+  limit?: string;
   category?: string;
-  minPrice?: number;
-  maxPrice?: number;
+  minPrice?: string;
+  maxPrice?: string;
 }
 
-// API Response Types
+// ================ RESPONSE TYPES ================
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
-  message?: string;
   error?: string;
+  message?: string;
+  code?: string;
+  timestamp?: string;
 }
 
-export interface PaginatedResponse<T = any> {
-  success: boolean;
-  data: T[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
-  };
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+export interface PaginatedResponse<T = any> extends ApiResponse<T[]> {
+  meta: PaginationMeta;
   query?: Record<string, any>;
+  total?: number;
 }
 
-export interface SearchResponse {
-  success: boolean;
+export interface SearchResponse extends ApiResponse {
   query: string;
   results: Product[];
   count: number;
-  message?: string;
 }
 
-export interface StatsResponse {
-  success: boolean;
+export interface StatsResponse extends ApiResponse {
   data: {
     products: {
       total: number;
@@ -257,55 +183,19 @@ export interface HealthResponse {
   };
 }
 
-// Express Request/Response Types with TypeScript
-export interface TypedRequest<T = any> extends Request {
+// ================ EXPRESS TYPES ================
+
+export interface TypedRequest<T = any> extends Omit<Request, 'body' | 'query'> {
   body: T;
-  query: Record<string, any>;
-  params: Record<string, string>;
+  query: T;
 }
 
 export interface TypedResponse<T = any> extends Response {
-  json(body: ApiResponse<T>): this;
+  json: (body: ApiResponse<T>) => this;
 }
 
-// Error Types
-export interface ApiError extends Error {
-  statusCode: number;
-  code?: string;
-  details?: any;
-}
+// ================ SERVICE CONFIG ================
 
-export class ValidationError extends Error {
-  statusCode = 400;
-  code = 'VALIDATION_ERROR';
-  
-  constructor(message: string, public details?: any) {
-    super(message);
-    this.name = 'ValidationError';
-  }
-}
-
-export class NotFoundError extends Error {
-  statusCode = 404;
-  code = 'NOT_FOUND';
-  
-  constructor(message: string = 'Resource not found') {
-    super(message);
-    this.name = 'NotFoundError';
-  }
-}
-
-export class DatabaseError extends Error {
-  statusCode = 500;
-  code = 'DATABASE_ERROR';
-  
-  constructor(message: string, public details?: any) {
-    super(message);
-    this.name = 'DatabaseError';
-  }
-}
-
-// Service Configuration
 export interface ServiceConfig {
   port: number;
   nodeEnv: string;
@@ -317,35 +207,154 @@ export interface ServiceConfig {
   apiVersion: string;
 }
 
-// Prisma Extensions
-export interface PrismaQueryOptions {
-  page?: number;
-  limit?: number;
-  include?: Record<string, boolean | object>;
-  where?: Record<string, any>;
-  orderBy?: Record<string, 'asc' | 'desc'>;
+// ================ ERROR TYPES ================
+
+export class ValidationError extends Error {
+  public code: string;
+  public statusCode: number;
+  
+  constructor(message: string, code: string = 'VALIDATION_ERROR') {
+    super(message);
+    this.name = 'ValidationError';
+    this.code = code;
+    this.statusCode = 400;
+  }
 }
 
+export class NotFoundError extends Error {
+  public code: string;
+  public statusCode: number;
+  
+  constructor(message: string, code: string = 'NOT_FOUND') {
+    super(message);
+    this.name = 'NotFoundError';
+    this.code = code;
+    this.statusCode = 404;
+  }
+}
+
+export class DatabaseError extends Error {
+  public code: string;
+  public statusCode: number;
+  
+  constructor(message: string, code: string = 'DATABASE_ERROR') {
+    super(message);
+    this.name = 'DatabaseError';
+    this.code = code;
+    this.statusCode = 500;
+  }
+}
+
+// ================ UTILITY TYPES ================
+
+export type ProductStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+export type ProductType = 'PHYSICAL' | 'DIGITAL' | 'SERVICE';
+export type SortOrder = 'asc' | 'desc';
+
+export interface ProductFilters {
+  category?: string;
+  brand?: string;
+  status?: ProductStatus;
+  type?: ProductType;
+  minPrice?: number;
+  maxPrice?: number;
+  tags?: string[];
+  inStock?: boolean;
+}
+
+export interface ProductSort {
+  field: string;
+  order: SortOrder;
+}
+
+// ================ EXTENDED PRODUCT WITH RELATIONS ================
+
+export interface ProductWithRelations extends Product {
+  category?: Category;
+  images?: ProductImage[];
+  variants?: ProductVariant[];
+  reviews?: Review[];
+}
+
+export interface CategoryWithRelations extends Category {
+  products?: Product[];
+  parent?: Category;
+  children?: Category[];
+}
+
+// ================ BULK OPERATIONS ================
+
+export interface BulkProductUpdate {
+  id: string;
+  updates: Partial<Product>;
+}
+
+export interface BulkOperationResult {
+  success: number;
+  failed: number;
+  errors: Array<{
+    id: string;
+    error: string;
+  }>;
+}
+
+// ================ ADVANCED SEARCH ================
+
+export interface SearchFilters extends ProductFilters {
+  query?: string;
+  fuzzy?: boolean;
+  exact?: boolean;
+}
+
+export interface SearchOptions {
+  filters: SearchFilters;
+  sort: ProductSort;
+  pagination: {
+    page: number;
+    limit: number;
+  };
+  include?: string[];
+}
+
+// ================ ANALYTICS TYPES ================
+
+export interface ProductAnalytics {
+  views: number;
+  sales: number;
+  revenue: number;
+  averageRating: number;
+  reviewCount: number;
+  conversionRate: number;
+}
+
+export interface CategoryAnalytics {
+  productCount: number;
+  totalRevenue: number;
+  averagePrice: number;
+  topProducts: Product[];
+}
+
+// ================ CACHE TYPES ================
+
+export interface CacheOptions {
+  ttl?: number;
+  tags?: string[];
+  version?: string;
+}
+
+export interface CacheResult<T> {
+  data: T;
+  cached: boolean;
+  timestamp: Date;
+}
+
+// ================ EXPORT ALL TYPES ================
+
+// All types are already exported above via individual export declarations
+
+// Default export for convenience
 export default {
-  Product,
-  Category,
-  ProductImage,
-  ProductVariant,
-  Review,
-  User,
-  CreateProductRequest,
-  UpdateProductRequest,
-  CreateCategoryRequest,
-  UpdateCategoryRequest,
-  ProductQueryParams,
-  CategoryQueryParams,
-  SearchQueryParams,
-  ApiResponse,
-  PaginatedResponse,
-  SearchResponse,
-  StatsResponse,
-  HealthResponse,
-  TypedRequest,
-  TypedResponse,
-  ServiceConfig
+  ValidationError,
+  NotFoundError,
+  DatabaseError
 };
