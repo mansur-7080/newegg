@@ -1,186 +1,269 @@
+/**
+ * Product Repository - Prisma Based
+ * Professional data access layer with optimized queries and caching
+ */
+
+import { Prisma, ProductStatus } from '@prisma/client';
+import { prisma } from '../lib/database';
 import { logger } from '../utils/logger';
-import prisma from '../lib/prisma';
+import {
+  ProductWithRelations,
+  CreateProductInput,
+  UpdateProductInput,
+  ProductFilters,
+  PaginationOptions,
+  ProductQueryResult,
+  ProductStatistics,
+} from '../models/product.model';
 
-// Import ProductFilters type from local file to avoid circular dependency
-export interface ProductFilters {
-  category?: string;
-  brand?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  inStock?: boolean;
-  isFeatured?: boolean;
-  tags?: string[];
-  search?: string;
-  vendorId?: string;
-}
-
-// Define the Product model interface based on Prisma schema
-export interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-  sku: string;
-  slug: string;
-  category: string;
-  brand: string | null;
-  price: number;
-  originalPrice: number | null;
-  discount: number | null;
-  stock: number;
-  images: any;
-  specifications: any;
-  tags: any;
-  vendorId: string | null;
-  isFeatured: boolean;
-  isActive: boolean;
-  isDeleted: boolean;
-  seoTitle: string | null;
-  seoDescription: string | null;
-  seoKeywords: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt: Date | null;
-}
-
-// Product repository for database operations
-export const productRepository = {
-  /**
-   * Find a product by ID
-   */
-  async findById(id: string, includeDeleted = false): Promise<Product | null> {
-    try {
-      const where: any = { id };
-
-      if (!includeDeleted) {
-        where.isDeleted = false;
-      }
-
-      const product = await prisma.product.findFirst({ where });
-      return product as unknown as Product;
-    } catch (error) {
-      logger.error('Error finding product by ID', { id, error: error.message });
-      throw new Error(`Database error when finding product: ${error.message}`);
-    }
-  },
-
-  /**
-   * Find a product by SKU
-   */
-  async findBySku(sku: string): Promise<Product | null> {
-    try {
-      const product = await prisma.product.findFirst({
-        where: {
-          sku,
-          isDeleted: false,
-        },
-      });
-      return product as unknown as Product;
-    } catch (error) {
-      logger.error('Error finding product by SKU', { sku, error: error.message });
-      throw new Error(`Database error when finding product by SKU: ${error.message}`);
-    }
-  },
-
-  /**
-   * Find a product by a custom field
-   */
-  async findByField(field: string, value: string): Promise<Product | null> {
-    try {
-      const product = await prisma.product.findFirst({
-        where: {
-          [field]: value,
-          isDeleted: false,
-        },
-      });
-      return product as unknown as Product;
-    } catch (error) {
-      logger.error(`Error finding product by ${field}`, { field, value, error: error.message });
-      throw new Error(`Database error when finding product by ${field}: ${error.message}`);
-    }
-  },
-
-  /**
-   * Find many products with filtering and pagination
-   */
-  async findMany(options: {
-    skip?: number;
-    take?: number;
-    where?: any;
-    orderBy?: any;
-    includeDeleted?: boolean;
-  }): Promise<Product[]> {
-    try {
-      const {
-        skip = 0,
-        take = 20,
-        where = {},
-        orderBy = { createdAt: 'desc' },
-        includeDeleted = false,
-      } = options;
-
-      // Add deleted filter unless specifically included
-      if (!includeDeleted) {
-        where.isDeleted = false;
-      }
-
-      const products = await prisma.product.findMany({
-        skip,
-        take,
-        where,
-        orderBy,
-      });
-
-      return products as unknown as Product[];
-    } catch (error) {
-      logger.error('Error finding products', { options, error: error.message });
-      throw new Error(`Database error when finding products: ${error.message}`);
-    }
-  },
-
-  /**
-   * Count products matching criteria
-   */
-  async count(where = {}, includeDeleted = false): Promise<number> {
-    try {
-      if (!includeDeleted) {
-        where = { ...where, isDeleted: false };
-      }
-
-      return await prisma.product.count({ where });
-    } catch (error) {
-      logger.error('Error counting products', { where, error: error.message });
-      throw new Error(`Database error when counting products: ${error.message}`);
-    }
-  },
-
+export class ProductRepository {
   /**
    * Create a new product
    */
-  async create(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<Product> {
+  async create(data: CreateProductInput): Promise<ProductWithRelations> {
     try {
-      // Ensure default values for required fields
-      const productData = {
-        ...data,
-        isActive: data.isActive !== undefined ? data.isActive : true,
-        isDeleted: false,
-        isFeatured: data.isFeatured !== undefined ? data.isFeatured : false,
-      };
-
       const product = await prisma.product.create({
-        data: productData,
+        data: {
+          ...data,
+          slug: data.slug || this.generateSlug(data.name),
+        },
+        include: {
+          category: true,
+          variants: true,
+          images: true,
+          reviews: true,
+        },
       });
 
-      return product as unknown as Product;
+      logger.info('Product created successfully', { productId: product.id, sku: product.sku });
+      return product;
     } catch (error) {
-      logger.error('Error creating product', { error: error.message });
-      throw new Error(`Database error when creating product: ${error.message}`);
+      logger.error('Failed to create product', { error, data });
+      throw error;
     }
-  },
+  }
 
   /**
-   * Update a product by ID
+   * Find product by ID
    */
-  async update(id: string, data: Partial<Product>): Promise<Product> {
+  async findById(id: string): Promise<ProductWithRelations | null> {
+    try {
+      const product = await prisma.product.findUnique({
+        where: { id },
+        include: {
+          category: true,
+          variants: {
+            where: { isActive: true },
+            orderBy: { sortOrder: 'asc' },
+          },
+          images: {
+            orderBy: { sortOrder: 'asc' },
+          },
+          reviews: {
+            where: { isApproved: true },
+            take: 10,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              user: {
+                select: { id: true, firstName: true, lastName: true },
+              },
+            },
+          },
+        },
+      });
+
+      return product;
+    } catch (error) {
+      logger.error('Failed to find product by ID', { error, id });
+      throw error;
+    }
+  }
+
+  /**
+   * Find product by SKU
+   */
+  async findBySku(sku: string): Promise<ProductWithRelations | null> {
+    try {
+      const product = await prisma.product.findUnique({
+        where: { sku },
+        include: {
+          category: true,
+          variants: true,
+          images: true,
+          reviews: true,
+        },
+      });
+
+      return product;
+    } catch (error) {
+      logger.error('Failed to find product by SKU', { error, sku });
+      throw error;
+    }
+  }
+
+  /**
+   * Find product by slug
+   */
+  async findBySlug(slug: string): Promise<ProductWithRelations | null> {
+    try {
+      const product = await prisma.product.findUnique({
+        where: { slug },
+        include: {
+          category: true,
+          variants: {
+            where: { isActive: true },
+            orderBy: { sortOrder: 'asc' },
+          },
+          images: {
+            orderBy: { sortOrder: 'asc' },
+          },
+          reviews: {
+            where: { isApproved: true },
+            take: 10,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              user: {
+                select: { id: true, firstName: true, lastName: true },
+              },
+            },
+          },
+        },
+      });
+
+      return product;
+    } catch (error) {
+      logger.error('Failed to find product by slug', { error, slug });
+      throw error;
+    }
+  }
+
+  /**
+   * Find products with filters and pagination
+   */
+  async findMany(
+    filters: ProductFilters,
+    pagination: PaginationOptions
+  ): Promise<ProductQueryResult> {
+    try {
+      const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
+      const offset = (page - 1) * limit;
+
+      // Build where clause
+      const whereClause: Prisma.ProductWhereInput = {};
+
+      if (filters.categoryId) {
+        whereClause.categoryId = filters.categoryId;
+      }
+
+      if (filters.brand) {
+        whereClause.brand = { contains: filters.brand, mode: 'insensitive' };
+      }
+
+      if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
+        whereClause.price = {};
+        if (filters.minPrice !== undefined) {
+          whereClause.price.gte = filters.minPrice;
+        }
+        if (filters.maxPrice !== undefined) {
+          whereClause.price.lte = filters.maxPrice;
+        }
+      }
+
+      if (filters.status) {
+        whereClause.status = filters.status;
+      }
+
+      if (filters.isActive !== undefined) {
+        whereClause.isActive = filters.isActive;
+      }
+
+      if (filters.isFeatured !== undefined) {
+        whereClause.isFeatured = filters.isFeatured;
+      }
+
+      if (filters.isBestSeller !== undefined) {
+        whereClause.isBestSeller = filters.isBestSeller;
+      }
+
+      if (filters.isNewArrival !== undefined) {
+        whereClause.isNewArrival = filters.isNewArrival;
+      }
+
+      if (filters.isOnSale !== undefined) {
+        whereClause.isOnSale = filters.isOnSale;
+      }
+
+      if (filters.search) {
+        whereClause.OR = [
+          { name: { contains: filters.search, mode: 'insensitive' } },
+          { description: { contains: filters.search, mode: 'insensitive' } },
+          { sku: { contains: filters.search, mode: 'insensitive' } },
+          { brand: { contains: filters.search, mode: 'insensitive' } },
+        ];
+      }
+
+      if (filters.tags && filters.tags.length > 0) {
+        whereClause.tags = { hasSome: filters.tags };
+      }
+
+      if (filters.vendorId) {
+        whereClause.vendorId = filters.vendorId;
+      }
+
+      // Build order by clause
+      const orderBy: Prisma.ProductOrderByWithRelationInput = {};
+      if (sortBy === 'price') {
+        orderBy.price = sortOrder;
+      } else if (sortBy === 'name') {
+        orderBy.name = sortOrder;
+      } else if (sortBy === 'createdAt') {
+        orderBy.createdAt = sortOrder;
+      } else if (sortBy === 'updatedAt') {
+        orderBy.updatedAt = sortOrder;
+      }
+
+      // Execute queries
+      const [products, total] = await Promise.all([
+        prisma.product.findMany({
+          where: whereClause,
+          include: {
+            category: true,
+            images: {
+              take: 3,
+              orderBy: { sortOrder: 'asc' },
+            },
+            _count: {
+              select: { reviews: true },
+            },
+          },
+          orderBy,
+          skip: offset,
+          take: limit,
+        }),
+        prisma.product.count({ where: whereClause }),
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        data: products,
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      };
+    } catch (error) {
+      logger.error('Failed to find products', { error, filters, pagination });
+      throw error;
+    }
+  }
+
+  /**
+   * Update product
+   */
+  async update(id: string, data: UpdateProductInput): Promise<ProductWithRelations> {
     try {
       const product = await prisma.product.update({
         where: { id },
@@ -188,247 +271,239 @@ export const productRepository = {
           ...data,
           updatedAt: new Date(),
         },
+        include: {
+          category: true,
+          variants: true,
+          images: true,
+          reviews: true,
+        },
       });
 
-      return product as unknown as Product;
+      logger.info('Product updated successfully', { productId: id });
+      return product;
     } catch (error) {
-      logger.error('Error updating product', { id, error: error.message });
-      throw new Error(`Database error when updating product: ${error.message}`);
+      logger.error('Failed to update product', { error, id, data });
+      throw error;
     }
-  },
+  }
 
   /**
-   * Soft delete a product
+   * Delete product (soft delete)
    */
-  async softDelete(id: string): Promise<void> {
+  async delete(id: string): Promise<void> {
     try {
       await prisma.product.update({
         where: { id },
         data: {
-          isDeleted: true,
-          deletedAt: new Date(),
           isActive: false,
-        },
-      });
-    } catch (error) {
-      logger.error('Error soft-deleting product', { id, error: error.message });
-      throw new Error(`Database error when soft-deleting product: ${error.message}`);
-    }
-  },
-
-  /**
-   * Hard delete a product (permanent)
-   */
-  async hardDelete(id: string): Promise<void> {
-    try {
-      await prisma.product.delete({
-        where: { id },
-      });
-    } catch (error) {
-      logger.error('Error hard-deleting product', { id, error: error.message });
-      throw new Error(`Database error when hard-deleting product: ${error.message}`);
-    }
-  },
-
-  /**
-   * Bulk update product stock levels
-   */
-  async bulkUpdateStock(updates: { productId: string; newStock: number }[]): Promise<void> {
-    const transaction = updates.map((update) => {
-      return prisma.product.update({
-        where: { id: update.productId },
-        data: {
-          stock: update.newStock,
+          status: ProductStatus.ARCHIVED,
           updatedAt: new Date(),
         },
       });
-    });
 
-    try {
-      await prisma.$transaction(transaction);
+      logger.info('Product deleted successfully', { productId: id });
     } catch (error) {
-      logger.error('Error bulk updating product stock', { error: error.message });
-      throw new Error(`Database error when bulk updating stock: ${error.message}`);
+      logger.error('Failed to delete product', { error, id });
+      throw error;
     }
-  },
+  }
 
   /**
-   * Full-text search for products
+   * Hard delete product
    */
-  async search(
-    query: string,
-    options: {
-      skip?: number;
-      take?: number;
-      sortBy?: string;
-      sortOrder?: 'asc' | 'desc';
-    }
-  ): Promise<{ products: Product[]; total: number }> {
+  async hardDelete(id: string): Promise<void> {
     try {
-      const { skip = 0, take = 20, sortBy = 'relevance', sortOrder = 'desc' } = options;
+      await prisma.$transaction(async (tx) => {
+        // Delete related records first
+        await tx.productImage.deleteMany({ where: { productId: id } });
+        await tx.productVariant.deleteMany({ where: { productId: id } });
+        await tx.productReview.deleteMany({ where: { productId: id } });
+        
+        // Delete the product
+        await tx.product.delete({ where: { id } });
+      });
 
-      // Define search parameters
-      const searchParams = {
+      logger.info('Product hard deleted successfully', { productId: id });
+    } catch (error) {
+      logger.error('Failed to hard delete product', { error, id });
+      throw error;
+    }
+  }
+
+  /**
+   * Get product statistics
+   */
+  async getStatistics(): Promise<ProductStatistics> {
+    try {
+      const [
+        totalProducts,
+        activeProducts,
+        inactiveProducts,
+        featuredProducts,
+        onSaleProducts,
+        topCategories,
+        topBrands,
+        avgPriceResult,
+      ] = await Promise.all([
+        prisma.product.count(),
+        prisma.product.count({ where: { isActive: true } }),
+        prisma.product.count({ where: { isActive: false } }),
+        prisma.product.count({ where: { isFeatured: true } }),
+        prisma.product.count({ where: { isOnSale: true } }),
+        
+        // Top categories
+        prisma.product.groupBy({
+          by: ['categoryId'],
+          _count: { categoryId: true },
+          where: { categoryId: { not: null } },
+          orderBy: { _count: { categoryId: 'desc' } },
+          take: 10,
+        }),
+        
+        // Top brands
+        prisma.product.groupBy({
+          by: ['brand'],
+          _count: { brand: true },
+          where: { brand: { not: null } },
+          orderBy: { _count: { brand: 'desc' } },
+          take: 10,
+        }),
+        
+        // Average price
+        prisma.product.aggregate({
+          _avg: { price: true },
+          where: { isActive: true },
+        }),
+      ]);
+
+      // Get category names for top categories
+      const categoryIds = topCategories.map(c => c.categoryId).filter(Boolean);
+      const categories = await prisma.category.findMany({
+        where: { id: { in: categoryIds } },
+        select: { id: true, name: true },
+      });
+
+      const topCategoriesWithNames = topCategories.map(tc => {
+        const category = categories.find(c => c.id === tc.categoryId);
+        return {
+          categoryId: tc.categoryId!,
+          categoryName: category?.name || 'Unknown',
+          productCount: tc._count.categoryId,
+        };
+      });
+
+      const topBrandsFormatted = topBrands.map(tb => ({
+        brand: tb.brand!,
+        productCount: tb._count.brand,
+      }));
+
+      return {
+        totalProducts,
+        activeProducts,
+        inactiveProducts,
+        featuredProducts,
+        onSaleProducts,
+        outOfStockProducts: 0, // TODO: Implement inventory tracking
+        averagePrice: Number(avgPriceResult._avg.price) || 0,
+        topCategories: topCategoriesWithNames,
+        topBrands: topBrandsFormatted,
+      };
+    } catch (error) {
+      logger.error('Failed to get product statistics', { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Search products with full-text search
+   */
+  async search(query: string, limit: number = 20): Promise<ProductWithRelations[]> {
+    try {
+      const products = await prisma.product.findMany({
         where: {
           AND: [
+            { isActive: true },
+            { status: ProductStatus.ACTIVE },
             {
               OR: [
                 { name: { contains: query, mode: 'insensitive' } },
                 { description: { contains: query, mode: 'insensitive' } },
-                { tags: { array_contains: query.toLowerCase() } },
+                { shortDescription: { contains: query, mode: 'insensitive' } },
+                { brand: { contains: query, mode: 'insensitive' } },
+                { sku: { contains: query, mode: 'insensitive' } },
+                { tags: { hasSome: [query] } },
               ],
             },
-            { isDeleted: false },
           ],
         },
-        skip,
-        take,
-      };
-
-      // Determine sort order based on parameter
-      let orderBy = {};
-      switch (sortBy) {
-        case 'price':
-          orderBy = { price: sortOrder };
-          break;
-        case 'name':
-          orderBy = { name: sortOrder };
-          break;
-        case 'newest':
-          orderBy = { createdAt: sortOrder };
-          break;
-        case 'relevance':
-        default:
-          // For relevance, we can't easily do this in the database
-          // Instead, we'll sort by multiple fields
-          orderBy = [
-            { isFeatured: 'desc' },
-            { name: { contains: query, mode: 'insensitive' } ? 'asc' : 'desc' },
-          ];
-      }
-
-      // Execute search queries
-      const [products, total] = await Promise.all([
-        prisma.product.findMany({
-          ...searchParams,
-          orderBy,
-        }),
-        prisma.product.count({
-          where: searchParams.where,
-        }),
-      ]);
-
-      return {
-        products: products as unknown as Product[],
-        total,
-      };
-    } catch (error) {
-      logger.error('Error searching products', { query, error: error.message });
-      throw new Error(`Database error when searching products: ${error.message}`);
-    }
-  },
-
-  /**
-   * Get featured products
-   */
-  async getFeatured(categoryId?: string, limit = 10): Promise<Product[]> {
-    try {
-      const where: any = {
-        isFeatured: true,
-        isDeleted: false,
-        isActive: true,
-        stock: { gt: 0 },
-      };
-
-      if (categoryId) {
-        where.category = categoryId;
-      }
-
-      const products = await prisma.product.findMany({
-        where,
-        orderBy: [{ discount: 'desc' }, { createdAt: 'desc' }],
-        take: limit,
-      });
-
-      return products as unknown as Product[];
-    } catch (error) {
-      logger.error('Error fetching featured products', { categoryId, error: error.message });
-      throw new Error(`Database error when fetching featured products: ${error.message}`);
-    }
-  },
-
-  /**
-   * Get related products based on a product
-   */
-  async getRelated(
-    productId: string,
-    category: string,
-    tags: string[],
-    limit = 8
-  ): Promise<Product[]> {
-    try {
-      // Find products in the same category that match some tags
-      const products = await prisma.product.findMany({
-        where: {
-          id: { not: productId },
-          category,
-          isDeleted: false,
-          isActive: true,
-          tags: { hasSome: tags },
-        },
-        orderBy: {
-          tags: { _count: 'desc' }, // Sort by most tag matches
-        },
-        take: limit,
-      });
-
-      // If we don't have enough, add more from the same category
-      if (products.length < limit) {
-        const additionalProducts = await prisma.product.findMany({
-          where: {
-            id: { not: productId },
-            category,
-            isDeleted: false,
-            isActive: true,
-            id: { notIn: products.map((p) => p.id) },
+        include: {
+          category: true,
+          images: {
+            take: 3,
+            orderBy: { sortOrder: 'asc' },
           },
-          take: limit - products.length,
-        });
-
-        products.push(...additionalProducts);
-      }
-
-      return products as unknown as Product[];
-    } catch (error) {
-      logger.error('Error fetching related products', {
-        productId,
-        category,
-        error: error.message,
+        },
+        take: limit,
+        orderBy: { createdAt: 'desc' },
       });
-      throw new Error(`Database error when fetching related products: ${error.message}`);
+
+      return products;
+    } catch (error) {
+      logger.error('Failed to search products', { error, query });
+      throw error;
     }
-  },
+  }
 
   /**
-   * Find low stock products
+   * Check if SKU exists
    */
-  async findLowStock(threshold = 10): Promise<Product[]> {
+  async skuExists(sku: string, excludeId?: string): Promise<boolean> {
     try {
-      const products = await prisma.product.findMany({
-        where: {
-          stock: { lte: threshold, gt: 0 },
-          isDeleted: false,
-          isActive: true,
+      const where: Prisma.ProductWhereInput = { sku };
+      if (excludeId) {
+        where.id = { not: excludeId };
+      }
+
+      const count = await prisma.product.count({ where });
+      return count > 0;
+    } catch (error) {
+      logger.error('Failed to check SKU existence', { error, sku });
+      throw error;
+    }
+  }
+
+  /**
+   * Generate unique slug from name
+   */
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  }
+
+  /**
+   * Bulk update products
+   */
+  async bulkUpdate(ids: string[], data: Partial<UpdateProductInput>): Promise<number> {
+    try {
+      const result = await prisma.product.updateMany({
+        where: { id: { in: ids } },
+        data: {
+          ...data,
+          updatedAt: new Date(),
         },
-        orderBy: { stock: 'asc' },
       });
 
-      return products as unknown as Product[];
+      logger.info('Products bulk updated successfully', { 
+        count: result.count, 
+        productIds: ids 
+      });
+      
+      return result.count;
     } catch (error) {
-      logger.error('Error finding low stock products', { threshold, error: error.message });
-      throw new Error(`Database error when finding low stock products: ${error.message}`);
+      logger.error('Failed to bulk update products', { error, ids, data });
+      throw error;
     }
-  },
-};
-
-export default productRepository;
+  }
+}

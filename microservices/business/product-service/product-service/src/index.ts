@@ -1,5 +1,5 @@
 /**
- * UltraMarket Product Service
+ * UltraMarket Product Service - Prisma Based
  * Professional product catalog and inventory management service
  */
 
@@ -8,29 +8,24 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
-import mongoose from 'mongoose';
 import swaggerUi from 'swagger-ui-express';
 import dotenv from 'dotenv';
+
+// Database and utilities
+import { connectDatabase, disconnectDatabase } from './lib/database';
+import { logger } from './utils/logger';
+import { validateEnv } from './config/env.validation';
+import { swaggerSpec } from './config/swagger';
 
 // Routes
 import productRoutes from './routes/product.routes';
 import categoryRoutes from './routes/category.routes';
-import inventoryRoutes from './routes/inventory.routes';
-import reviewRoutes from './routes/review.routes';
-import searchRoutes from './routes/search.routes';
 import healthRoutes from './routes/health.routes';
-import adminRoutes from './routes/admin.routes';
-import enhancedProductRoutes from './routes/enhanced-product.routes';
 
 // Middleware
 import { errorHandler } from './middleware/error.middleware';
 import { requestLogger } from './middleware/logger.middleware';
 import { securityMiddleware } from './middleware/security.middleware';
-
-// Utils
-import { logger } from './utils/logger';
-import { validateEnv } from './config/env.validation';
-import { swaggerSpec } from './config/swagger';
 
 // Load environment variables
 dotenv.config();
@@ -40,304 +35,217 @@ validateEnv();
 
 const app = express();
 const PORT = process.env.PORT || 3003;
+const HOST = process.env.HOST || '0.0.0.0';
+
+// Trust proxy for rate limiting and IP detection
+app.set('trust proxy', 1);
 
 // Apply security middleware with enhanced configuration
-app.use(helmet()); // Basic helmet configuration
-
-// Set additional security headers
-app.use((req, res, next) => {
-  // Content-Security-Policy
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://storage.ultramarket.uz; connect-src 'self' https://api.ultramarket.uz; font-src 'self' https://fonts.gstatic.com; object-src 'none'; media-src 'self'; frame-src 'none'"
-  );
-
-  // HSTS - Force HTTPS
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-
-  // Prevent clickjacking
-  res.setHeader('X-Frame-Options', 'DENY');
-
-  // Prevent MIME type sniffing
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-
-  // Referrer policy
-  res.setHeader('Referrer-Policy', 'no-referrer');
-
-  // Prevent XSS
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-
-  next();
-});
-
-// Configure CORS with secure settings
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        logger.warn('CORS blocked request', { origin });
-        callback(new Error('CORS policy violation'), false);
-      }
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-ID'],
-    exposedHeaders: ['X-Request-ID', 'Content-Disposition'],
-    credentials: true,
-    maxAge: 86400, // 24 hours
-  })
-);
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+}));
 
-// Compression middleware with security consideration
-app.use(compression({ level: 6, threshold: 1024 })); // Only compress responses larger than 1KB
+// Compression middleware
+app.use(compression());
 
-// Configure rate limiting with different rules for different endpoints
-const standardLimiter = rateLimit({
+// CORS configuration
+app.use(cors({
+  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+}));
+
+// Global rate limiting
+const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000'),
   message: {
     success: false,
-    error: {
-      code: 'RATE_LIMIT_EXCEEDED',
-      message: 'Too many requests, please try again later',
-    },
+    message: 'Too many requests from this IP, please try again later.',
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.method === 'OPTIONS', // Skip preflight requests
-});
-
-// More restrictive rate limit for authentication endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10, // Limit each IP to 10 auth attempts per window
-  message: {
-    success: false,
-    error: {
-      code: 'RATE_LIMIT_EXCEEDED',
-      message: 'Too many authentication attempts, please try again later',
-    },
+  handler: (req, res) => {
+    logger.warn('Rate limit exceeded', {
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      path: req.path,
+    });
+    res.status(429).json({
+      success: false,
+      message: 'Too many requests from this IP, please try again later.',
+    });
   },
 });
 
-// Apply rate limiters
-app.use('/api/v1/auth', authLimiter);
-app.use(standardLimiter);
-
-// Apply custom security middleware
-app.use(securityMiddleware);
+app.use(globalLimiter);
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ 
+  limit: process.env.REQUEST_SIZE_LIMIT || '10mb',
+  strict: true,
+}));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: process.env.REQUEST_SIZE_LIMIT || '10mb',
+}));
 
-// Request logging
+// Security middleware
+app.use(securityMiddleware());
+
+// Request logging middleware
 app.use(requestLogger);
 
-// API Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// API documentation with Swagger
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.get('/swagger.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
+}
 
-// Routes
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    service: 'product-service',
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    version: process.env.APP_VERSION || '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+  });
+});
+
+// API routes
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/products', productRoutes);
-app.use('/api/v1/enhanced-products', enhancedProductRoutes);
 app.use('/api/v1/categories', categoryRoutes);
-app.use('/api/v1/inventory', inventoryRoutes);
-app.use('/api/v1/reviews', reviewRoutes);
-app.use('/api/v1/search', searchRoutes);
-app.use('/api/v1/admin', adminRoutes);
+
+// API info endpoint
+app.get('/api/v1', (req, res) => {
+  res.status(200).json({
+    success: true,
+    service: 'UltraMarket Product Service',
+    version: process.env.APP_VERSION || '1.0.0',
+    description: 'Professional product catalog and inventory management service',
+    endpoints: {
+      health: '/health',
+      documentation: process.env.NODE_ENV !== 'production' ? '/api-docs' : null,
+      products: '/api/v1/products',
+      categories: '/api/v1/categories',
+    },
+  });
+});
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
 // 404 handler
 app.use('*', (req, res) => {
+  logger.warn('Route not found', {
+    method: req.method,
+    path: req.originalUrl,
+    ip: req.ip,
+  });
+  
   res.status(404).json({
     success: false,
-    message: `Route ${req.method} ${req.originalUrl} not found`,
+    message: 'Route not found',
+    path: req.originalUrl,
     timestamp: new Date().toISOString(),
   });
 });
 
-// Global error handler
-app.use(errorHandler);
-
 /**
- * Connect to MongoDB with professional error handling and retry logic
+ * Initialize database connection and start server
  */
-const connectDB = async () => {
-  const maxRetries = 5;
-  let retries = 0;
-  let connected = false;
-
-  const mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) {
-    logger.error('MONGODB_URI environment variable is not defined');
-    throw new Error('MONGODB_URI environment variable is required');
-  }
-
-  // Configure mongoose
-  mongoose.set('strictQuery', true);
-
-  // Set up connection monitoring
-  mongoose.connection.on('connected', () => {
-    logger.info('MongoDB connection established');
-    connected = true;
-  });
-
-  mongoose.connection.on('disconnected', () => {
-    if (connected) {
-      logger.warn('MongoDB connection lost. Attempting to reconnect...');
-    }
-  });
-
-  mongoose.connection.on('error', (err) => {
-    logger.error('MongoDB connection error', {
-      error: err.message,
-      stack: err.stack,
-    });
-  });
-
-  // Connection with retry logic
-  while (!connected && retries < maxRetries) {
-    try {
-      if (retries > 0) {
-        logger.info(`Retrying MongoDB connection (${retries}/${maxRetries})...`);
-        // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, retries - 1) * 1000));
-      }
-
-      await mongoose.connect(mongoUri, {
-        maxPoolSize: 10,
-        minPoolSize: 2,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-        family: 4, // Use IPv4, skip trying IPv6
-        connectTimeoutMS: 10000,
-        // Add heartbeat to detect connection issues early
-        heartbeatFrequencyMS: 10000,
-        // Don't buffer commands during reconnect
-        bufferCommands: false,
-      });
-
-      logger.info('✅ Successfully connected to MongoDB');
-      connected = true;
-    } catch (error) {
-      retries++;
-      logger.error(`❌ MongoDB connection attempt ${retries} failed:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        retryCount: retries,
-        maxRetries,
-      });
-
-      if (retries >= maxRetries) {
-        logger.error('Failed to connect to MongoDB after maximum retries');
-        throw new Error('Failed to connect to MongoDB after maximum retries');
-      }
-    }
-  }
-};
-
-/**
- * Professional graceful shutdown with controlled process termination
- * Ensures all connections are properly closed and pending requests completed
- */
-const gracefulShutdown = async (signal: string) => {
-  logger.info(`Received ${signal}. Starting graceful shutdown...`, { signal });
-
-  // Set a timeout to force shutdown if graceful shutdown takes too long
-  const forceShutdownTimeout = setTimeout(() => {
-    logger.error('Graceful shutdown timed out after 30s, forcing exit');
-    process.exit(1);
-  }, 30000); // 30 seconds timeout
-
-  let exitCode = 0;
-
-  try {
-    // Stop accepting new connections but finish existing requests
-    logger.info('Closing HTTP server - no longer accepting new connections');
-    await new Promise<void>((resolve) => {
-      server.close((err) => {
-        if (err) {
-          logger.error('Error closing HTTP server:', { error: err.message });
-          exitCode = 1;
-        } else {
-          logger.info('HTTP server closed successfully');
-        }
-        resolve();
-      });
-    });
-
-    // Close MongoDB connection
-    if (mongoose.connection.readyState !== 0) {
-      logger.info('Closing MongoDB connection');
-      await mongoose.connection.close(false); // false means don't force close
-      logger.info('MongoDB connection closed successfully');
-    }
-
-    // Close any other connections (Redis, etc.)
-    // if (redisClient) {
-    //   logger.info('Closing Redis connection');
-    //   await redisClient.quit();
-    //   logger.info('Redis connection closed successfully');
-    // }
-
-    // Log successful shutdown
-    logger.info('Graceful shutdown completed successfully', {
-      shutdownDuration: `${Date.now() - new Date().getTime()}ms`,
-      signal,
-    });
-
-    // Clear the force shutdown timeout
-    clearTimeout(forceShutdownTimeout);
-
-    // Exit with appropriate code
-    process.exit(exitCode);
-  } catch (error) {
-    logger.error('Error during graceful shutdown:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      signal,
-    });
-
-    // Clear the force shutdown timeout
-    clearTimeout(forceShutdownTimeout);
-
-    process.exit(1);
-  }
-};
-
-// Start server
-const server = app.listen(PORT, async () => {
+async function startServer(): Promise<void> {
   try {
     // Connect to database
-    await connectDB();
+    await connectDatabase();
+    
+    // Start HTTP server
+    const server = app.listen(PORT, HOST, () => {
+      logger.info('Product service started successfully', {
+        port: PORT,
+        host: HOST,
+        environment: process.env.NODE_ENV || 'development',
+        database: 'PostgreSQL (Prisma)',
+        documentation: process.env.NODE_ENV !== 'production' ? `http://${HOST}:${PORT}/api-docs` : null,
+      });
+    });
 
-    logger.info(`🚀 Product Service running on port ${PORT}`);
-    logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-    logger.info(`🔗 Health check: http://localhost:${PORT}/api/v1/health`);
-    logger.info(`💾 MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Not configured'}`);
+    // Server error handling
+    server.on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        logger.error(`Port ${PORT} is already in use`);
+      } else {
+        logger.error('Server error', { error: error.message });
+      }
+      process.exit(1);
+    });
+
+    // Handle server shutdown gracefully
+    const gracefulShutdown = async (signal: string) => {
+      logger.info(`Received ${signal}, shutting down gracefully`);
+      
+      server.close(async () => {
+        logger.info('HTTP server closed');
+        
+        try {
+          await disconnectDatabase();
+          logger.info('Database disconnected successfully');
+          process.exit(0);
+        } catch (error) {
+          logger.error('Error during database shutdown', { error });
+          process.exit(1);
+        }
+      });
+
+      // Force close after 30 seconds
+      setTimeout(() => {
+        logger.error('Forced shutdown after timeout');
+        process.exit(1);
+      }, 30000);
+    };
+
+    // Listen for shutdown signals
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    
   } catch (error) {
-    logger.error('Failed to start Product Service:', error);
+    logger.error('Failed to start product service', { error });
     process.exit(1);
   }
-});
-
-// Handle graceful shutdown
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
+}
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', error);
+  logger.error('Uncaught Exception', { error: error.message, stack: error.stack });
   process.exit(1);
 });
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection', { reason, promise });
+  process.exit(1);
+});
+
+// Start the server
+startServer();
 
 export default app;

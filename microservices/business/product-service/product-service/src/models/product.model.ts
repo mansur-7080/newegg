@@ -1,147 +1,25 @@
 /**
- * Core model types for the Product Service
+ * Product Models and Types - Prisma Based
+ * Professional type definitions for product management
  */
 
-import { Decimal } from '@prisma/client/runtime/library';
+import { Product, Category, ProductVariant, ProductImage, ProductReview, ProductStatus, ProductType } from '@prisma/client';
 
-/**
- * Enum representing product statuses
- */
-export enum ProductStatus {
-  DRAFT = 'DRAFT',
-  ACTIVE = 'ACTIVE',
-  ARCHIVED = 'ARCHIVED',
-  OUTOFSTOCK = 'OUTOFSTOCK',
-  COMINGSOON = 'COMINGSOON',
-}
+// Base Product type from Prisma
+export type ProductModel = Product;
 
-/**
- * Enum representing product types
- */
-export enum ProductType {
-  PHYSICAL = 'PHYSICAL',
-  DIGITAL = 'DIGITAL',
-  SERVICE = 'SERVICE',
-  SUBSCRIPTION = 'SUBSCRIPTION',
-}
+// Extended Product with relations
+export type ProductWithRelations = Product & {
+  category?: Category;
+  variants?: ProductVariant[];
+  images?: ProductImage[];
+  reviews?: ProductReview[];
+};
 
-/**
- * Product model interface
- */
-export interface IProduct {
-  id: string;
+// Product creation input
+export interface CreateProductInput {
   name: string;
   slug: string;
-  description: string | null;
-  shortDescription: string | null;
-  sku: string;
-  barcode: string | null;
-  brand: string | null;
-  model: string | null;
-  weight: Decimal | null;
-  dimensions: any | null; // JSON type
-  price: Decimal;
-  comparePrice: Decimal | null;
-  costPrice: Decimal | null;
-  currency: string;
-  status: ProductStatus;
-  type: ProductType;
-  isActive: boolean;
-  isFeatured: boolean;
-  isBestSeller: boolean;
-  isNewArrival: boolean;
-  isOnSale: boolean;
-  salePercentage: number | null;
-  saleStartDate: Date | null;
-  saleEndDate: Date | null;
-  metaTitle: string | null;
-  metaDescription: string | null;
-  metaKeywords: string | null;
-  tags: string[];
-  attributes: any | null; // JSON type
-  specifications: any | null; // JSON type
-  warranty: string | null;
-  returnPolicy: string | null;
-  shippingInfo: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt: Date | null;
-  categoryId: string;
-  vendorId: string | null;
-}
-
-/**
- * Category model interface
- */
-export interface ICategory {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  image: string | null;
-  isActive: boolean;
-  parentId: string | null;
-  sortOrder: number;
-  metaTitle: string | null;
-  metaDescription: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * Product variant model interface
- */
-export interface IProductVariant {
-  id: string;
-  productId: string;
-  sku: string;
-  price: Decimal;
-  comparePrice: Decimal | null;
-  costPrice: Decimal | null;
-  inventory: number | null;
-  weight: Decimal | null;
-  options: any; // JSON type for variant options
-  images: string[];
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * Product view tracking model interface
- */
-export interface IProductView {
-  id: string;
-  productId: string;
-  userId: string | null;
-  sessionId: string | null;
-  ipAddress: string | null;
-  userAgent: string | null;
-  viewedAt: Date;
-}
-
-/**
- * Product review model interface
- */
-export interface IProductReview {
-  id: string;
-  productId: string;
-  userId: string;
-  rating: number;
-  title: string | null;
-  content: string | null;
-  isVerified: boolean;
-  isApproved: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * DTO types for API requests and responses
- */
-
-export interface CreateProductDto {
-  name: string;
   description?: string;
   shortDescription?: string;
   sku: string;
@@ -149,7 +27,7 @@ export interface CreateProductDto {
   brand?: string;
   model?: string;
   weight?: number;
-  dimensions?: Record<string, any>;
+  dimensions?: any;
   price: number;
   comparePrice?: number;
   costPrice?: number;
@@ -158,18 +36,29 @@ export interface CreateProductDto {
   type?: ProductType;
   isActive?: boolean;
   isFeatured?: boolean;
+  isBestSeller?: boolean;
+  isNewArrival?: boolean;
+  isOnSale?: boolean;
+  salePercentage?: number;
+  saleStartDate?: Date;
+  saleEndDate?: Date;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
   tags?: string[];
-  attributes?: Record<string, any>;
-  specifications?: Record<string, any>;
+  attributes?: any;
+  specifications?: any;
   warranty?: string;
   returnPolicy?: string;
   shippingInfo?: string;
-  categoryId: string;
+  categoryId?: string;
   vendorId?: string;
 }
 
-export interface UpdateProductDto {
+// Product update input
+export interface UpdateProductInput {
   name?: string;
+  slug?: string;
   description?: string;
   shortDescription?: string;
   sku?: string;
@@ -177,7 +66,7 @@ export interface UpdateProductDto {
   brand?: string;
   model?: string;
   weight?: number;
-  dimensions?: Record<string, any>;
+  dimensions?: any;
   price?: number;
   comparePrice?: number;
   costPrice?: number;
@@ -186,54 +75,171 @@ export interface UpdateProductDto {
   type?: ProductType;
   isActive?: boolean;
   isFeatured?: boolean;
+  isBestSeller?: boolean;
+  isNewArrival?: boolean;
+  isOnSale?: boolean;
+  salePercentage?: number;
+  saleStartDate?: Date;
+  saleEndDate?: Date;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
   tags?: string[];
-  attributes?: Record<string, any>;
-  specifications?: Record<string, any>;
+  attributes?: any;
+  specifications?: any;
   warranty?: string;
   returnPolicy?: string;
   shippingInfo?: string;
   categoryId?: string;
+  publishedAt?: Date;
 }
 
-/**
- * Query parameter interfaces
- */
-export interface ProductQueryParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  category?: string;
+// Product query filters
+export interface ProductFilters {
+  categoryId?: string;
   brand?: string;
   minPrice?: number;
   maxPrice?: number;
   status?: ProductStatus;
-  type?: ProductType;
   isActive?: boolean;
   isFeatured?: boolean;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  isBestSeller?: boolean;
+  isNewArrival?: boolean;
+  isOnSale?: boolean;
+  search?: string;
   tags?: string[];
+  vendorId?: string;
 }
 
-/**
- * Pagination response interface
- */
-export interface PaginatedResponse<T> {
-  items: T[];
+// Pagination options
+export interface PaginationOptions {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+// Product query result
+export interface ProductQueryResult {
+  data: ProductWithRelations[];
   total: number;
   page: number;
   limit: number;
   totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
 }
 
-/**
- * API response interfaces
- */
-export interface ProductResponse
-  extends Omit<IProduct, 'price' | 'comparePrice' | 'costPrice' | 'weight'> {
-  price: number;
-  comparePrice: number | null;
-  costPrice: number | null;
-  weight: number | null;
-  category?: Pick<ICategory, 'id' | 'name' | 'slug'>;
+// Product statistics
+export interface ProductStatistics {
+  totalProducts: number;
+  activeProducts: number;
+  inactiveProducts: number;
+  featuredProducts: number;
+  onSaleProducts: number;
+  outOfStockProducts: number;
+  averagePrice: number;
+  topCategories: Array<{
+    categoryId: string;
+    categoryName: string;
+    productCount: number;
+  }>;
+  topBrands: Array<{
+    brand: string;
+    productCount: number;
+  }>;
 }
+
+// Product variant types
+export interface ProductVariantInput {
+  name: string;
+  sku: string;
+  price: number;
+  comparePrice?: number;
+  costPrice?: number;
+  weight?: number;
+  dimensions?: any;
+  attributes?: any;
+  stockQuantity?: number;
+  lowStockThreshold?: number;
+  isActive?: boolean;
+}
+
+// Product image types
+export interface ProductImageInput {
+  url: string;
+  altText?: string;
+  isMain?: boolean;
+  sortOrder?: number;
+}
+
+// Product review types
+export interface ProductReviewInput {
+  userId: string;
+  rating: number;
+  title?: string;
+  comment?: string;
+  isVerified?: boolean;
+}
+
+// Inventory tracking
+export interface InventoryUpdate {
+  quantity: number;
+  operation: 'add' | 'subtract' | 'set';
+  reason?: string;
+  notes?: string;
+}
+
+// Product search result
+export interface ProductSearchResult {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  price: number;
+  comparePrice?: number;
+  images: string[];
+  rating?: number;
+  reviewCount?: number;
+  brand?: string;
+  category?: string;
+  isOnSale: boolean;
+  salePercentage?: number;
+}
+
+// Export enums from Prisma
+export { ProductStatus, ProductType } from '@prisma/client';
+
+// Validation schemas (to be used with Zod or similar)
+export const PRODUCT_CONSTRAINTS = {
+  NAME: {
+    MIN_LENGTH: 2,
+    MAX_LENGTH: 200,
+  },
+  DESCRIPTION: {
+    MAX_LENGTH: 5000,
+  },
+  SHORT_DESCRIPTION: {
+    MAX_LENGTH: 500,
+  },
+  SKU: {
+    MIN_LENGTH: 3,
+    MAX_LENGTH: 50,
+  },
+  PRICE: {
+    MIN: 0.01,
+    MAX: 999999.99,
+  },
+  WEIGHT: {
+    MIN: 0,
+    MAX: 999999.99,
+  },
+  SALE_PERCENTAGE: {
+    MIN: 1,
+    MAX: 99,
+  },
+  TAGS: {
+    MAX_COUNT: 20,
+    MAX_LENGTH_PER_TAG: 50,
+  },
+} as const;
