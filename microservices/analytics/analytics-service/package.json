@@ -13,7 +13,7 @@
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "docker:build": "docker build -t ultramarket/analytics-service .",
-    "docker:run": "docker run -p 3020:3020 ultramarket/analytics-service"
+    "docker:run": "docker run -p 3008:3008 ultramarket/analytics-service"
   },
   "keywords": [
     "ultramarket",

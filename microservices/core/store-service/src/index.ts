@@ -1,6 +1,6 @@
 /**
- * UltraMarket Analytics Service
- * Professional analytics and business intelligence service
+ * UltraMarket Store Service
+ * Multi-vendor store management service
  */
 
 import express from 'express';
@@ -14,7 +14,7 @@ import { config } from 'dotenv';
 config();
 
 const app = express();
-const PORT = process.env.PORT || 3008;
+const PORT = process.env.PORT || 3004;
 
 // Security middleware
 app.use(helmet());
@@ -37,33 +37,51 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
-    service: 'analytics-service',
+    service: 'store-service',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
   });
 });
 
-// Analytics endpoints
-app.get('/api/analytics/dashboard', (req, res) => {
+// Store management endpoints
+app.get('/api/stores', (req, res) => {
   res.json({
-    message: 'Analytics dashboard data',
-    data: {
-      totalOrders: 1250,
-      totalRevenue: 45000000,
-      activeUsers: 850,
-      conversionRate: 3.2,
+    message: 'List of stores',
+    stores: [
+      { id: 1, name: 'Tech Store', vendor: 'vendor1', status: 'active' },
+      { id: 2, name: 'Fashion Store', vendor: 'vendor2', status: 'active' },
+      { id: 3, name: 'Home Store', vendor: 'vendor3', status: 'pending' },
+    ],
+  });
+});
+
+app.get('/api/stores/:id', (req, res) => {
+  const storeId = req.params.id;
+  res.json({
+    message: `Store details for ID: ${storeId}`,
+    store: {
+      id: storeId,
+      name: 'Sample Store',
+      vendor: 'vendor1',
+      status: 'active',
+      description: 'A sample store for demonstration',
+      createdAt: new Date().toISOString(),
     },
   });
 });
 
-app.get('/api/analytics/reports', (req, res) => {
-  res.json({
-    message: 'Analytics reports',
-    reports: [
-      { id: 1, name: 'Sales Report', type: 'sales' },
-      { id: 2, name: 'User Activity Report', type: 'users' },
-      { id: 3, name: 'Product Performance Report', type: 'products' },
-    ],
+app.post('/api/stores', (req, res) => {
+  const { name, vendor, description } = req.body;
+  res.status(201).json({
+    message: 'Store created successfully',
+    store: {
+      id: Math.floor(Math.random() * 1000),
+      name,
+      vendor,
+      description,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    },
   });
 });
 
@@ -86,7 +104,7 @@ app.use('*', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Analytics Service running on port ${PORT}`);
+  console.log(`Store Service running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
 });
 

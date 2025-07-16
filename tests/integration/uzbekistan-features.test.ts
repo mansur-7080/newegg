@@ -2,10 +2,11 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/glo
 import request from 'supertest';
 import { UzbekPaymentMethod } from '../../libs/shared/src/constants';
 import {
-  validateUzbekPhone,
+  validateUzbekPhoneNumber,
   validateUzbekAddress,
+  UzbekAddressType,
 } from '../../libs/shared/src/utils/uzbek-validation';
-import { UzbekAddressType } from '../../libs/shared/src/types/uzbek-address';
+
 
 // Test server setup
 const API_BASE_URL = process.env.TEST_API_URL || 'http://localhost:3000';
@@ -66,7 +67,7 @@ describe("UltraMarket O'zbekiston Integration Tests", () => {
       ];
 
       validPhones.forEach((phone) => {
-        expect(validateUzbekPhone(phone)).toBe(true);
+        expect(validateUzbekPhoneNumber(phone).valid).toBe(true);
       });
     });
 
@@ -80,7 +81,7 @@ describe("UltraMarket O'zbekiston Integration Tests", () => {
       ];
 
       invalidPhones.forEach((phone) => {
-        expect(validateUzbekPhone(phone)).toBe(false);
+        expect(validateUzbekPhoneNumber(phone).valid).toBe(false);
       });
     });
 

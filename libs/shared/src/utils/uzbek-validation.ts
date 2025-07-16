@@ -253,3 +253,38 @@ export function validateUzbekPostalCode(postalCode: string): {
     region,
   };
 }
+
+// Address type definition
+export interface UzbekAddressType {
+  type: 'HOME' | 'WORK' | 'OTHER';
+  region: string;
+  district: string;
+  mahalla: string;
+  street: string;
+  house: string;
+  apartment: string;
+  postalCode: string;
+  landmark: string;
+  deliveryInstructions: string;
+}
+
+// O'zbek manzil validatsiyasi
+export function validateUzbekAddress(address: UzbekAddressType): boolean {
+  // Basic validation
+  if (!address.region || !address.district || !address.street || !address.house) {
+    return false;
+  }
+
+  // Validate postal code if provided
+  if (address.postalCode) {
+    const postalValidation = validateUzbekPostalCode(address.postalCode);
+    if (!postalValidation.valid) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// Alias for backward compatibility
+export const validateUzbekPhone = validateUzbekPhoneNumber;

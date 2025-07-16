@@ -145,3 +145,39 @@ export const HTTP_STATUS = {
   BAD_GATEWAY: 502,
   SERVICE_UNAVAILABLE: 503,
 } as const;
+
+// Uzbekistan-specific constants
+export enum UzbekPaymentMethod {
+  CLICK = 'CLICK',
+  PAYME = 'PAYME',
+  UZCARD = 'UZCARD',
+  HUMO = 'HUMO',
+  CASH_ON_DELIVERY = 'CASH_ON_DELIVERY'
+}
+
+export const UzbekRegions = {
+  TASHKENT: 'TASHKENT',
+  ANDIJAN: 'ANDIJAN',
+  BUKHARA: 'BUKHARA',
+  FERGANA: 'FERGANA',
+  JIZZAKH: 'JIZZAKH',
+  KASHKADARYA: 'KASHKADARYA',
+  NAVOIY: 'NAVOIY',
+  NAMANGAN: 'NAMANGAN',
+  SAMARKAND: 'SAMARKAND',
+  SURKHANDARYA: 'SURKHANDARYA',
+  SYRDARYA: 'SYRDARYA',
+  TASHKENT_REGION: 'TASHKENT_REGION',
+  KHOREZM: 'KHOREZM',
+  KARAKALPAKSTAN: 'KARAKALPAKSTAN'
+} as const;
+
+// Price formatting utility
+export const formatUZSPrice = (price: number): string => {
+  return new Intl.NumberFormat('uz-UZ', {
+    style: 'currency',
+    currency: 'UZS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(price);
+};
