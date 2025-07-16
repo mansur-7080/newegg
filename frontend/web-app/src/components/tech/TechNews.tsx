@@ -88,7 +88,7 @@ Yangi MacBook Air 13.6 va 15 dyuymli displeylar bilan, MacBook Pro esa 14 va 16 
         {
           id: 'news-5',
           title: 'Google Chrome 125 versiyasi chiqarildi',
-          excerpt: 'Google Chrome 125 versiyasi sun'iy intellekt asosidagi yangi xususiyatlar bilan yangilandi.',
+          excerpt: 'Google Chrome 125 versiyasi sun\'iy intellekt asosidagi yangi xususiyatlar bilan yangilandi.',
           content: `Google Chrome brauzerining 125-versiyasi chiqarildi. Yangi versiyada sun'iy intellekt asosidagi qidiruv va kontentni tahlil qilish imkoniyatlari qo'shildi.
 
 Chrome 125 ning asosiy yangiliklari quyidagilar:
@@ -120,7 +120,7 @@ Har ikki model ham Snapdragon 8 Gen 4 protsessori bilan jihozlangan va 50MP asos
         {
           id: 'news-7',
           title: 'OpenAI GPT-6 ni taqdim etdi',
-          excerpt: 'OpenAI kompaniyasi GPT-6 sun'iy intellekt modelini taqdim etdi.',
+          excerpt: 'OpenAI kompaniyasi GPT-6 sun\'iy intellekt modelini taqdim etdi.',
           content: `OpenAI kompaniyasi GPT-6 sun'iy intellekt modelini taqdim etdi. Yangi model ilgarigi GPT-4 dan sezilarli darajada kuchliroq va yangi imkoniyatlarga ega.
 
 GPT-6 ning asosiy yangiliklari:
