@@ -158,7 +158,7 @@ const UzbekistanAnalytics: React.FC = () => {
 
   useEffect(() => {
     fetchAnalyticsData();
-  }, [dateRange, selectedRegion, fetchAnalyticsData]);
+  }, [dateRange, selectedRegion]);
 
   const fetchAnalyticsData = async () => {
     setLoading(true);

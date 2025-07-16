@@ -20,12 +20,12 @@ interface SimpleProduct {
   brand: string;
 }
 
-interface ProductsResponse {
-  products: Product[];
-  total: number;
-  page: number;
-  totalPages: number;
-}
+// interface ProductsResponse {
+//   products: Product[];
+//   total: number;
+//   page: number;
+//   totalPages: number;
+// }
 
 const ProductListPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();

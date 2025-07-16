@@ -55,7 +55,7 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <ErrorBoundary FallbackComponent={ErrorFallback as any}>
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
           <HelmetProvider>

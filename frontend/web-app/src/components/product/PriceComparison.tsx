@@ -16,7 +16,7 @@ interface PriceComparisonProps {
   ourPrice: number;
 }
 
-const PriceComparison: React.FC<PriceComparisonProps> = ({ productName, ourPrice }) => {
+const PriceComparison: React.FC<PriceComparisonProps> = ({ productName: _productName, ourPrice }) => {
   // In a real application, this data would come from an API
   const [competitorPrices] = useState<CompetitorPrice[]>([
     {

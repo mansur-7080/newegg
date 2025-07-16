@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './TechHomePage.css';
 import './TechToolsSection.css';
-import PCBuilder from '../components/tech/PCBuilder';
-import ProductComparison from '../components/tech/ProductComparison';
+// import PCBuilder from '../components/tech/PCBuilder';
+// import ProductComparison from '../components/tech/ProductComparison';
 import TechNews from '../components/tech/TechNews';
-import NASBuilder from '../components/tech/NASBuilder';
-import MemoryFinder from '../components/tech/MemoryFinder';
+// import NASBuilder from '../components/tech/NASBuilder';
+// import MemoryFinder from '../components/tech/MemoryFinder';
 
 interface TechDeal {
   id: string;

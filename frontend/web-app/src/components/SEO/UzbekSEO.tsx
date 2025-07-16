@@ -9,7 +9,7 @@ interface SEOProps {
   ogImage?: string;
   ogType?: 'website' | 'product' | 'article' | 'profile';
   language?: 'uz' | 'ru';
-  structuredData?: Record<string, any>;
+  structuredData?: Record<string, unknown>;
   noIndex?: boolean;
   productData?: {
     name: string;

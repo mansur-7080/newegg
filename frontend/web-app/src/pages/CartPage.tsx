@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { updateCartItem, removeFromCart, clearCart } from '../store/slices/cartSlice';
 import { UzbekPaymentMethod, formatUZSPrice } from '../../../../libs/shared/src/constants';
 import { UzbekAddressType } from '../../../../libs/shared/src/types/uzbek-address';
 
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image?: string;
-}
+// interface CartItem {
+//   id: string;
+//   name: string;
+//   price: number;
+//   quantity: number;
+//   image?: string;
+// }
 
 const CartPage: React.FC = () => {
   const dispatch = useDispatch();
@@ -50,12 +50,12 @@ const CartPage: React.FC = () => {
     // Checkout sahifasiga o'tish
     // Navigate to checkout with cart data
     // In production, this would redirect to payment service
-    const checkoutData = {
-      items: cartItems,
-      paymentMethod: selectedPaymentMethod,
-      deliveryAddress,
-      total,
-    };
+    // const checkoutData = {
+    //   items: cartItems,
+    //   paymentMethod: selectedPaymentMethod,
+    //   deliveryAddress,
+    //   total,
+    // };
     // TODO: Implement actual checkout navigation
   };
 

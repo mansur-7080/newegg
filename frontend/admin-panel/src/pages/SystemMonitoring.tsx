@@ -10,7 +10,7 @@ import {
   Progress,
   Timeline,
   Select,
-  DatePicker,
+  // DatePicker,
   Button,
   Space,
   Spin,
@@ -167,7 +167,7 @@ const SystemMonitoring: React.FC = () => {
   // Fetch initial data
   useEffect(() => {
     fetchInitialData();
-  }, [selectedTimeRange]);
+  }, [selectedTimeRange, fetchInitialData]);
 
   // Auto refresh
   useEffect(() => {
