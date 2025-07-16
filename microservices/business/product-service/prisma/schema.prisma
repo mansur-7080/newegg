@@ -1,0 +1,191 @@
+// UltraMarket Product Service - Professional Prisma Schema
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Product Categories
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  parentId    String?
+  parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  products    Product[]
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  seoTitle    String?
+  seoDescription String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("categories")
+}
+
+// Brands/Manufacturers
+model Brand {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  logo        String?
+  website     String?
+  products    Product[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("brands")
+}
+
+// Product Vendors/Suppliers
+model Vendor {
+  id          String    @id @default(cuid())
+  name        String
+  email       String    @unique
+  phone       String?
+  address     Json?
+  products    Product[]
+  isActive    Boolean   @default(true)
+  rating      Float?
+  totalSales  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("vendors")
+}
+
+// Main Product Model
+model Product {
+  id                String           @id @default(cuid())
+  name              String
+  slug              String           @unique
+  sku               String           @unique
+  description       String?
+  shortDescription  String?
+  categoryId        String
+  category          Category         @relation(fields: [categoryId], references: [id])
+  brandId           String?
+  brand             Brand?           @relation(fields: [brandId], references: [id])
+  vendorId          String
+  vendor            Vendor           @relation(fields: [vendorId], references: [id])
+  
+  // Pricing
+  price             Decimal          @db.Decimal(10, 2)
+  compareAtPrice    Decimal?         @db.Decimal(10, 2)
+  costPrice         Decimal?         @db.Decimal(10, 2)
+  currency          String           @default("USD")
+  
+  // Inventory
+  stockQuantity     Int              @default(0)
+  lowStockThreshold Int?
+  trackInventory    Boolean          @default(true)
+  allowBackorder    Boolean          @default(false)
+  
+  // Product Status
+  status            ProductStatus    @default(DRAFT)
+  visibility        ProductVisibility @default(VISIBLE)
+  
+  // SEO and Marketing
+  seoTitle          String?
+  seoDescription    String?
+  tags              String[]
+  
+  // Physical Properties
+  weight            Decimal?         @db.Decimal(8, 3)
+  dimensions        Json?            // {length, width, height, unit}
+  
+  // Digital Properties
+  images            ProductImage[]
+  specifications    Json?            // Flexible key-value specs
+  variants          ProductVariant[]
+  reviews           ProductReview[]
+  
+  // Timestamps
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  publishedAt       DateTime?
+  
+  // Computed fields (handled in application)
+  // inStock, onSale, etc. will be computed properties
+
+  @@map("products")
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([price])
+}
+
+// Product Images
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  altText   String?
+  sortOrder Int     @default(0)
+  isMain    Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("product_images")
+}
+
+// Product Variants (for size, color, etc.)
+model ProductVariant {
+  id                String   @id @default(cuid())
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name              String   // e.g., "Large Red"
+  sku               String   @unique
+  price             Decimal? @db.Decimal(10, 2)
+  stockQuantity     Int      @default(0)
+  attributes        Json     // {size: "L", color: "Red"}
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("product_variants")
+}
+
+// Product Reviews
+model ProductReview {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String   // Reference to user service
+  rating    Int      // 1-5 stars
+  title     String?
+  comment   String?
+  isVerified Boolean @default(false)
+  isApproved Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("product_reviews")
+  @@index([productId])
+  @@index([rating])
+}
+
+// Enums
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+  OUT_OF_STOCK
+}
+
+enum ProductVisibility {
+  VISIBLE
+  HIDDEN
+  SEARCH_HIDDEN
+}
