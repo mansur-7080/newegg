@@ -192,7 +192,7 @@ export const requestLoggerMiddleware = (req: any, res: any, next: any) => {
   res.on('finish', () => {
     const responseTime = Date.now() - startTime;
     logger.apiRequest(req.method, req.originalUrl, res.statusCode, responseTime, {
-      user_id: req.user?.id,
+      user_id: req.user?.userId,
       ip: req.ip,
       user_agent: req.get('User-Agent'),
     });

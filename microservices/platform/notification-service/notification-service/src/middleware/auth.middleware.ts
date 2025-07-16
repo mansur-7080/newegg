@@ -3,8 +3,8 @@ import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
 
 interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
+  user: {
+    userId: string;
     email: string;
     role: string;
   };
@@ -25,7 +25,7 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
     const decoded = jwt.verify(token, jwtSecret) as any;
 
     req.user = {
-      id: decoded.id || decoded.userId,
+      userId: decoded.id || decoded.userId,
       email: decoded.email,
       role: decoded.role,
     };
@@ -60,7 +60,7 @@ export const optionalAuthMiddleware = (
     const decoded = jwt.verify(token, jwtSecret) as any;
 
     req.user = {
-      id: decoded.id || decoded.userId,
+      userId: decoded.id || decoded.userId,
       email: decoded.email,
       role: decoded.role,
     };
