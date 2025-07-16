@@ -3,13 +3,15 @@
  * UltraMarket Logger
  * Professional logging utility with structured logging and multiple transports
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requestLoggerMiddleware = exports.logger = exports.Logger = exports.LogLevel = void 0;
-const tslib_1 = require("tslib");
-const winston_1 = tslib_1.__importDefault(require("winston"));
-const winston_daily_rotate_file_1 = tslib_1.__importDefault(require("winston-daily-rotate-file"));
-const path_1 = tslib_1.__importDefault(require("path"));
-const fs_1 = tslib_1.__importDefault(require("fs"));
+const winston_1 = __importDefault(require("winston"));
+const winston_daily_rotate_file_1 = __importDefault(require("winston-daily-rotate-file"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 // Log levels
 var LogLevel;
 (function (LogLevel) {
@@ -87,7 +89,6 @@ if (process.env.NODE_ENV !== 'production') {
 }
 // Professional logger interface
 class Logger {
-    serviceName;
     constructor(serviceName) {
         this.serviceName = serviceName || process.env.SERVICE_NAME || 'ultramarket';
     }

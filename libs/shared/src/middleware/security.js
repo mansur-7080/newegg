@@ -94,7 +94,7 @@ function xssProtection(req, res, next) {
             details: { body: req.body },
             timestamp: new Date(),
         });
-        return res.status(400).json({
+        res.status(400).json({
             success: false,
             message: 'Potential XSS attack detected',
             error: {
@@ -103,6 +103,7 @@ function xssProtection(req, res, next) {
                 timestamp: new Date().toISOString(),
             },
         });
+        return;
     }
     // Check query parameters
     if (req.query && scanObject(req.query)) {
@@ -118,7 +119,7 @@ function xssProtection(req, res, next) {
             details: { query: req.query },
             timestamp: new Date(),
         });
-        return res.status(400).json({
+        res.status(400).json({
             success: false,
             message: 'Potential XSS attack detected',
             error: {
@@ -127,6 +128,7 @@ function xssProtection(req, res, next) {
                 timestamp: new Date().toISOString(),
             },
         });
+        return;
     }
     next();
 }
@@ -170,7 +172,7 @@ function sqlInjectionProtection(req, res, next) {
             details: { body: req.body },
             timestamp: new Date(),
         });
-        return res.status(400).json({
+        res.status(400).json({
             success: false,
             message: 'Potential SQL injection detected',
             error: {
@@ -179,6 +181,7 @@ function sqlInjectionProtection(req, res, next) {
                 timestamp: new Date().toISOString(),
             },
         });
+        return;
     }
     // Check query parameters
     if (req.query && scanObject(req.query)) {
@@ -194,7 +197,7 @@ function sqlInjectionProtection(req, res, next) {
             details: { query: req.query },
             timestamp: new Date(),
         });
-        return res.status(400).json({
+        res.status(400).json({
             success: false,
             message: 'Potential SQL injection detected',
             error: {
@@ -203,6 +206,7 @@ function sqlInjectionProtection(req, res, next) {
                 timestamp: new Date().toISOString(),
             },
         });
+        return;
     }
     next();
 }
@@ -223,7 +227,7 @@ function requestSizeLimit(maxSize = 10 * 1024 * 1024) {
                 details: { contentLength, maxSize },
                 timestamp: new Date(),
             });
-            return res.status(413).json({
+            res.status(413).json({
                 success: false,
                 message: 'Request entity too large',
                 error: {
@@ -232,6 +236,7 @@ function requestSizeLimit(maxSize = 10 * 1024 * 1024) {
                     timestamp: new Date().toISOString(),
                 },
             });
+            return;
         }
         next();
     };
@@ -253,7 +258,7 @@ function ipWhitelist(allowedIPs) {
                 details: { clientIP, allowedIPs },
                 timestamp: new Date(),
             });
-            return res.status(403).json({
+            res.status(403).json({
                 success: false,
                 message: 'Access denied',
                 error: {
@@ -262,6 +267,7 @@ function ipWhitelist(allowedIPs) {
                     timestamp: new Date().toISOString(),
                 },
             });
+            return;
         }
         next();
     };
