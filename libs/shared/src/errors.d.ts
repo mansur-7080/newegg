@@ -4,7 +4,6 @@ export declare class AppError extends Error {
     readonly code?: string;
     constructor(message: string, statusCode: number, isOperational?: boolean, code?: string);
 }
-export declare function createError(statusCode: number, message: string, code?: string): AppError;
 export declare class BadRequestError extends AppError {
     constructor(message?: string, code?: string);
 }
@@ -51,4 +50,5 @@ export declare const ErrorCode: {
     readonly SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE";
 };
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
+export declare const createError: (statusCode: number, message: string, code?: string) => AppError;
 //# sourceMappingURL=errors.d.ts.map
