@@ -3,14 +3,14 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { clearCart } from '../store/slices/cartSlice';
 import { UzbekPaymentMethod } from '../../../../libs/shared/src/constants';
-import { UzbekAddressType } from '../../../../libs/shared/src/types/uzbek-address';
+import { UzbekAddress, UzbekAddressType } from '../../../../libs/shared/src/types/uzbek-address';
 
 interface OrderData {
   id: string;
   items: any[];
   total: number;
   paymentMethod: UzbekPaymentMethod;
-  deliveryAddress: UzbekAddressType;
+  deliveryAddress: UzbekAddress;
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered';
 }
 
@@ -30,8 +30,10 @@ const CheckoutPage: React.FC = () => {
 
   const [paymentMethod, setPaymentMethod] = useState<UzbekPaymentMethod>(UzbekPaymentMethod.CLICK);
 
-  const [deliveryAddress, setDeliveryAddress] = useState<UzbekAddressType>({
-    type: 'HOME' as const,
+  const [deliveryAddress, setDeliveryAddress] = useState<UzbekAddress>({
+    type: UzbekAddressType.HOME,
+    country: 'UZ',
+    isDefault: false,
     region: '',
     district: '',
     mahalla: '',

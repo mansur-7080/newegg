@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
-import { updateCartItem, removeFromCart, clearCart } from '../store/slices/cartSlice';
+import { updateQuantity, removeFromCart, clearCart } from '../store/slices/cartSlice';
 import { UzbekPaymentMethod, formatUZSPrice } from '../../../../libs/shared/src/constants';
-import { UzbekAddressType } from '../../../../libs/shared/src/types/uzbek-address';
+import { UzbekAddress, UzbekAddressType } from '../../../../libs/shared/src/types/uzbek-address';
 
 interface CartItem {
   id: string;
@@ -19,7 +19,7 @@ const CartPage: React.FC = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<UzbekPaymentMethod>(
     UzbekPaymentMethod.CLICK
   );
-  const [deliveryAddress, setDeliveryAddress] = useState<Partial<UzbekAddressType>>({
+  const [deliveryAddress, setDeliveryAddress] = useState<Partial<UzbekAddress>>({
     region: '',
     district: '',
     mahalla: '',
@@ -38,7 +38,7 @@ const CartPage: React.FC = () => {
     if (quantity <= 0) {
       dispatch(removeFromCart(id));
     } else {
-      dispatch(updateCartItem({ id, quantity }));
+      dispatch(updateQuantity({ id, quantity }));
     }
   };
 

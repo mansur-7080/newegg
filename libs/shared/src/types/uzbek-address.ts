@@ -17,6 +17,7 @@ export interface UzbekAddress {
   // Qo'shimcha ma'lumotlar
   landmark?: string; // Mo'ljal (masalan, "Metro yonida")
   instructions?: string; // Yetkazib berish ko'rsatmalari
+  deliveryInstructions?: string; // Yetkazib berish ko'rsatmalari (alias)
 
   // Meta
   country: 'UZ'; // Har doim O'zbekiston

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Provider } from 'react-redux';
-import { PersistGate } from 'redux-persist/integration/react';
+// import { PersistGate } from 'redux-persist/integration/react';
 import { ConfigProvider, theme, App as AntdApp } from 'antd';
 import { ErrorBoundary } from 'react-error-boundary';
 import * as Sentry from '@sentry/react';
@@ -65,7 +65,7 @@ const queryClient = new QueryClient({
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime)
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
     },
@@ -237,9 +237,8 @@ const App: React.FC = () => {
         }
       }}
     >
-      <QueryClientProvider client={queryClient}>
-        <Provider store={store}>
-          <PersistGate loading={<LoadingSpinner />} persistor={persistor}>
+              <QueryClientProvider client={queryClient}>
+          <Provider store={store}>
             <ConfigProvider
               theme={{
                 algorithm: theme.defaultAlgorithm,
@@ -298,7 +297,6 @@ const App: React.FC = () => {
                 </ThemeProvider>
               </AntdApp>
             </ConfigProvider>
-          </PersistGate>
         </Provider>
 
         {/* Development tools */}
