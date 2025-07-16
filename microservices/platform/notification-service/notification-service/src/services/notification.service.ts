@@ -69,7 +69,7 @@ export class NotificationService {
    */
   private initializeEmailService(): void {
     if (process.env.NODE_ENV === 'production') {
-      this.emailTransporter = nodemailer.createTransporter({
+      this.emailTransporter = nodemailer.createTransport({
         service: process.env.EMAIL_SERVICE || 'sendgrid',
         auth: {
           user: process.env.EMAIL_USER || '',
@@ -77,7 +77,7 @@ export class NotificationService {
         },
       });
     } else {
-      this.emailTransporter = nodemailer.createTransporter({
+      this.emailTransporter = nodemailer.createTransport({
         host: 'smtp.ethereal.email',
         port: 587,
         secure: false,
@@ -423,7 +423,7 @@ export class NotificationService {
 
   private createEmailTransporter(): nodemailer.Transporter {
     if (process.env.NODE_ENV === 'production') {
-      return nodemailer.createTransporter({
+      return nodemailer.createTransport({
         service: process.env.EMAIL_SERVICE || 'sendgrid',
         auth: {
           user: process.env.EMAIL_USER || '',
@@ -431,7 +431,7 @@ export class NotificationService {
         },
       });
     } else {
-      return nodemailer.createTransporter({
+      return nodemailer.createTransport({
         host: 'smtp.ethereal.email',
         port: 587,
         secure: false,

@@ -331,8 +331,8 @@ export class ElasticsearchService {
 
       const suggestions: SearchSuggestion[] = [];
 
-      if (response.body.suggest?.product_suggest?.[0]?.options) {
-        response.body.suggest.product_suggest[0].options.forEach((option: any) => {
+      if (response.suggest?.product_suggest?.[0]?.options) {
+        response.suggest.product_suggest[0].options.forEach((option: any) => {
           suggestions.push({
             text: option.text,
             type: 'product',
@@ -380,7 +380,7 @@ export class ElasticsearchService {
       });
 
       return (
-        response.body.aggregations?.popular_queries?.buckets?.map((bucket: any) => ({
+        response.aggregations?.popular_queries?.buckets?.map((bucket: any) => ({
           query: bucket.key,
           count: bucket.doc_count,
         })) || []
@@ -454,7 +454,7 @@ export class ElasticsearchService {
         },
       });
 
-      return this.parseAggregations(response.body.aggregations);
+      return this.parseAggregations(response.aggregations);
     } catch (error) {
       logger.error('Failed to get search filters', { error });
       throw error;
@@ -527,7 +527,7 @@ export class ElasticsearchService {
         },
       });
 
-      return response.body.aggregations?.analytics_by_date?.buckets || [];
+      return response.aggregations?.analytics_by_date?.buckets || [];
     } catch (error) {
       logger.error('Failed to get search analytics', { error });
       throw error;

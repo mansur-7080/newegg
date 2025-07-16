@@ -33,10 +33,10 @@ export const connectElasticsearch = async (): Promise<Client> => {
     // Test the connection
     const health = await client.cluster.health();
     logger.info('Elasticsearch connection established', {
-      cluster: health.body.cluster_name,
-      status: health.body.status,
-      nodes: health.body.number_of_nodes,
-      dataNodes: health.body.number_of_data_nodes,
+      cluster: health.cluster_name,
+      status: health.status,
+      nodes: health.number_of_nodes,
+      dataNodes: health.number_of_data_nodes,
     });
 
     // Initialize indices
@@ -66,7 +66,7 @@ const initializeIndices = async (): Promise<void> => {
     const indices = [
       {
         index: `${indexPrefix}-products`,
-        mapping: {
+        mappings: {
           properties: {
             id: { type: 'keyword' },
             name: {
@@ -114,6 +114,7 @@ const initializeIndices = async (): Promise<void> => {
               },
             },
             inventory: {
+              type: 'object',
               properties: {
                 quantity: { type: 'integer' },
                 inStock: { type: 'boolean' },
@@ -121,6 +122,7 @@ const initializeIndices = async (): Promise<void> => {
               },
             },
             rating: {
+              type: 'object',
               properties: {
                 average: { type: 'float' },
                 count: { type: 'integer' },
@@ -138,7 +140,7 @@ const initializeIndices = async (): Promise<void> => {
       },
       {
         index: `${indexPrefix}-categories`,
-        mapping: {
+        mappings: {
           properties: {
             id: { type: 'keyword' },
             name: {
@@ -164,7 +166,7 @@ const initializeIndices = async (): Promise<void> => {
       },
       {
         index: `${indexPrefix}-search-logs`,
-        mapping: {
+        mappings: {
           properties: {
             query: { type: 'text' },
             filters: { type: 'object' },
@@ -185,8 +187,7 @@ const initializeIndices = async (): Promise<void> => {
     // Create indices if they don't exist
     for (const indexConfig of indices) {
       const exists = await client.indices.exists({ index: indexConfig.index });
-
-      if (!exists.body) {
+      if (!exists) {
         await client.indices.create({
           index: indexConfig.index,
           body: {
@@ -216,13 +217,9 @@ const initializeIndices = async (): Promise<void> => {
                 },
               },
             },
-            mappings: indexConfig.mapping,
+            mappings: indexConfig.mappings as any,
           },
         });
-
-        logger.info(`Created Elasticsearch index: ${indexConfig.index}`);
-      } else {
-        logger.info(`Elasticsearch index already exists: ${indexConfig.index}`);
       }
     }
   } catch (error) {
@@ -239,15 +236,15 @@ export const checkElasticsearchHealth = async (): Promise<any> => {
 
     return {
       status: 'healthy',
-      cluster: health.body.cluster_name,
-      clusterStatus: health.body.status,
-      nodes: health.body.number_of_nodes,
-      dataNodes: health.body.number_of_data_nodes,
-      activePrimaryShards: health.body.active_primary_shards,
-      activeShards: health.body.active_shards,
-      relocatingShards: health.body.relocating_shards,
-      initializingShards: health.body.initializing_shards,
-      unassignedShards: health.body.unassigned_shards,
+      cluster: health.cluster_name,
+      clusterStatus: health.status,
+      nodes: health.number_of_nodes,
+      dataNodes: health.number_of_data_nodes,
+      activePrimaryShards: health.active_primary_shards,
+      activeShards: health.active_shards,
+      relocatingShards: health.relocating_shards,
+      initializingShards: health.initializing_shards,
+      unassignedShards: health.unassigned_shards,
     };
   } catch (error) {
     logger.error('Elasticsearch health check failed:', error);
@@ -266,8 +263,8 @@ export const getIndexStats = async (index: string): Promise<any> => {
 
     return {
       index,
-      total: stats.body._all.total,
-      primaries: stats.body._all.primaries,
+      total: stats._all.total,
+      primaries: stats._all.primaries,
     };
   } catch (error) {
     logger.error(`Failed to get stats for index ${index}:`, error);
