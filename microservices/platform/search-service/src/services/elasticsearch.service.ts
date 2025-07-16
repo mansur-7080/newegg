@@ -131,7 +131,7 @@ export class ElasticsearchService {
         index: this.productIndex,
       });
 
-      if (!productExists.body) {
+      if (!productExists) {
         await this.createProductIndex();
       }
 
@@ -140,7 +140,7 @@ export class ElasticsearchService {
         index: this.searchLogIndex,
       });
 
-      if (!logExists.body) {
+      if (!logExists) {
         await this.createSearchLogIndex();
       }
     } catch (error) {

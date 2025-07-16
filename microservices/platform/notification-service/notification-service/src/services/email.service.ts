@@ -43,7 +43,7 @@ export class EmailService {
     try {
       // Initialize SMTP
       if (process.env.SMTP_HOST && process.env.SMTP_PORT) {
-        this.smtpTransporter = nodemailer.createTransporter({
+        this.smtpTransporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST,
           port: parseInt(process.env.SMTP_PORT),
           secure: process.env.SMTP_SECURE === 'true',

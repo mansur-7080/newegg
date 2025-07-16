@@ -3,8 +3,8 @@ import jwt from 'jsonwebtoken';
 import { logger } from '@ultramarket/shared';
 
 interface AuthRequest extends Request {
-  user?: {
-    id: string;
+  user: {
+    userId: string;
     email: string;
     role: string;
   };

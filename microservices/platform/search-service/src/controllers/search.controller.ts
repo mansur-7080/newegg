@@ -445,7 +445,7 @@ export class SearchController {
 
       // Combine insights for admin dashboard
       const improvementSuggestions: Array<{
-        type: string;
+        type: 'no_results' | 'low_results' | 'performance' | 'suggestion';
         message: string;
         action: string;
       }> = [];

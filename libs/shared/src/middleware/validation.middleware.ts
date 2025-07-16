@@ -16,6 +16,14 @@ declare global {
   }
 }
 
+export interface AuthRequest extends Request {
+  user: {
+    userId: string;
+    email: string;
+    role: string;
+  };
+}
+
 // Validation options
 interface ValidationOptions {
   abortEarly?: boolean;

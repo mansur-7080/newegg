@@ -187,13 +187,22 @@ export interface ElasticsearchQuery {
       filter: ElasticsearchQueryClause[];
     };
   };
+  from?: number;
+  size?: number;
+  aggs?: Record<string, ElasticsearchAggregation>;
+  sort?: ElasticsearchSort[];
+  highlight?: {
+    fields: Record<string, any>;
+    pre_tags: string[];
+    post_tags: string[];
+  };
 }
 
 export interface ElasticsearchQueryClause {
   multi_match?: {
     query: string;
     fields: string[];
-    type: string;
+    type: 'best_fields' | 'most_fields' | 'cross_fields' | 'phrase' | 'phrase_prefix';
     fuzziness: string;
     operator: string;
   };
@@ -299,17 +308,17 @@ export class SearchService {
       });
 
       const searchTime = Date.now() - startTime;
-      const total = response.body.hits.total.value;
+      const total = response.hits.total.value;
       const totalPages = Math.ceil(total / limit);
 
-      const products = response.body.hits.hits.map((hit: ElasticsearchHit) => ({
+      const products = response.hits.hits.map((hit: ElasticsearchHit) => ({
         ...hit._source,
         id: hit._id,
         score: hit._score,
         highlights: hit.highlight,
       }));
 
-      const aggregations = this.parseAggregations(response.body.aggregations);
+      const aggregations = this.parseAggregations(response.aggregations);
       const suggestions = await this.generateSuggestions(query.q);
 
       return {
@@ -390,25 +399,29 @@ export class SearchService {
         body,
       });
 
-      const suggestions: string[] = [];
+      const suggestions: AutocompleteResult['suggestions'] = [];
 
-      // Add completion suggestions
-      if (response.body.suggest?.product_suggest?.[0]?.options) {
-        response.body.suggest.product_suggest[0].options.forEach(
-          (option: { text: string; _score: number; _source: unknown }) => {
-            suggestions.push(option.text);
+      // Process completion suggestions
+      if (response.suggest?.product_suggest?.[0]?.options) {
+        response.suggest.product_suggest[0].options.forEach(
+          (option: any) => {
+            suggestions.push({
+              text: option.text,
+              type: 'product' as const,
+              score: option._score,
+              metadata: option._source,
+            });
           }
         );
       }
 
-      // Add search result suggestions
-      response.body.hits.hits.forEach((hit: any) => {
+      // Process search results
+      response.hits.hits.forEach((hit: any) => {
         const source = hit._source;
-
         if (!suggestions.find((s) => s.text === source.name)) {
           suggestions.push({
             text: source.name,
-            type: 'product',
+            type: 'product' as const,
             score: hit._score,
             metadata: source,
           });
@@ -417,8 +430,8 @@ export class SearchService {
         if (!suggestions.find((s) => s.text === source.category.name)) {
           suggestions.push({
             text: source.category.name,
-            type: 'category',
-            score: hit._score * 0.8,
+            type: 'category' as const,
+            score: hit._score,
             metadata: source.category,
           });
         }
@@ -426,14 +439,14 @@ export class SearchService {
         if (!suggestions.find((s) => s.text === source.brand.name)) {
           suggestions.push({
             text: source.brand.name,
-            type: 'brand',
-            score: hit._score * 0.8,
+            type: 'brand' as const,
+            score: hit._score,
             metadata: source.brand,
           });
         }
       });
 
-      // Sort by score and limit
+      // Sort by score and limit results
       suggestions.sort((a, b) => b.score - a.score);
 
       return {
@@ -441,7 +454,7 @@ export class SearchService {
         suggestions: suggestions.slice(0, limit),
       };
     } catch (error) {
-      logger.error('Autocomplete search failed', error);
+      logger.error('Autocomplete failed', error);
       return { query, suggestions: [] };
     }
   }
@@ -596,17 +609,10 @@ export class SearchService {
       must.push({
         multi_match: {
           query: query.q,
-          fields: [
-            'name^3',
-            'description^2',
-            'category.name^2',
-            'brand.name^2',
-            'tags',
-            'specifications.*',
-          ],
-          type: 'best_fields',
+          fields: ['name^3', 'description^2', 'category.name^2', 'brand.name^2', 'tags'],
+          type: 'best_fields' as const,
           fuzziness: 'AUTO',
-          operator: 'and',
+          operator: 'or' as const,
         },
       });
     } else {
@@ -614,8 +620,6 @@ export class SearchService {
     }
 
     // Filters
-    filter.push({ term: { status: 'active' } });
-
     if (query.category) {
       filter.push({ term: { 'category.id': query.category } });
     }
@@ -624,26 +628,24 @@ export class SearchService {
       filter.push({ term: { 'brand.id': query.brand } });
     }
 
-    if (query.minPrice || query.maxPrice) {
-      const priceRange: { gte?: number; lte?: number } = {};
-      if (query.minPrice) priceRange.gte = query.minPrice;
-      if (query.maxPrice) priceRange.lte = query.maxPrice;
-      filter.push({ range: { 'price.current': priceRange } });
+    if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+      const range: any = {};
+      if (query.minPrice !== undefined) range.gte = query.minPrice;
+      if (query.maxPrice !== undefined) range.lte = query.maxPrice;
+      filter.push({ range: { 'price.current': range } });
     }
 
     if (query.rating) {
       filter.push({ range: { 'rating.average': { gte: query.rating } } });
     }
 
-    if (query.availability && query.availability !== 'all') {
-      filter.push({
-        term: {
-          'availability.inStock': query.availability === 'in-stock',
-        },
-      });
+    if (query.availability === 'in-stock') {
+      filter.push({ term: { 'availability.inStock': true } });
+    } else if (query.availability === 'out-of-stock') {
+      filter.push({ term: { 'availability.inStock': false } });
     }
 
-    // Custom filters
+    // Additional filters
     if (query.filters) {
       Object.entries(query.filters).forEach(([key, value]) => {
         if (Array.isArray(value)) {
@@ -656,10 +658,7 @@ export class SearchService {
 
     return {
       query: {
-        bool: {
-          must,
-          filter,
-        },
+        bool: { must, filter },
       },
     };
   }
@@ -801,34 +800,35 @@ export class SearchService {
    * Generate search suggestions
    */
   private async generateSuggestions(query?: string): Promise<string[]> {
-    if (!query) return [];
+    if (!query || query.length < 3) return [];
 
     try {
-      const response = await this.client.search({
-        index: this.indexName,
-        body: {
-          suggest: {
-            text: query,
-            simple_phrase: {
-              phrase: {
-                field: 'name',
-                size: 5,
-                gram_size: 2,
-                direct_generator: [
-                  {
-                    field: 'name',
-                    suggest_mode: 'missing',
-                  },
-                ],
-              },
+      const body = {
+        suggest: {
+          simple_phrase: {
+            phrase: {
+              field: 'name',
+              size: 5,
+              gram_size: 3,
+              direct_generator: [
+                {
+                  field: 'name',
+                  suggest_mode: 'always',
+                },
+              ],
             },
           },
         },
+      };
+
+      const response = await this.client.search({
+        index: this.indexName,
+        body,
       });
 
       return (
-        response.body.suggest?.simple_phrase?.[0]?.options?.map(
-          (option: { text: string }) => option.text
+        response.suggest?.simple_phrase?.[0]?.options?.map(
+          (option: any) => option.text
         ) || []
       );
     } catch (error) {
@@ -866,68 +866,108 @@ export class SearchService {
         index: this.indexName,
       });
 
-      if (!indexExists.body) {
+      if (!indexExists) {
         await this.client.indices.create({
           index: this.indexName,
           body: {
             settings: {
-              number_of_shards: 2,
-              number_of_replicas: 1,
+              number_of_shards: 1,
+              number_of_replicas: 0,
               analysis: {
                 analyzer: {
                   custom_text: {
                     type: 'custom',
                     tokenizer: 'standard',
-                    filter: ['lowercase', 'stop', 'stemmer'],
+                    filter: ['lowercase', 'stop'],
+                  },
+                  autocomplete: {
+                    type: 'custom',
+                    tokenizer: 'standard',
+                    filter: ['lowercase', 'autocomplete_filter'],
+                  },
+                },
+                filter: {
+                  autocomplete_filter: {
+                    type: 'edge_ngram',
+                    min_gram: 1,
+                    max_gram: 20,
                   },
                 },
               },
             },
             mappings: {
               properties: {
+                id: { type: 'keyword' },
                 name: {
                   type: 'text',
                   analyzer: 'custom_text',
                   fields: {
                     keyword: { type: 'keyword' },
-                    suggest: { type: 'completion' },
+                    autocomplete: { type: 'text', analyzer: 'autocomplete' },
                   },
                 },
                 description: {
                   type: 'text',
                   analyzer: 'custom_text',
                 },
-                'category.name': {
-                  type: 'text',
-                  fields: { keyword: { type: 'keyword' } },
+                price: {
+                  type: 'object',
+                  properties: {
+                    current: { type: 'double' },
+                    original: { type: 'double' },
+                    currency: { type: 'keyword' },
+                  },
                 },
-                'brand.name': {
-                  type: 'text',
-                  fields: { keyword: { type: 'keyword' } },
+                category: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'keyword' },
+                    name: { type: 'text' },
+                    path: { type: 'keyword' },
+                  },
                 },
-                'price.current': { type: 'float' },
-                'rating.average': { type: 'float' },
-                'rating.count': { type: 'integer' },
-                'rating.rounded': { type: 'integer' },
+                brand: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'keyword' },
+                    name: { type: 'text' },
+                  },
+                },
+                availability: {
+                  type: 'object',
+                  properties: {
+                    inStock: { type: 'boolean' },
+                    quantity: { type: 'integer' },
+                  },
+                },
+                rating: {
+                  type: 'object',
+                  properties: {
+                    average: { type: 'float' },
+                    count: { type: 'integer' },
+                  },
+                },
+                tags: { type: 'keyword' },
                 status: { type: 'keyword' },
+                createdAt: { type: 'date' },
+                updatedAt: { type: 'date' },
                 suggest: {
                   type: 'completion',
-                  contexts: [
-                    {
-                      name: 'status',
-                      type: 'category',
-                    },
-                  ],
+                  contexts: {
+                    status: { type: 'category' },
+                    category: { type: 'category' },
+                    brand: { type: 'category' },
+                  },
                 },
               },
             },
           },
         });
 
-        logger.info('Search index created successfully', { index: this.indexName });
+        logger.info('Search index created successfully');
       }
     } catch (error) {
-      logger.error('Failed to initialize search index', error);
+      logger.error('Index initialization failed', error);
       throw error;
     }
   }
