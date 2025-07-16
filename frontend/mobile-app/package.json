@@ -49,7 +49,6 @@
     "react-native-config": "^1.5.1",
     "react-native-share": "^10.0.2",
     "react-native-modal": "^13.0.1",
-    "react-native-rating-element": "^2.1.2",
     "react-native-flash-message": "^0.4.2",
     "react-native-skeleton-placeholder": "^5.2.4",
     "react-native-qrcode-scanner": "^1.5.5",
@@ -74,14 +73,9 @@
     "react-native-chart-kit": "^6.12.0",
     "react-native-progress": "^5.0.1",
     "react-native-swipe-gestures": "^1.0.5",
-    "@ultramarket/shared": "workspace:*",
-    "@ultramarket/constants": "workspace:*",
-    "@ultramarket/types": "workspace:*",
-    "react-native-uzbek-keyboard": "^1.0.0",
-    "react-native-uzbekistan-regions": "^1.0.0",
-    "react-native-uzbek-payments": "^1.0.0",
-    "react-native-click-uz": "^1.2.0",
-    "react-native-payme-uz": "^1.1.0"
+    "@ultramarket/shared": "file:../../libs/shared",
+    "@ultramarket/constants": "file:../../libs/constants",
+    "@ultramarket/types": "file:../../libs/types"
   },
   "devDependencies": {
     "@babel/core": "^7.23.6",
