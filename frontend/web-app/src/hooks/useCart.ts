@@ -1,15 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
-import { addToCart, removeFromCart, updateQuantity, clearCart, toggleCart, openCart, closeCart } from '../store/slices/cartSlice';
-
-export interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image: string;
-  stock: number;
-}
+import { addToCart, removeFromCart, updateQuantity, clearCart, toggleCart, openCart, closeCart, CartItem } from '../store/slices/cartSlice';
 
 export const useCart = () => {
   const dispatch = useDispatch();
@@ -22,7 +13,7 @@ export const useCart = () => {
 
   // Savatcha amaliyotlari
   const addItem = (item: CartItem) => {
-    dispatch(addToCart(item));
+    dispatch(addToCart(item) as any);
   };
 
   const removeItem = (id: string) => {
@@ -75,6 +66,16 @@ export const useCart = () => {
     }
   };
 
+  // Ko'plab mahsulotlarni savatga qo'shish
+  const addBulkToCart = (items: CartItem[]) => {
+    items.forEach(item => {
+      addOrUpdateItem(item, item.quantity);
+    });
+  };
+
+  // Eski API uchun alias
+  const addToCart = addOrUpdateItem;
+
   // Savatcha bo'sh-to'laligini tekshirish
   const isEmpty = cartItems.length === 0;
 
@@ -88,6 +89,8 @@ export const useCart = () => {
 
     // Amallar
     addItem,
+    addToCart,
+    addBulkToCart,
     removeItem,
     updateItemQuantity,
     clearAllItems,

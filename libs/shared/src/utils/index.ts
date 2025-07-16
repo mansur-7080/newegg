@@ -6,6 +6,15 @@ export const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
+export const formatUZSPrice = (amount: number): string => {
+  return new Intl.NumberFormat('uz-UZ', {
+    style: 'currency',
+    currency: 'UZS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
 export const formatDate = (date: Date): string => {
   return new Intl.DateTimeFormat('uz-UZ').format(date);
 };

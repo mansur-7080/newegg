@@ -33,9 +33,10 @@ interface UpdateUserData {
   lastLoginAt?: Date;
 }
 
-interface UserWithAddresses extends User {
+// Use Prisma's built-in type for user with addresses
+type UserWithAddresses = User & {
   addresses: Address[];
-}
+};
 
 interface PaginatedUsers {
   users: UserWithAddresses[];

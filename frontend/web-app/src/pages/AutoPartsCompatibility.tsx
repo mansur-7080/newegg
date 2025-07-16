@@ -1,11 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import {
-  vehicleMakes,
-  vehicleModels,
-  vehicleGenerations,
-  autoParts,
-  autoPartCategories,
-} from '../../data/autoPartsDatabase';
+// Uzbekistan avtoehtiyot qismlar ma'lumotlar bazasi
+const vehicleMakes = [
+  { id: 'chevrolet', name: 'Chevrolet', nameUz: 'Shevrole', country: 'USA', isPopular: true },
+  { id: 'daewoo', name: 'Daewoo', nameUz: 'Deu', country: 'South Korea', isPopular: true },
+];
+
+const vehicleModels = [
+  { id: 'nexia', makeId: 'chevrolet', name: 'Nexia', nameUz: 'Neksiya', generations: ['nexia-1', 'nexia-2'], isPopular: true },
+];
+
+const vehicleGenerations = [
+  { id: 'nexia-1', modelId: 'nexia', name: 'Nexia I', nameUz: 'Neksiya I', yearRange: { start: 1995, end: 2008 }, engineOptions: ['1.5L'], transmissionOptions: ['5MT'] },
+];
+
+const autoParts = [
+  { id: '1', name: 'Oil Filter', nameUz: 'Moy filtri', category: 'engine', subcategory: 'filters', partNumber: 'GM96570765', description: 'Original oil filter', descriptionUz: 'Asl moy filtri', compatibleVehicles: [], price: { original: 45000, aftermarket: 35000, currency: 'UZS' }, availability: { inStock: true, quantity: 50, supplier: 'GM Uzbekistan', location: 'Tashkent' }, brands: ['GM'], condition: 'new', warranty: { months: 12, description: '1 year warranty' }, images: [], specifications: {} },
+];
+
+const autoPartCategories = [
+  { id: 'engine', name: 'Engine Parts', nameUz: 'Dvigatel qismlari', icon: '🔧', isPopular: true, subcategories: [] },
+];
 
 const AutoPartsCompatibility: React.FC = () => {
   const [selectedMake, setSelectedMake] = useState<string>('');

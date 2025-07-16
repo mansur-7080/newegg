@@ -1,7 +1,4 @@
 import React from 'react';
-import { Typography, Space, Tag } from 'antd';
-
-const { Title, Text } = Typography;
 
 interface PriceDisplayProps {
   price: number;
@@ -20,33 +17,38 @@ const PriceDisplay: React.FC<PriceDisplayProps> = ({
   size = 'medium',
   showDiscount = true,
   vertical = false,
-  style = {},
+  style,
 }) => {
-  const formatPrice = (amount: number) => {
-    if (currency === 'UZS') {
-      return new Intl.NumberFormat('uz-UZ').format(amount) + ' so\'m';
+  // UZS narxni formatlash
+  const formatPrice = (amount: number, curr = currency) => {
+    if (curr === 'UZS') {
+      return new Intl.NumberFormat('uz-UZ', {
+        style: 'currency',
+        currency: 'UZS',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(amount);
     }
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-    }).format(amount);
+    return `${amount.toLocaleString()} ${curr}`;
   };
 
-  const hasDiscount = originalPrice && originalPrice > price;
-  const discountPercentage = hasDiscount 
+  // Chegirma foizini hisoblash
+  const discountPercentage = originalPrice && originalPrice > price 
     ? Math.round(((originalPrice - price) / originalPrice) * 100)
     : 0;
 
-  const getTitleLevel = () => {
+  const hasDiscount = discountPercentage > 0;
+
+  const getFontSize = () => {
     switch (size) {
-      case 'small': return 5;
-      case 'medium': return 4;
-      case 'large': return 3;
-      default: return 4;
+      case 'small': return '14px';
+      case 'medium': return '18px';
+      case 'large': return '24px';
+      default: return '18px';
     }
   };
 
-  const getTextSize = () => {
+  const getSmallFontSize = () => {
     switch (size) {
       case 'small': return '12px';
       case 'medium': return '14px';
@@ -57,52 +59,67 @@ const PriceDisplay: React.FC<PriceDisplayProps> = ({
 
   return (
     <div style={style}>
-      <Space direction={vertical ? 'vertical' : 'horizontal'} size="small" align="start">
+      <div 
+        style={{ 
+          display: 'flex', 
+          flexDirection: vertical ? 'column' : 'row',
+          alignItems: vertical ? 'flex-start' : 'center',
+          gap: '8px',
+        }}
+      >
         {/* Joriy narx */}
-        <Title 
-          level={getTitleLevel()} 
+        <span 
           style={{ 
-            margin: 0, 
-            color: hasDiscount ? '#ff4d4f' : '#1890ff' 
+            fontSize: getFontSize(),
+            fontWeight: 'bold',
+            color: hasDiscount ? '#ff4d4f' : '#1890ff',
+            margin: 0,
           }}
         >
           {formatPrice(price)}
-        </Title>
+        </span>
 
         {/* Asl narx (agar chegirma bo'lsa) */}
         {hasDiscount && (
-          <Space size="small">
-            <Text 
-              delete 
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span 
               style={{ 
-                fontSize: getTextSize(),
-                color: '#8c8c8c'
+                fontSize: getSmallFontSize(),
+                color: '#8c8c8c',
+                textDecoration: 'line-through',
               }}
             >
-              {formatPrice(originalPrice)}
-            </Text>
+              {formatPrice(originalPrice!)}
+            </span>
             
             {showDiscount && (
-              <Tag color="red" size="small">
+              <span
+                style={{
+                  backgroundColor: '#ff4d4f',
+                  color: 'white',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                }}
+              >
                 -{discountPercentage}%
-              </Tag>
+              </span>
             )}
-          </Space>
+          </div>
         )}
-      </Space>
+      </div>
 
       {/* Tejash miqdori */}
       {hasDiscount && (
-        <Text 
+        <div 
           style={{ 
-            fontSize: getTextSize(),
+            fontSize: getSmallFontSize(),
             color: '#52c41a',
-            display: 'block',
             marginTop: '4px'
           }}
         >
-          Tejaysiz: {formatPrice(originalPrice - price)}
-        </Text>
+          Tejaysiz: {formatPrice(originalPrice! - price)}
+        </div>
       )}
     </div>
   );

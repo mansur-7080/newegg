@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const API_TIMEOUT = 30000; // 30 seconds
 
 // Create axios instance
@@ -36,8 +36,8 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     // Handle 401 errors (token expired)
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-      originalRequest._retry = true;
+    if (error.response?.status === 401 && originalRequest && !(originalRequest as any)._retry) {
+      (originalRequest as any)._retry = true;
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
@@ -369,7 +369,13 @@ export default apiService;
 // Export axios instance for custom requests
 export { apiClient };
 
-// Funksion export-lar (eski kod bilan compatibility uchun)
+// Named exports for backward compatibility
+export const api = apiService;
+export const fetchProductById = apiService.fetchProductById.bind(apiService);
+export const fetchProductReviews = apiService.fetchProductReviews.bind(apiService);
+export const fetchSimilarProducts = apiService.fetchSimilarProducts.bind(apiService);
+
+// PC Builder exports (eski kod bilan compatibility uchun)
 export const fetchCompatibleComponents = apiService.fetchCompatibleComponents.bind(apiService);
 export const validateBuild = apiService.validateBuild.bind(apiService);
 export const saveBuild = apiService.saveBuild.bind(apiService);

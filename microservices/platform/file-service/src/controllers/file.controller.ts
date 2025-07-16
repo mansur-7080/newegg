@@ -606,4 +606,294 @@ export class FileController {
       });
     }
   }
+
+  /**
+   * Upload multiple files
+   */
+  async uploadMultiple(req: Request, res: Response): Promise<void> {
+    try {
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'No files provided',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const uploadPromises = files.map(file => this.storageService.uploadFile(file));
+      const results = await Promise.allSettled(uploadPromises);
+
+      const successful = results.filter(result => result.status === 'fulfilled');
+      const failed = results.filter(result => result.status === 'rejected');
+
+      res.status(200).json({
+        success: true,
+        message: `${successful.length} files uploaded, ${failed.length} failed`,
+        files: successful.map(result => (result as PromiseFulfilledResult<any>).value),
+        errors: failed.map(result => (result as PromiseRejectedResult).reason),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('Multiple file upload failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Multiple upload failed',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Upload file chunk (for large file uploads)
+   */
+  async uploadChunk(req: Request, res: Response): Promise<void> {
+    try {
+      const { chunkIndex, totalChunks, fileId } = req.body;
+      const chunk = req.file;
+
+      if (!chunk) {
+        res.status(400).json({
+          success: false,
+          error: 'No chunk provided',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Store chunk temporarily
+      const chunkResult = await this.storageService.uploadChunk(chunk, {
+        chunkIndex: parseInt(chunkIndex),
+        totalChunks: parseInt(totalChunks),
+        fileId,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Chunk uploaded successfully',
+        chunk: chunkResult,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('Chunk upload failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Chunk upload failed',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Finalize chunked upload
+   */
+  async finalizeUpload(req: Request, res: Response): Promise<void> {
+    try {
+      const { fileId, totalChunks, fileName } = req.body;
+
+      const finalFile = await this.storageService.finalizeChunkedUpload({
+        fileId,
+        totalChunks,
+        fileName,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'File upload finalized',
+        file: finalFile,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('Upload finalization failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Upload finalization failed',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Get upload progress
+   */
+  async getUploadProgress(req: Request, res: Response): Promise<void> {
+    try {
+      const { fileId } = req.params;
+      const progress = await this.storageService.getUploadProgress(fileId);
+
+      res.status(200).json({
+        success: true,
+        progress,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('Failed to get upload progress:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get progress',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Resize image
+   */
+  async resizeImage(req: Request, res: Response): Promise<void> {
+    try {
+      const image = req.file;
+      const { width, height, quality } = req.body;
+
+      if (!image) {
+        res.status(400).json({
+          success: false,
+          error: 'No image provided',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const resizedImage = await this.storageService.resizeImage(image, {
+        width: parseInt(width),
+        height: parseInt(height),
+        quality: parseInt(quality) || 80,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Image resized successfully',
+        file: resizedImage,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('Image resize failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Image resize failed',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Optimize image
+   */
+  async optimizeImage(req: Request, res: Response): Promise<void> {
+    try {
+      const image = req.file;
+      const { format, quality } = req.body;
+
+      if (!image) {
+        res.status(400).json({
+          success: false,
+          error: 'No image provided',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const optimizedImage = await this.storageService.optimizeImage(image, {
+        format: format || 'jpeg',
+        quality: parseInt(quality) || 80,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Image optimized successfully',
+        file: optimizedImage,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('Image optimization failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Image optimization failed',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Generate thumbnail
+   */
+  async generateThumbnail(req: Request, res: Response): Promise<void> {
+    try {
+      const image = req.file;
+      const { size } = req.body;
+
+      if (!image) {
+        res.status(400).json({
+          success: false,
+          error: 'No image provided',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const thumbnail = await this.storageService.generateThumbnail(image, {
+        size: parseInt(size) || 150,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Thumbnail generated successfully',
+        file: thumbnail,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('Thumbnail generation failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Thumbnail generation failed',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Get image metadata
+   */
+  async getImageMetadata(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const metadata = await this.storageService.getImageMetadata(id);
+
+      res.status(200).json({
+        success: true,
+        metadata,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('Failed to get image metadata:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get metadata',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Get image variants
+   */
+  async getImageVariants(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const variants = await this.storageService.getImageVariants(id);
+
+      res.status(200).json({
+        success: true,
+        variants,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('Failed to get image variants:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get variants',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
 }

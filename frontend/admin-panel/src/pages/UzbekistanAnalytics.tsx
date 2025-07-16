@@ -55,7 +55,19 @@ import {
   Download,
   Refresh,
 } from '@mui/icons-material';
-import { formatUZSPrice, formatDate } from '../../../libs/shared/src/utils';
+// Custom utility functions for Uzbekistan-specific formatting
+const formatUZSPrice = (amount: number): string => {
+  return new Intl.NumberFormat('uz-UZ', {
+    style: 'currency',
+    currency: 'UZS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+const formatDate = (date: Date): string => {
+  return new Intl.DateTimeFormat('uz-UZ').format(date);
+};
 
 interface DashboardData {
   overview: {
