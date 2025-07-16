@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model Product {
@@ -20,28 +20,28 @@ model Product {
   barcode           String?
   brand             String?
   model             String?
-  weight            Decimal?          @db.Decimal(8, 2)
-  dimensions        Json?
-  price             Decimal           @db.Decimal(10, 2)
-  comparePrice      Decimal?          @db.Decimal(10, 2)
-  costPrice         Decimal?          @db.Decimal(10, 2)
+  weight            Float?
+  dimensions        String?
+  price             Float
+  comparePrice      Float?
+  costPrice         Float?
   currency          String            @default("USD")
-  status            ProductStatus     @default(DRAFT)
-  type              ProductType       @default(PHYSICAL)
+  status            String            @default("DRAFT")
+  type              String            @default("PHYSICAL")
   isActive          Boolean           @default(true)
   isFeatured        Boolean           @default(false)
   isBestSeller      Boolean           @default(false)
   isNewArrival      Boolean           @default(false)
   isOnSale          Boolean           @default(false)
-  salePercentage    Int?              @db.SmallInt
+  salePercentage    Int?
   saleStartDate     DateTime?
   saleEndDate       DateTime?
   metaTitle         String?
   metaDescription   String?
   metaKeywords      String?
-  tags              String[]
-  attributes        Json?
-  specifications    Json?
+  tags              String?
+  attributes        String?
+  specifications    String?
   warranty          String?
   returnPolicy      String?
   shippingInfo      String?
@@ -98,7 +98,7 @@ model User {
   username        String    @unique
   firstName       String
   lastName        String
-  role            UserRole  @default(CUSTOMER)
+  role            String    @default("CUSTOMER")
   isActive        Boolean   @default(true)
   products        Product[]
   createdAt       DateTime  @default(now())
@@ -116,12 +116,12 @@ model ProductVariant {
   name        String
   sku         String   @unique
   barcode     String?
-  price       Decimal  @db.Decimal(10, 2)
-  comparePrice Decimal? @db.Decimal(10, 2)
-  costPrice   Decimal? @db.Decimal(10, 2)
-  weight      Decimal? @db.Decimal(8, 2)
-  dimensions  Json?
-  attributes  Json?
+  price       Float
+  comparePrice Float?
+  costPrice   Float?
+  weight      Float?
+  dimensions  String?
+  attributes  String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -181,7 +181,7 @@ model Review {
   id          String   @id @default(uuid())
   productId   String
   userId      String
-  rating      Int      @db.SmallInt
+  rating      Int
   title       String?
   comment     String?
   isVerified  Boolean  @default(false)
@@ -220,7 +220,7 @@ model ProductRelation {
 model SearchLog {
   id          String   @id @default(uuid())
   query       String
-  filters     Json?
+  filters     String?
   results     Int
   userId      String?
   ipAddress   String?
@@ -236,7 +236,7 @@ model PriceHistory {
   id          String   @id @default(uuid())
   productId   String
   variantId   String?
-  price       Decimal  @db.Decimal(10, 2)
+  price       Float
   currency    String   @default("USD")
   changeType  String   // increase, decrease, set
   reason      String?
@@ -250,23 +250,8 @@ model PriceHistory {
   @@map("price_history")
 }
 
-// Enums
-enum ProductStatus {
-  DRAFT
-  ACTIVE
-  INACTIVE
-  ARCHIVED
-}
-
-enum ProductType {
-  PHYSICAL
-  DIGITAL
-  SERVICE
-}
-
-enum UserRole {
-  CUSTOMER
-  VENDOR
-  ADMIN
-  SUPER_ADMIN
-}
+// Enums are not supported in SQLite
+// Using String fields instead with the following values:
+// ProductStatus: DRAFT, ACTIVE, INACTIVE, ARCHIVED
+// ProductType: PHYSICAL, DIGITAL, SERVICE  
+// UserRole: CUSTOMER, VENDOR, ADMIN, SUPER_ADMIN
