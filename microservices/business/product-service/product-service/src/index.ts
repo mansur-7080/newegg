@@ -8,9 +8,12 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
-import mongoose from 'mongoose';
 import swaggerUi from 'swagger-ui-express';
 import dotenv from 'dotenv';
+import { pino } from 'pino';
+
+// Database
+import { db } from './config/database';
 
 // Routes
 import productRoutes from './routes/product.routes';
@@ -32,6 +35,11 @@ import { logger } from './utils/logger';
 import { validateEnv } from './config/env.validation';
 import { swaggerSpec } from './config/swagger';
 
+// Services
+import { CacheService } from './services/cache.service';
+import { MetricsService } from './services/metrics.service';
+import { QueueService } from './services/queue.service';
+
 // Load environment variables
 dotenv.config();
 
@@ -41,41 +49,40 @@ validateEnv();
 const app = express();
 const PORT = process.env.PORT || 3003;
 
-// Apply security middleware with enhanced configuration
-app.use(helmet()); // Basic helmet configuration
+// Initialize services
+const cacheService = CacheService.getInstance();
+const metricsService = MetricsService.getInstance();
+const queueService = QueueService.getInstance();
 
-// Set additional security headers
-app.use((req, res, next) => {
-  // Content-Security-Policy
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://storage.ultramarket.uz; connect-src 'self' https://api.ultramarket.uz; font-src 'self' https://fonts.gstatic.com; object-src 'none'; media-src 'self'; frame-src 'none'"
-  );
+/**
+ * Security Middleware Configuration
+ */
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "https://storage.ultramarket.uz"],
+      connectSrc: ["'self'", "https://api.ultramarket.uz"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+}));
 
-  // HSTS - Force HTTPS
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-
-  // Prevent clickjacking
-  res.setHeader('X-Frame-Options', 'DENY');
-
-  // Prevent MIME type sniffing
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-
-  // Referrer policy
-  res.setHeader('Referrer-Policy', 'no-referrer');
-
-  // Prevent XSS
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-
-  next();
-});
-
-// Configure CORS with secure settings
+// CORS Configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps)
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -85,19 +92,19 @@ app.use(
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-ID'],
-    exposedHeaders: ['X-Request-ID', 'Content-Disposition'],
+    exposedHeaders: ['X-Request-ID', 'Content-Disposition', 'X-Total-Count'],
     credentials: true,
-    maxAge: 86400, // 24 hours
+    maxAge: 86400,
   })
 );
 
-// Compression middleware with security consideration
-app.use(compression({ level: 6, threshold: 1024 })); // Only compress responses larger than 1KB
+// Compression
+app.use(compression({ level: 6, threshold: 1024 }));
 
-// Configure rate limiting with different rules for different endpoints
+// Rate Limiting
 const standardLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
   message: {
     success: false,
     error: {
@@ -107,13 +114,12 @@ const standardLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.method === 'OPTIONS', // Skip preflight requests
+  skip: (req) => req.method === 'OPTIONS',
 });
 
-// More restrictive rate limit for authentication endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10, // Limit each IP to 10 auth attempts per window
+  max: 10,
   message: {
     success: false,
     error: {
@@ -127,15 +133,25 @@ const authLimiter = rateLimit({
 app.use('/api/v1/auth', authLimiter);
 app.use(standardLimiter);
 
-// Apply custom security middleware
+// Security middleware
 app.use(securityMiddleware);
 
-// Body parsing middleware
+// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Request logging
 app.use(requestLogger);
+
+// Metrics collection
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    metricsService.recordHttpRequest(req.method, req.path, res.statusCode, duration);
+  });
+  next();
+});
 
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -150,6 +166,13 @@ app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/search', searchRoutes);
 app.use('/api/v1/admin', adminRoutes);
 
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  const metrics = await metricsService.getMetrics();
+  res.set('Content-Type', 'text/plain');
+  res.send(metrics);
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
@@ -163,181 +186,97 @@ app.use('*', (req, res) => {
 app.use(errorHandler);
 
 /**
- * Connect to MongoDB with professional error handling and retry logic
+ * Initialize application
  */
-const connectDB = async () => {
-  const maxRetries = 5;
-  let retries = 0;
-  let connected = false;
+async function initializeApp() {
+  try {
+    // Connect to database
+    await db.connect();
 
-  const mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) {
-    logger.error('MONGODB_URI environment variable is not defined');
-    throw new Error('MONGODB_URI environment variable is required');
+    // Initialize cache
+    await cacheService.connect();
+
+    // Initialize queue
+    await queueService.connect();
+
+    // Start metrics collection
+    metricsService.startCollection();
+
+    logger.info('✅ All services initialized successfully');
+  } catch (error) {
+    logger.error('❌ Failed to initialize services', { error });
+    throw error;
   }
-
-  // Configure mongoose
-  mongoose.set('strictQuery', true);
-
-  // Set up connection monitoring
-  mongoose.connection.on('connected', () => {
-    logger.info('MongoDB connection established');
-    connected = true;
-  });
-
-  mongoose.connection.on('disconnected', () => {
-    if (connected) {
-      logger.warn('MongoDB connection lost. Attempting to reconnect...');
-    }
-  });
-
-  mongoose.connection.on('error', (err) => {
-    logger.error('MongoDB connection error', {
-      error: err.message,
-      stack: err.stack,
-    });
-  });
-
-  // Connection with retry logic
-  while (!connected && retries < maxRetries) {
-    try {
-      if (retries > 0) {
-        logger.info(`Retrying MongoDB connection (${retries}/${maxRetries})...`);
-        // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, retries - 1) * 1000));
-      }
-
-      await mongoose.connect(mongoUri, {
-        maxPoolSize: 10,
-        minPoolSize: 2,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-        family: 4, // Use IPv4, skip trying IPv6
-        connectTimeoutMS: 10000,
-        // Add heartbeat to detect connection issues early
-        heartbeatFrequencyMS: 10000,
-        // Don't buffer commands during reconnect
-        bufferCommands: false,
-      });
-
-      logger.info('✅ Successfully connected to MongoDB');
-      connected = true;
-    } catch (error) {
-      retries++;
-      logger.error(`❌ MongoDB connection attempt ${retries} failed:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        retryCount: retries,
-        maxRetries,
-      });
-
-      if (retries >= maxRetries) {
-        logger.error('Failed to connect to MongoDB after maximum retries');
-        throw new Error('Failed to connect to MongoDB after maximum retries');
-      }
-    }
-  }
-};
+}
 
 /**
- * Professional graceful shutdown with controlled process termination
- * Ensures all connections are properly closed and pending requests completed
+ * Graceful shutdown handler
  */
-const gracefulShutdown = async (signal: string) => {
-  logger.info(`Received ${signal}. Starting graceful shutdown...`, { signal });
+async function gracefulShutdown(signal: string) {
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
 
-  // Set a timeout to force shutdown if graceful shutdown takes too long
-  const forceShutdownTimeout = setTimeout(() => {
-    logger.error('Graceful shutdown timed out after 30s, forcing exit');
+  const shutdownTimeout = setTimeout(() => {
+    logger.error('Graceful shutdown timed out, forcing exit');
     process.exit(1);
-  }, 30000); // 30 seconds timeout
-
-  let exitCode = 0;
+  }, 30000);
 
   try {
-    // Stop accepting new connections but finish existing requests
-    logger.info('Closing HTTP server - no longer accepting new connections');
-    await new Promise<void>((resolve) => {
-      server.close((err) => {
-        if (err) {
-          logger.error('Error closing HTTP server:', { error: err.message });
-          exitCode = 1;
-        } else {
-          logger.info('HTTP server closed successfully');
-        }
-        resolve();
-      });
+    // Stop accepting new connections
+    server.close(() => {
+      logger.info('HTTP server closed');
     });
 
-    // Close MongoDB connection
-    if (mongoose.connection.readyState !== 0) {
-      logger.info('Closing MongoDB connection');
-      await mongoose.connection.close(false); // false means don't force close
-      logger.info('MongoDB connection closed successfully');
-    }
+    // Close database connections
+    await db.disconnect();
 
-    // Close any other connections (Redis, etc.)
-    // if (redisClient) {
-    //   logger.info('Closing Redis connection');
-    //   await redisClient.quit();
-    //   logger.info('Redis connection closed successfully');
-    // }
+    // Close cache connections
+    await cacheService.disconnect();
 
-    // Log successful shutdown
-    logger.info('Graceful shutdown completed successfully', {
-      shutdownDuration: `${Date.now() - new Date().getTime()}ms`,
-      signal,
-    });
+    // Close queue connections
+    await queueService.disconnect();
 
-    // Clear the force shutdown timeout
-    clearTimeout(forceShutdownTimeout);
+    // Stop metrics collection
+    metricsService.stopCollection();
 
-    // Exit with appropriate code
-    process.exit(exitCode);
+    clearTimeout(shutdownTimeout);
+    logger.info('Graceful shutdown completed');
+    process.exit(0);
   } catch (error) {
-    logger.error('Error during graceful shutdown:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      signal,
-    });
-
-    // Clear the force shutdown timeout
-    clearTimeout(forceShutdownTimeout);
-
+    logger.error('Error during graceful shutdown', { error });
+    clearTimeout(shutdownTimeout);
     process.exit(1);
   }
-};
+}
 
 // Start server
 const server = app.listen(PORT, async () => {
   try {
-    // Connect to database
-    await connectDB();
+    await initializeApp();
 
     logger.info(`🚀 Product Service running on port ${PORT}`);
     logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
     logger.info(`🔗 Health check: http://localhost:${PORT}/api/v1/health`);
-    logger.info(`💾 MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Not configured'}`);
+    logger.info(`📊 Metrics: http://localhost:${PORT}/metrics`);
   } catch (error) {
-    logger.error('Failed to start Product Service:', error);
+    logger.error('Failed to start Product Service', { error });
     process.exit(1);
   }
 });
 
-// Handle graceful shutdown
+// Handle shutdown signals
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Handle unhandled promise rejections
+// Handle unhandled errors
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  logger.error('Unhandled Rejection', { reason, promise });
+  gracefulShutdown('UNHANDLED_REJECTION');
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', error);
-  process.exit(1);
+  logger.error('Uncaught Exception', { error });
+  gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
 export default app;
