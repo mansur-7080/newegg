@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
+// import { useSelector, useDispatch } from 'react-redux';
 
 interface Product {
   id: string;
@@ -14,9 +14,9 @@ interface Product {
 }
 
 // This would come from your Redux store in a real implementation
-interface CompareState {
-  products: Product[];
-}
+// interface CompareState {
+//   products: Product[];
+// }
 
 const CompareProducts: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);

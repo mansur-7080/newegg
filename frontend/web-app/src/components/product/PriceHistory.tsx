@@ -24,7 +24,7 @@ interface PricePoint {
   price: number;
 }
 
-const PriceHistory: React.FC<PriceHistoryProps> = ({ productId, productName }) => {
+const PriceHistory: React.FC<PriceHistoryProps> = ({ productId: _productId, productName }) => {
   // In real application, this data would come from an API
   const priceData: PricePoint[] = [
     { date: '2025-01-15', price: 1299.99 },

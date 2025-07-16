@@ -7,7 +7,7 @@ interface PriceAlertProps {
   currentPrice: number;
 }
 
-const PriceAlert: React.FC<PriceAlertProps> = ({ productId, productName, currentPrice }) => {
+const PriceAlert: React.FC<PriceAlertProps> = ({ productId: _productId, productName, currentPrice }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [targetPrice, setTargetPrice] = useState<string>(currentPrice.toString());
   const [email, setEmail] = useState<string>('');
