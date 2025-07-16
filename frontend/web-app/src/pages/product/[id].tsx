@@ -173,7 +173,10 @@ const ProductDetailPage = () => {
           text: product.description,
           url: window.location.href,
         })
-        .catch((error) => console.log('Share error:', error));
+        .catch((error) => {
+          // Share failed - handle gracefully
+          console.error('Share error:', error);
+        });
     } else {
       // Fallback - copy to clipboard
       navigator.clipboard.writeText(window.location.href);

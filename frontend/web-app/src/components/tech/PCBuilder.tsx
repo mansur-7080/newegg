@@ -495,7 +495,8 @@ const PCBuilder: React.FC = () => {
     if (!compatibility.isValid) return;
 
     // Mock implementation - in real app, add to cart
-    console.log('Adding build to cart:', currentBuild);
+    // PC build configuration added to cart
+    // In production, this would send build data to cart service
     alert("Kompyuter konfiguratsiyasi savatga qo'shildi!");
   };
 

@@ -48,12 +48,15 @@ const CartPage: React.FC = () => {
 
   const handleProceedToCheckout = () => {
     // Checkout sahifasiga o'tish
-    console.log("Checkout ga o'tish:", {
+    // Navigate to checkout with cart data
+    // In production, this would redirect to payment service
+    const checkoutData = {
       items: cartItems,
       paymentMethod: selectedPaymentMethod,
       deliveryAddress,
       total,
-    });
+    };
+    // TODO: Implement actual checkout navigation
   };
 
   const uzbekRegions = [

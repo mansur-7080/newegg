@@ -25,8 +25,6 @@ import {
   Tooltip,
 } from '@mui/material';
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
   BarChart,
@@ -38,7 +36,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as ChartTooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 import {
@@ -51,7 +48,6 @@ import {
   CreditCard,
   LocalShipping,
   Assessment,
-  DateRange,
   Download,
   Refresh,
 } from '@mui/icons-material';
@@ -162,7 +158,7 @@ const UzbekistanAnalytics: React.FC = () => {
 
   useEffect(() => {
     fetchAnalyticsData();
-  }, [dateRange, selectedRegion]);
+  }, [dateRange, selectedRegion, fetchAnalyticsData]);
 
   const fetchAnalyticsData = async () => {
     setLoading(true);

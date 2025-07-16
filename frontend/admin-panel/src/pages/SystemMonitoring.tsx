@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -18,7 +18,6 @@ import {
   Tabs,
   Badge,
   Typography,
-  Tooltip,
   Drawer,
 } from 'antd';
 import {
@@ -44,17 +43,11 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts';
 import { motion } from 'framer-motion';
 import io from 'socket.io-client';
 
 const { Option } = Select;
-const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
@@ -100,7 +93,7 @@ interface ServiceHealth {
   }>;
 }
 
-interface Alert {
+interface SystemAlert {
   id: string;
   type: 'info' | 'warning' | 'error' | 'critical';
   service: string;
@@ -123,7 +116,7 @@ interface LogEntry {
 const SystemMonitoring: React.FC = () => {
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics[]>([]);
   const [services, setServices] = useState<ServiceHealth[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alerts, setAlerts] = useState<SystemAlert[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTimeRange, setSelectedTimeRange] = useState('1h');
@@ -185,7 +178,7 @@ const SystemMonitoring: React.FC = () => {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, [autoRefresh, fetchCurrentMetrics]);
 
   const fetchInitialData = async () => {
     try {

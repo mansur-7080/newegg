@@ -324,7 +324,10 @@ const PCBuilderPage = () => {
           text: "Mana men yig'gan kompyuter konfiguratsiyasi:",
           url: shareUrl,
         })
-        .catch((error) => console.log('Share error:', error));
+        .catch((error) => {
+          // Share failed - handle gracefully
+          console.error('Share error:', error);
+        });
     } else {
       // Fallback - copy to clipboard
       navigator.clipboard.writeText(shareUrl);

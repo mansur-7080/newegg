@@ -90,7 +90,8 @@ class MLRecommendationService {
       // await axios.post(`${this.baseUrl}/track`, { productId, action, userId });
 
       // For now, just log
-      console.log(`Tracking ${action} for product ${productId} by user ${userId || 'anonymous'}`);
+      // Analytics tracking for ML recommendations
+    // In production, this would send data to analytics service
     } catch (error) {
       // Don't throw errors for tracking - just log them
       console.error('Error tracking product interaction:', error);

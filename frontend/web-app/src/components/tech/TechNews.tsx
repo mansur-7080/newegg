@@ -49,7 +49,7 @@ RTX 5090 modeli 24GB GDDR7 xotira, RTX 5080 modeli 16GB GDDR7 xotira va RTX 5070
         {
           id: 'news-2',
           title: 'AMD yangi Ryzen 9000 protsessorlarini taqdim etdi',
-          excerpt: 'AMD kompaniyasi yangi Zen 5 arxitekturasi asosidagi Ryzen 9000 seriyasini e'lon qildi.',
+          excerpt: 'AMD kompaniyasi yangi Zen 5 arxitekturasi asosidagi Ryzen 9000 seriyasini e\'lon qildi.',
           content: `AMD kompaniyasi yangi Zen 5 arxitekturasi asosidagi Ryzen 9000 seriyali protsessorlarni taqdim etdi. Bu seriyaga Ryzen 9 9950X, Ryzen 9 9900X, Ryzen 7 9800X va Ryzen 5 9600X modellari kiradi.
 
 Yangi protsessorlar ilgari modellarga qaraganda 15% gacha tezroq ishlaydi va energiya tejamkorligi 20% ga oshgan. Barcha modellar AM5 soketiga mo'ljallangan bo'lib, DDR5 xotirani qo'llab-quvvatlaydi.`,
