@@ -111,9 +111,13 @@ export {
   UnauthorizedError,
   extractTokenFromHeader,
   verifyAccessToken,
+  UserRole,
+};
+
+// Export types with proper syntax
+export type {
   PaginationParams,
   PaginatedResponse,
   JwtPayload,
   TokenPair,
-  UserRole,
 };

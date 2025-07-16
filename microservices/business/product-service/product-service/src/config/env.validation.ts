@@ -7,7 +7,7 @@ const envSchema = Joi.object({
 
   PORT: Joi.number().port().default(3003),
 
-  MONGODB_URI: Joi.string().uri().required().description('MongoDB connection URI'),
+  DATABASE_URL: Joi.string().uri().required().description('Database connection URL'),
 
   ALLOWED_ORIGINS: Joi.string()
     .default('http://localhost:3000')

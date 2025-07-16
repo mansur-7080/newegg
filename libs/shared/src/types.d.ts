@@ -1,3 +1,4 @@
+import { Request } from 'express';
 export interface User {
     id: string;
     email: string;
@@ -5,17 +6,36 @@ export interface User {
     firstName: string;
     lastName: string;
     phoneNumber?: string;
+    passwordHash?: string;
     role: UserRole;
     isActive: boolean;
     isEmailVerified: boolean;
+    isPhoneVerified?: boolean;
+    loginAttempts?: number;
+    mfaEnabled?: boolean;
+    authProvider: AuthProvider;
     createdAt: Date;
     updatedAt: Date;
+}
+export interface AuthenticatedRequest extends Request {
+    user?: {
+        userId: string;
+        email: string;
+        role: UserRole;
+    };
 }
 export declare enum UserRole {
     CUSTOMER = "CUSTOMER",
     SELLER = "SELLER",
     ADMIN = "ADMIN",
     SUPER_ADMIN = "SUPER_ADMIN"
+}
+export declare enum AuthProvider {
+    LOCAL = "LOCAL",
+    GOOGLE = "GOOGLE",
+    FACEBOOK = "FACEBOOK",
+    APPLE = "APPLE",
+    GITHUB = "GITHUB"
 }
 export interface Product {
     id: string;
@@ -89,10 +109,8 @@ export declare enum PaymentStatus {
 export declare enum PaymentMethod {
     CREDIT_CARD = "CREDIT_CARD",
     DEBIT_CARD = "DEBIT_CARD",
-    CLICK = "CLICK",
-    PAYME = "PAYME",
-    UZCARD = "UZCARD",
-    HUMO = "HUMO",
+    PAYPAL = "PAYPAL",
+    STRIPE = "STRIPE",
     BANK_TRANSFER = "BANK_TRANSFER",
     CASH_ON_DELIVERY = "CASH_ON_DELIVERY"
 }
@@ -184,6 +202,21 @@ export interface JwtPayload {
 export interface TokenPair {
     accessToken: string;
     refreshToken: string;
+}
+export interface UserResponse {
+    id: string;
+    email: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    phoneNumber?: string;
+    role: UserRole;
+    isActive: boolean;
+    isEmailVerified: boolean;
+    isPhoneVerified: boolean;
+    authProvider: AuthProvider;
+    createdAt: Date;
+    updatedAt: Date;
 }
 export interface Event<T = any> {
     id: string;

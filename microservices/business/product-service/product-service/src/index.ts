@@ -8,19 +8,13 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
-import mongoose from 'mongoose';
 import swaggerUi from 'swagger-ui-express';
 import dotenv from 'dotenv';
 
 // Routes
 import productRoutes from './routes/product.routes';
 import categoryRoutes from './routes/category.routes';
-import inventoryRoutes from './routes/inventory.routes';
-import reviewRoutes from './routes/review.routes';
-import searchRoutes from './routes/search.routes';
 import healthRoutes from './routes/health.routes';
-import adminRoutes from './routes/admin.routes';
-import enhancedProductRoutes from './routes/enhanced-product.routes';
 
 // Middleware
 import { errorHandler } from './middleware/error.middleware';
@@ -31,6 +25,9 @@ import { securityMiddleware } from './middleware/security.middleware';
 import { logger } from './utils/logger';
 import { validateEnv } from './config/env.validation';
 import { swaggerSpec } from './config/swagger';
+
+// Database
+import db from './lib/database';
 
 // Load environment variables
 dotenv.config();
@@ -143,12 +140,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Routes
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/products', productRoutes);
-app.use('/api/v1/enhanced-products', enhancedProductRoutes);
 app.use('/api/v1/categories', categoryRoutes);
-app.use('/api/v1/inventory', inventoryRoutes);
-app.use('/api/v1/reviews', reviewRoutes);
-app.use('/api/v1/search', searchRoutes);
-app.use('/api/v1/admin', adminRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -161,82 +153,6 @@ app.use('*', (req, res) => {
 
 // Global error handler
 app.use(errorHandler);
-
-/**
- * Connect to MongoDB with professional error handling and retry logic
- */
-const connectDB = async () => {
-  const maxRetries = 5;
-  let retries = 0;
-  let connected = false;
-
-  const mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) {
-    logger.error('MONGODB_URI environment variable is not defined');
-    throw new Error('MONGODB_URI environment variable is required');
-  }
-
-  // Configure mongoose
-  mongoose.set('strictQuery', true);
-
-  // Set up connection monitoring
-  mongoose.connection.on('connected', () => {
-    logger.info('MongoDB connection established');
-    connected = true;
-  });
-
-  mongoose.connection.on('disconnected', () => {
-    if (connected) {
-      logger.warn('MongoDB connection lost. Attempting to reconnect...');
-    }
-  });
-
-  mongoose.connection.on('error', (err) => {
-    logger.error('MongoDB connection error', {
-      error: err.message,
-      stack: err.stack,
-    });
-  });
-
-  // Connection with retry logic
-  while (!connected && retries < maxRetries) {
-    try {
-      if (retries > 0) {
-        logger.info(`Retrying MongoDB connection (${retries}/${maxRetries})...`);
-        // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, retries - 1) * 1000));
-      }
-
-      await mongoose.connect(mongoUri, {
-        maxPoolSize: 10,
-        minPoolSize: 2,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-        family: 4, // Use IPv4, skip trying IPv6
-        connectTimeoutMS: 10000,
-        // Add heartbeat to detect connection issues early
-        heartbeatFrequencyMS: 10000,
-        // Don't buffer commands during reconnect
-        bufferCommands: false,
-      });
-
-      logger.info('✅ Successfully connected to MongoDB');
-      connected = true;
-    } catch (error) {
-      retries++;
-      logger.error(`❌ MongoDB connection attempt ${retries} failed:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        retryCount: retries,
-        maxRetries,
-      });
-
-      if (retries >= maxRetries) {
-        logger.error('Failed to connect to MongoDB after maximum retries');
-        throw new Error('Failed to connect to MongoDB after maximum retries');
-      }
-    }
-  }
-};
 
 /**
  * Professional graceful shutdown with controlled process termination
@@ -268,19 +184,10 @@ const gracefulShutdown = async (signal: string) => {
       });
     });
 
-    // Close MongoDB connection
-    if (mongoose.connection.readyState !== 0) {
-      logger.info('Closing MongoDB connection');
-      await mongoose.connection.close(false); // false means don't force close
-      logger.info('MongoDB connection closed successfully');
-    }
-
-    // Close any other connections (Redis, etc.)
-    // if (redisClient) {
-    //   logger.info('Closing Redis connection');
-    //   await redisClient.quit();
-    //   logger.info('Redis connection closed successfully');
-    // }
+    // Close database connection
+    logger.info('Closing database connection');
+    await db.disconnect();
+    logger.info('Database connection closed successfully');
 
     // Log successful shutdown
     logger.info('Graceful shutdown completed successfully', {
@@ -310,14 +217,11 @@ const gracefulShutdown = async (signal: string) => {
 // Start server
 const server = app.listen(PORT, async () => {
   try {
-    // Connect to database
-    await connectDB();
-
     logger.info(`🚀 Product Service running on port ${PORT}`);
     logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
     logger.info(`🔗 Health check: http://localhost:${PORT}/api/v1/health`);
-    logger.info(`💾 MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Not configured'}`);
+    logger.info(`💾 Database: Connected`);
   } catch (error) {
     logger.error('Failed to start Product Service:', error);
     process.exit(1);

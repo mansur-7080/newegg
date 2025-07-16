@@ -203,7 +203,7 @@ model ProductRelation {
   id              String   @id @default(uuid())
   productId       String
   relatedProductId String
-  relationType    String   @default("related") // related, upsell, cross-sell
+  relationType    String   @default("related") // related, upsell, cross_sell
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())
 
@@ -220,14 +220,16 @@ model ProductRelation {
 model SearchLog {
   id          String   @id @default(uuid())
   query       String
-  filters     Json?
-  results     Int
   userId      String?
+  sessionId   String?
   ipAddress   String?
   userAgent   String?
+  resultsCount Int
+  searchTime  Int      // milliseconds
   createdAt   DateTime @default(now())
 
   @@index([query])
+  @@index([userId])
   @@index([createdAt])
   @@map("search_logs")
 }
@@ -235,11 +237,11 @@ model SearchLog {
 model PriceHistory {
   id          String   @id @default(uuid())
   productId   String
-  variantId   String?
-  price       Decimal  @db.Decimal(10, 2)
-  currency    String   @default("USD")
-  changeType  String   // increase, decrease, set
+  oldPrice    Decimal  @db.Decimal(10, 2)
+  newPrice    Decimal  @db.Decimal(10, 2)
+  changeType  String   // increase, decrease, sale_start, sale_end
   reason      String?
+  changedBy   String?
   createdAt   DateTime @default(now())
 
   // Relations
@@ -250,12 +252,11 @@ model PriceHistory {
   @@map("price_history")
 }
 
-// Enums
 enum ProductStatus {
   DRAFT
   ACTIVE
-  INACTIVE
   ARCHIVED
+  INACTIVE
 }
 
 enum ProductType {
@@ -265,8 +266,8 @@ enum ProductType {
 }
 
 enum UserRole {
+  ADMIN
   CUSTOMER
   VENDOR
-  ADMIN
-  SUPER_ADMIN
+  STAFF
 }

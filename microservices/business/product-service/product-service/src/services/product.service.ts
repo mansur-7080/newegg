@@ -94,8 +94,8 @@ export class ProductService {
 
       if (search) {
         where.OR = [
-          { name: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
+          { name: { contains: search } },
+          { description: { contains: search } },
         ];
       }
 
@@ -205,11 +205,8 @@ export class ProductService {
 
       return this.mapProductToResponse(product);
     } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
       logger.error('Error in getProductById service', { error, id });
-      throw new AppError(500, 'Failed to get product');
+      throw error;
     }
   }
 
@@ -237,11 +234,8 @@ export class ProductService {
 
       return this.mapProductToResponse(product);
     } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
       logger.error('Error in getProductBySlug service', { error, slug });
-      throw new AppError(500, 'Failed to get product');
+      throw error;
     }
   }
 
@@ -250,85 +244,79 @@ export class ProductService {
    */
   async createProduct(data: CreateProductDto, userId: string): Promise<ProductResponse> {
     try {
-      // Validate category exists
-      const category = await this.categoryRepository.findUnique({
-        where: { id: data.categoryId },
-      });
-
-      if (!category) {
-        throw new AppError(400, 'Category not found');
-      }
-
-      // Generate slug
+      // Generate slug from name
       const slug = slugify(data.name, { lower: true, strict: true });
 
-      // Check if slug exists
-      const existingProductWithSlug = await this.productRepository.findUnique({
+      // Check if slug already exists
+      const existingProduct = await this.productRepository.findUnique({
         where: { slug },
       });
 
-      const finalSlug = existingProductWithSlug
-        ? `${slug}-${Date.now().toString().slice(-6)}`
-        : slug;
+      if (existingProduct) {
+        throw new AppError(400, 'Product with this name already exists');
+      }
 
-      // Create product with transaction
-      const product = await db.executeWithTransaction(async (prisma) => {
-        const newProduct = await prisma.product.create({
-          data: {
-            name: data.name,
-            slug: finalSlug,
-            description: data.description || null,
-            shortDescription: data.shortDescription || null,
-            sku: data.sku,
-            barcode: data.barcode || null,
-            brand: data.brand || null,
-            model: data.model || null,
-            weight: data.weight ? new Prisma.Decimal(data.weight) : null,
-            dimensions: data.dimensions || null,
-            price: new Prisma.Decimal(data.price),
-            comparePrice: data.comparePrice ? new Prisma.Decimal(data.comparePrice) : null,
-            costPrice: data.costPrice ? new Prisma.Decimal(data.costPrice) : null,
-            currency: data.currency || 'USD',
-            status: data.status
-              ? mapProductStatusToPrisma(data.status) || PrismaProductStatus.DRAFT
-              : PrismaProductStatus.DRAFT,
-            type: data.type
-              ? mapProductTypeToPrisma(data.type) || PrismaProductType.PHYSICAL
-              : PrismaProductType.PHYSICAL,
-            isActive: data.isActive !== undefined ? data.isActive : true,
-            isFeatured: data.isFeatured || false,
-            tags: data.tags || [],
-            attributes: data.attributes || null,
-            specifications: data.specifications || null,
-            warranty: data.warranty || null,
-            returnPolicy: data.returnPolicy || null,
-            shippingInfo: data.shippingInfo || null,
-            category: {
-              connect: { id: data.categoryId },
-            },
-            vendorId: data.vendorId || userId,
-          },
-          include: {
-            category: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        });
-
-        return newProduct;
+      // Check if SKU already exists
+      const existingSku = await this.productRepository.findUnique({
+        where: { sku: data.sku },
       });
 
+      if (existingSku) {
+        throw new AppError(400, 'Product with this SKU already exists');
+      }
+
+      // Create product data
+      const productData: Prisma.ProductCreateInput = {
+        name: data.name,
+        slug,
+        description: data.description,
+        shortDescription: data.shortDescription,
+        sku: data.sku,
+        barcode: data.barcode,
+        brand: data.brand,
+        model: data.model,
+        weight: data.weight,
+        dimensions: data.dimensions,
+        price: data.price,
+        comparePrice: data.comparePrice,
+        costPrice: data.costPrice,
+        currency: data.currency || 'USD',
+        status: data.status ? mapProductStatusToPrisma(data.status) : PrismaProductStatus.DRAFT,
+        type: data.type ? mapProductTypeToPrisma(data.type) : PrismaProductType.PHYSICAL,
+        isActive: data.isActive !== undefined ? data.isActive : true,
+        isFeatured: data.isFeatured || false,
+        tags: data.tags || [],
+        attributes: data.attributes,
+        specifications: data.specifications,
+        warranty: data.warranty,
+        returnPolicy: data.returnPolicy,
+        shippingInfo: data.shippingInfo,
+        category: {
+          connect: { id: data.categoryId },
+        },
+        vendor: userId ? {
+          connect: { id: userId },
+        } : undefined,
+      };
+
+      const product = await this.productRepository.create({
+        data: productData,
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      });
+
+      logger.info('Product created successfully', { productId: product.id, userId });
       return this.mapProductToResponse(product);
     } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
-      logger.error('Error in createProduct service', { error, data });
-      throw new AppError(500, 'Failed to create product');
+      logger.error('Error in createProduct service', { error, data, userId });
+      throw error;
     }
   }
 
@@ -341,7 +329,7 @@ export class ProductService {
     userId: string
   ): Promise<ProductResponse> {
     try {
-      // Check if product exists and belongs to the user
+      // Check if product exists
       const existingProduct = await this.productRepository.findUnique({
         where: { id },
       });
@@ -350,76 +338,67 @@ export class ProductService {
         throw new AppError(404, 'Product not found');
       }
 
-      // Only allow vendor/owner or admin to update
-      if (existingProduct.vendorId !== userId) {
-        // In a real app, you'd check if the user is an admin here
-        throw new AppError(403, 'You can only update your own products');
-      }
+      // Generate new slug if name is being updated
+      let slug = existingProduct.slug;
+      if (data.name && data.name !== existingProduct.name) {
+        slug = slugify(data.name, { lower: true, strict: true });
 
-      // If category is changing, validate it exists
-      if (data.categoryId && data.categoryId !== existingProduct.categoryId) {
-        const category = await this.categoryRepository.findUnique({
-          where: { id: data.categoryId },
+        // Check if new slug already exists
+        const slugExists = await this.productRepository.findUnique({
+          where: { slug },
         });
 
-        if (!category) {
-          throw new AppError(400, 'Category not found');
+        if (slugExists && slugExists.id !== id) {
+          throw new AppError(400, 'Product with this name already exists');
         }
       }
 
-      // Convert model enums to Prisma enums
-      const prismaStatus = data.status ? mapProductStatusToPrisma(data.status) : undefined;
-      const prismaType = data.type ? mapProductTypeToPrisma(data.type) : undefined;
+      // Check if SKU is being updated and already exists
+      if (data.sku && data.sku !== existingProduct.sku) {
+        const skuExists = await this.productRepository.findUnique({
+          where: { sku: data.sku },
+        });
 
-      // Prepare update data (only include defined properties)
-      const updateData: any = {};
-
-      if (data.name !== undefined) updateData.name = data.name;
-      if (data.description !== undefined) updateData.description = data.description;
-      if (data.shortDescription !== undefined) updateData.shortDescription = data.shortDescription;
-      if (data.sku !== undefined) updateData.sku = data.sku;
-      if (data.barcode !== undefined) updateData.barcode = data.barcode;
-      if (data.brand !== undefined) updateData.brand = data.brand;
-      if (data.model !== undefined) updateData.model = data.model;
-      if (data.dimensions !== undefined) updateData.dimensions = data.dimensions;
-      if (data.currency !== undefined) updateData.currency = data.currency;
-      if (prismaStatus !== undefined) updateData.status = prismaStatus;
-      if (prismaType !== undefined) updateData.type = prismaType;
-      if (data.isActive !== undefined) updateData.isActive = data.isActive;
-      if (data.isFeatured !== undefined) updateData.isFeatured = data.isFeatured;
-      if (data.tags !== undefined) updateData.tags = data.tags;
-      if (data.attributes !== undefined) updateData.attributes = data.attributes;
-      if (data.specifications !== undefined) updateData.specifications = data.specifications;
-      if (data.warranty !== undefined) updateData.warranty = data.warranty;
-      if (data.returnPolicy !== undefined) updateData.returnPolicy = data.returnPolicy;
-      if (data.shippingInfo !== undefined) updateData.shippingInfo = data.shippingInfo;
-
-      // Handle numeric conversions
-      if (data.price !== undefined) {
-        updateData.price = new Prisma.Decimal(data.price);
+        if (skuExists) {
+          throw new AppError(400, 'Product with this SKU already exists');
+        }
       }
 
-      if (data.comparePrice !== undefined) {
-        updateData.comparePrice =
-          data.comparePrice !== null ? new Prisma.Decimal(data.comparePrice) : null;
-      }
+      // Prepare update data
+      const updateData: Prisma.ProductUpdateInput = {
+        name: data.name,
+        slug,
+        description: data.description,
+        shortDescription: data.shortDescription,
+        sku: data.sku,
+        barcode: data.barcode,
+        brand: data.brand,
+        model: data.model,
+        weight: data.weight,
+        dimensions: data.dimensions,
+        price: data.price,
+        comparePrice: data.comparePrice,
+        costPrice: data.costPrice,
+        currency: data.currency,
+        status: data.status ? mapProductStatusToPrisma(data.status) : undefined,
+        type: data.type ? mapProductTypeToPrisma(data.type) : undefined,
+        isActive: data.isActive,
+        isFeatured: data.isFeatured,
+        tags: data.tags,
+        attributes: data.attributes,
+        specifications: data.specifications,
+        warranty: data.warranty,
+        returnPolicy: data.returnPolicy,
+        shippingInfo: data.shippingInfo,
+      };
 
-      if (data.costPrice !== undefined) {
-        updateData.costPrice = data.costPrice !== null ? new Prisma.Decimal(data.costPrice) : null;
-      }
-
-      if (data.weight !== undefined) {
-        updateData.weight = data.weight !== null ? new Prisma.Decimal(data.weight) : null;
-      }
-
-      // Handle category connection if needed
+      // Update category if provided
       if (data.categoryId) {
         updateData.category = {
           connect: { id: data.categoryId },
         };
       }
 
-      // Update the product
       const updatedProduct = await this.productRepository.update({
         where: { id },
         data: updateData,
@@ -434,22 +413,20 @@ export class ProductService {
         },
       });
 
+      logger.info('Product updated successfully', { productId: id, userId });
       return this.mapProductToResponse(updatedProduct);
     } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
-      logger.error('Error in updateProduct service', { error, id, data });
-      throw new AppError(500, 'Failed to update product');
+      logger.error('Error in updateProduct service', { error, id, data, userId });
+      throw error;
     }
   }
 
   /**
-   * Delete (soft-delete) a product
+   * Delete a product
    */
   async deleteProduct(id: string, userId: string): Promise<void> {
     try {
-      // Check if product exists and belongs to the user
+      // Check if product exists
       const existingProduct = await this.productRepository.findUnique({
         where: { id },
       });
@@ -458,51 +435,64 @@ export class ProductService {
         throw new AppError(404, 'Product not found');
       }
 
-      // Only allow vendor/owner or admin to delete
-      if (existingProduct.vendorId !== userId) {
-        // In a real app, you'd check if the user is an admin here
-        throw new AppError(403, 'You can only delete your own products');
-      }
-
-      // Soft delete by marking as inactive and updating status
+      // Soft delete by setting isActive to false
       await this.productRepository.update({
         where: { id },
-        data: {
-          isActive: false,
-          status: PrismaProductStatus.ARCHIVED,
-        },
+        data: { isActive: false },
       });
+
+      logger.info('Product deleted successfully', { productId: id, userId });
     } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
-      logger.error('Error in deleteProduct service', { error, id });
-      throw new AppError(500, 'Failed to delete product');
+      logger.error('Error in deleteProduct service', { error, id, userId });
+      throw error;
     }
   }
 
   /**
-   * Map database product to API response
+   * Map Prisma product to response format
    */
   private mapProductToResponse(product: any): ProductResponse {
     return {
-      ...product,
-      price:
-        product.price instanceof Prisma.Decimal
-          ? parseFloat(product.price.toString())
-          : product.price,
-      comparePrice:
-        product.comparePrice instanceof Prisma.Decimal
-          ? parseFloat(product.comparePrice.toString())
-          : product.comparePrice,
-      costPrice:
-        product.costPrice instanceof Prisma.Decimal
-          ? parseFloat(product.costPrice.toString())
-          : product.costPrice,
-      weight:
-        product.weight instanceof Prisma.Decimal
-          ? parseFloat(product.weight.toString())
-          : product.weight,
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      shortDescription: product.shortDescription,
+      sku: product.sku,
+      barcode: product.barcode,
+      brand: product.brand,
+      model: product.model,
+      weight: product.weight ? Number(product.weight) : null,
+      dimensions: product.dimensions,
+      price: Number(product.price),
+      comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+      costPrice: product.costPrice ? Number(product.costPrice) : null,
+      currency: product.currency,
+      status: product.status,
+      type: product.type,
+      isActive: product.isActive,
+      isFeatured: product.isFeatured,
+      isBestSeller: product.isBestSeller,
+      isNewArrival: product.isNewArrival,
+      isOnSale: product.isOnSale,
+      salePercentage: product.salePercentage,
+      saleStartDate: product.saleStartDate,
+      saleEndDate: product.saleEndDate,
+      metaTitle: product.metaTitle,
+      metaDescription: product.metaDescription,
+      metaKeywords: product.metaKeywords,
+      tags: product.tags,
+      attributes: product.attributes,
+      specifications: product.specifications,
+      warranty: product.warranty,
+      returnPolicy: product.returnPolicy,
+      shippingInfo: product.shippingInfo,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      publishedAt: product.publishedAt,
+      categoryId: product.categoryId,
+      vendorId: product.vendorId,
+      category: product.category,
     };
   }
 }
