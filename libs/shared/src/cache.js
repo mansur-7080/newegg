@@ -1,8 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cacheService = exports.CacheService = void 0;
-const tslib_1 = require("tslib");
-const ioredis_1 = tslib_1.__importDefault(require("ioredis"));
+const ioredis_1 = __importDefault(require("ioredis"));
 const logger_1 = require("./logging/logger");
 // Default cache configuration
 const defaultConfig = {
@@ -19,12 +21,9 @@ const defaultConfig = {
     commandTimeout: 5000,
 };
 class CacheService {
-    redis;
-    config;
-    stats;
-    isConnected = false;
-    connectionPromise = null;
     constructor(config = {}) {
+        this.isConnected = false;
+        this.connectionPromise = null;
         this.config = { ...defaultConfig, ...config };
         this.stats = {
             hits: 0,
@@ -430,4 +429,3 @@ exports.default = {
     CacheService,
     cacheService: exports.cacheService,
 };
-//# sourceMappingURL=cache.js.map

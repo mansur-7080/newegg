@@ -1,23 +1,36 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sqlInjectionProtection = exports.xssProtection = exports.securityHeaders = exports.schemas = exports.fileUploadSchema = exports.rateLimitSchema = exports.ValidationError = exports.validateRequest = exports.validateEnvironment = exports.sanitizeHtml = exports.sanitizeInput = exports.uuidSchema = exports.phoneSchema = exports.usernameSchema = exports.emailSchema = exports.apiGatewayEnvironmentSchema = exports.orderServiceEnvironmentSchema = exports.cartServiceEnvironmentSchema = exports.productServiceEnvironmentSchema = exports.userServiceEnvironmentSchema = exports.baseEnvironmentSchema = exports.databaseUrlSchema = exports.jwtSecretSchema = exports.passwordSchema = void 0;
-const tslib_1 = require("tslib");
 // Auth exports
-tslib_1.__exportStar(require("./auth"), exports);
+__exportStar(require("./auth"), exports);
 // Cache exports
-tslib_1.__exportStar(require("./cache"), exports);
+__exportStar(require("./cache"), exports);
 // Constants exports
-tslib_1.__exportStar(require("./constants"), exports);
+__exportStar(require("./constants"), exports);
 // Error exports
-tslib_1.__exportStar(require("./errors"), exports);
+__exportStar(require("./errors"), exports);
 // Logger exports
-tslib_1.__exportStar(require("./logger"), exports);
+__exportStar(require("./logger"), exports);
 // Messaging exports
-tslib_1.__exportStar(require("./messaging"), exports);
+__exportStar(require("./messaging"), exports);
 // Types exports
-tslib_1.__exportStar(require("./types"), exports);
+__exportStar(require("./types"), exports);
 // Utils exports
-tslib_1.__exportStar(require("./utils"), exports);
+__exportStar(require("./utils"), exports);
 // Explicitly export only needed validation and middleware symbols to avoid conflicts
 var validation_1 = require("./validation");
 Object.defineProperty(exports, "passwordSchema", { enumerable: true, get: function () { return validation_1.passwordSchema; } });
@@ -46,4 +59,3 @@ var security_1 = require("./middleware/security");
 Object.defineProperty(exports, "securityHeaders", { enumerable: true, get: function () { return security_1.securityHeaders; } });
 Object.defineProperty(exports, "xssProtection", { enumerable: true, get: function () { return security_1.xssProtection; } });
 Object.defineProperty(exports, "sqlInjectionProtection", { enumerable: true, get: function () { return security_1.sqlInjectionProtection; } });
-//# sourceMappingURL=index.js.map

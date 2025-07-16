@@ -42,4 +42,3 @@ var PaymentMethod;
     PaymentMethod["BANK_TRANSFER"] = "BANK_TRANSFER";
     PaymentMethod["CASH_ON_DELIVERY"] = "CASH_ON_DELIVERY";
 })(PaymentMethod || (exports.PaymentMethod = PaymentMethod = {}));
-//# sourceMappingURL=types.js.map

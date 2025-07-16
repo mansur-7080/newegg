@@ -3,9 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createError = exports.ErrorCode = exports.ServiceUnavailableError = exports.InternalServerError = exports.TooManyRequestsError = exports.ValidationError = exports.ConflictError = exports.NotFoundError = exports.ForbiddenError = exports.UnauthorizedError = exports.BadRequestError = exports.AppError = void 0;
 // Base error class
 class AppError extends Error {
-    statusCode;
-    isOperational;
-    code;
     constructor(message, statusCode, isOperational = true, code) {
         super(message);
         this.statusCode = statusCode;
@@ -47,7 +44,6 @@ class ConflictError extends AppError {
 }
 exports.ConflictError = ConflictError;
 class ValidationError extends AppError {
-    errors;
     constructor(errors, message = 'Validation failed') {
         super(message, 422, true, 'VALIDATION_ERROR');
         this.errors = errors;
@@ -122,4 +118,3 @@ const createError = (statusCode, message, code) => {
     }
 };
 exports.createError = createError;
-//# sourceMappingURL=errors.js.map

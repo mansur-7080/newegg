@@ -1,8 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.schemas = exports.fileUploadSchema = exports.rateLimitSchema = exports.ValidationError = exports.validateRequest = exports.validateEnvironment = exports.sanitizeHtml = exports.sanitizeInput = exports.uuidSchema = exports.phoneSchema = exports.usernameSchema = exports.emailSchema = exports.apiGatewayEnvironmentSchema = exports.orderServiceEnvironmentSchema = exports.cartServiceEnvironmentSchema = exports.productServiceEnvironmentSchema = exports.userServiceEnvironmentSchema = exports.baseEnvironmentSchema = exports.databaseUrlSchema = exports.jwtSecretSchema = exports.passwordSchema = void 0;
-const tslib_1 = require("tslib");
-const joi_1 = tslib_1.__importDefault(require("joi"));
+const joi_1 = __importDefault(require("joi"));
 // Enhanced password validation schema
 exports.passwordSchema = joi_1.default.string()
     .min(12)
@@ -169,7 +171,6 @@ const validateRequest = (schema, data) => {
 exports.validateRequest = validateRequest;
 // Custom validation error class
 class ValidationError extends Error {
-    details;
     constructor(message, details) {
         super(message);
         this.name = 'ValidationError';
@@ -217,4 +218,3 @@ exports.schemas = {
         apiGateway: exports.apiGatewayEnvironmentSchema,
     },
 };
-//# sourceMappingURL=validation.js.map

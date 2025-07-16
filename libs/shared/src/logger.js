@@ -1,8 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LogLevel = exports.createLogger = exports.logger = void 0;
-const tslib_1 = require("tslib");
-const pino_1 = tslib_1.__importDefault(require("pino"));
+const pino_1 = __importDefault(require("pino"));
 const isDevelopment = process.env['NODE_ENV'] === 'development';
 // Create logger instance
 exports.logger = (0, pino_1.default)({
@@ -47,4 +49,3 @@ exports.LogLevel = {
     ERROR: 'error',
     FATAL: 'fatal',
 };
-//# sourceMappingURL=logger.js.map

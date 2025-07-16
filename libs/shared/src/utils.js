@@ -154,4 +154,3 @@ const throttle = (func, limit) => {
     };
 };
 exports.throttle = throttle;
-//# sourceMappingURL=utils.js.map

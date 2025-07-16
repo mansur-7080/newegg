@@ -1,9 +1,11 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cache = exports.createSession = exports.generateOTP = exports.generateRandomToken = exports.isSeller = exports.isAdmin = exports.hasRole = exports.extractTokenFromHeader = exports.verifyToken = exports.verifyRefreshToken = exports.verifyAccessToken = exports.generateToken = exports.generateTokens = exports.comparePassword = exports.hashPassword = void 0;
-const tslib_1 = require("tslib");
-const jsonwebtoken_1 = tslib_1.__importDefault(require("jsonwebtoken"));
-const bcryptjs_1 = tslib_1.__importDefault(require("bcryptjs"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const types_1 = require("./types");
 const errors_1 = require("./errors");
 const constants_1 = require("./constants");
@@ -162,4 +164,3 @@ exports.cache = {
         await this.setex(key, ttl, JSON.stringify(value));
     },
 };
-//# sourceMappingURL=auth.js.map

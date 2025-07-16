@@ -3,328 +3,234 @@
  * UltraMarket Environment Validation
  * Comprehensive validation for all microservices environment variables
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.communicationSchema = exports.paymentSchema = exports.securitySchema = exports.databaseSchema = exports.baseSchema = exports.serviceSchemas = void 0;
+exports.externalServicesEnvironmentSchema = exports.messageQueueEnvironmentSchema = exports.jwtEnvironmentSchema = exports.redisEnvironmentSchema = exports.databaseEnvironmentSchema = exports.baseEnvironmentSchema = exports.serviceEnvironmentSchemas = void 0;
 exports.validateEnvironment = validateEnvironment;
-exports.checkProductionSecurity = checkProductionSecurity;
-exports.generateSecureSecret = generateSecureSecret;
-const tslib_1 = require("tslib");
-const joi_1 = tslib_1.__importDefault(require("joi"));
-const logger_1 = require("../logging/logger");
+exports.createEnvironmentValidator = createEnvironmentValidator;
+exports.validateEnvironmentOnStartup = validateEnvironmentOnStartup;
+const joi_1 = __importDefault(require("joi"));
 // Base environment schema
-const baseSchema = joi_1.default.object({
+const baseEnvironmentSchema = joi_1.default.object({
     NODE_ENV: joi_1.default.string()
-        .valid('development', 'production', 'test', 'staging')
+        .valid('development', 'staging', 'production', 'test')
         .default('development'),
-    SERVICE_NAME: joi_1.default.string().required().description('Service name for logging and monitoring'),
-    PORT: joi_1.default.number().port().default(3000),
-    LOG_LEVEL: joi_1.default.string().valid('error', 'warn', 'info', 'http', 'debug').default('info'),
+    PORT: joi_1.default.number().integer().min(1).max(65535).default(3000),
+    HOST: joi_1.default.string().hostname().default('localhost'),
+    API_VERSION: joi_1.default.string()
+        .pattern(/^v\d+$/)
+        .default('v1'),
+    LOG_LEVEL: joi_1.default.string().valid('error', 'warn', 'info', 'debug', 'trace').default('info'),
+    CORS_ORIGIN: joi_1.default.alternatives()
+        .try(joi_1.default.string().uri(), joi_1.default.string().valid('*'), joi_1.default.array().items(joi_1.default.string().uri()))
+        .default('*'),
+    RATE_LIMIT_WINDOW_MS: joi_1.default.number().integer().min(1000).default(900000), // 15 minutes
+    RATE_LIMIT_MAX_REQUESTS: joi_1.default.number().integer().min(1).default(100),
+    HEALTH_CHECK_TIMEOUT: joi_1.default.number().integer().min(1000).default(5000),
+    REQUEST_TIMEOUT: joi_1.default.number().integer().min(1000).default(30000),
 });
-exports.baseSchema = baseSchema;
-// Database schema
-const databaseSchema = joi_1.default.object({
-    // PostgreSQL
-    POSTGRES_HOST: joi_1.default.string().required(),
-    POSTGRES_PORT: joi_1.default.number().port().default(5432),
-    POSTGRES_DB: joi_1.default.string().required(),
-    POSTGRES_USER: joi_1.default.string().required(),
-    POSTGRES_PASSWORD: joi_1.default.string().min(8).required(),
-    POSTGRES_SSL: joi_1.default.boolean().default(false),
-    // MongoDB
-    MONGODB_HOST: joi_1.default.string().required(),
-    MONGODB_PORT: joi_1.default.number().port().default(27017),
-    MONGODB_DB: joi_1.default.string().required(),
-    MONGODB_USER: joi_1.default.string().required(),
-    MONGODB_PASSWORD: joi_1.default.string().min(8).required(),
-    // Redis
-    REDIS_HOST: joi_1.default.string().required(),
-    REDIS_PORT: joi_1.default.number().port().default(6379),
-    REDIS_PASSWORD: joi_1.default.string().min(8).required(),
-    REDIS_DB: joi_1.default.number().min(0).default(0),
+exports.baseEnvironmentSchema = baseEnvironmentSchema;
+// Database environment schema
+const databaseEnvironmentSchema = joi_1.default.object({
+    DATABASE_URL: joi_1.default.string().uri().required().description('PostgreSQL connection string'),
+    DATABASE_HOST: joi_1.default.string().hostname().default('localhost'),
+    DATABASE_PORT: joi_1.default.number().integer().min(1).max(65535).default(5432),
+    DATABASE_NAME: joi_1.default.string().alphanum().min(1).max(63).required(),
+    DATABASE_USER: joi_1.default.string().min(1).required(),
+    DATABASE_PASSWORD: joi_1.default.string().min(1).required(),
+    DATABASE_SSL: joi_1.default.boolean().default(false),
+    DATABASE_POOL_MIN: joi_1.default.number().integer().min(0).default(2),
+    DATABASE_POOL_MAX: joi_1.default.number().integer().min(1).default(10),
+    DATABASE_TIMEOUT: joi_1.default.number().integer().min(1000).default(60000),
 });
-exports.databaseSchema = databaseSchema;
-// Security schema
-const securitySchema = joi_1.default.object({
-    JWT_SECRET: joi_1.default.string().min(32).required(),
-    JWT_REFRESH_SECRET: joi_1.default.string().min(32).required(),
-    JWT_EXPIRES_IN: joi_1.default.string().default('15m'),
-    JWT_REFRESH_EXPIRES_IN: joi_1.default.string().default('7d'),
-    ENCRYPTION_KEY: joi_1.default.string().length(32).required(),
-    HASH_SALT_ROUNDS: joi_1.default.number().min(10).max(15).default(12),
-    API_KEY_SECRET: joi_1.default.string().min(32).required(),
-    WEBHOOK_SECRET: joi_1.default.string().min(32).required(),
+exports.databaseEnvironmentSchema = databaseEnvironmentSchema;
+// Redis environment schema
+const redisEnvironmentSchema = joi_1.default.object({
+    REDIS_URL: joi_1.default.string().uri().optional().description('Redis connection string'),
+    REDIS_HOST: joi_1.default.string().hostname().default('localhost'),
+    REDIS_PORT: joi_1.default.number().integer().min(1).max(65535).default(6379),
+    REDIS_PASSWORD: joi_1.default.string().optional(),
+    REDIS_DB: joi_1.default.number().integer().min(0).max(15).default(0),
+    REDIS_TTL: joi_1.default.number().integer().min(1).default(3600), // 1 hour
+    REDIS_MAX_RETRIES: joi_1.default.number().integer().min(0).default(3),
+    REDIS_RETRY_DELAY: joi_1.default.number().integer().min(100).default(1000),
 });
-exports.securitySchema = securitySchema;
-// Payment gateway schema (Uzbekistan)
-const paymentSchema = joi_1.default.object({
-    // Click
-    CLICK_SERVICE_ID: joi_1.default.string().required(),
-    CLICK_MERCHANT_ID: joi_1.default.string().required(),
-    CLICK_SECRET_KEY: joi_1.default.string().required(),
-    CLICK_USER_ID: joi_1.default.string().required(),
-    // Payme
-    PAYME_MERCHANT_ID: joi_1.default.string().required(),
-    PAYME_SECRET_KEY: joi_1.default.string().required(),
-    PAYME_ENDPOINT_PASSWORD: joi_1.default.string().required(),
-    // UzCard
-    UZCARD_MERCHANT_ID: joi_1.default.string().required(),
-    UZCARD_SECRET_KEY: joi_1.default.string().required(),
+exports.redisEnvironmentSchema = redisEnvironmentSchema;
+// JWT environment schema
+const jwtEnvironmentSchema = joi_1.default.object({
+    JWT_SECRET: joi_1.default.string().min(32).required().description('JWT signing secret'),
+    JWT_REFRESH_SECRET: joi_1.default.string().min(32).required().description('JWT refresh token secret'),
+    JWT_EXPIRES_IN: joi_1.default.string()
+        .pattern(/^\d+[smhd]$/)
+        .default('1h'),
+    JWT_REFRESH_EXPIRES_IN: joi_1.default.string()
+        .pattern(/^\d+[smhd]$/)
+        .default('7d'),
+    JWT_ALGORITHM: joi_1.default.string()
+        .valid('HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512')
+        .default('HS256'),
+    JWT_ISSUER: joi_1.default.string().default('ultramarket'),
+    JWT_AUDIENCE: joi_1.default.string().default('ultramarket-api'),
 });
-exports.paymentSchema = paymentSchema;
-// Communication schema
-const communicationSchema = joi_1.default.object({
-    // SMS
-    ESKIZ_EMAIL: joi_1.default.string().email().required(),
-    ESKIZ_PASSWORD: joi_1.default.string().required(),
-    PLAYMOBILE_LOGIN: joi_1.default.string().required(),
-    PLAYMOBILE_PASSWORD: joi_1.default.string().required(),
-    // Email
-    SMTP_HOST: joi_1.default.string().required(),
-    SMTP_PORT: joi_1.default.number().port().default(587),
-    SMTP_USER: joi_1.default.string().required(),
-    SMTP_PASSWORD: joi_1.default.string().required(),
-    SMTP_FROM: joi_1.default.string().email().required(),
+exports.jwtEnvironmentSchema = jwtEnvironmentSchema;
+// Message Queue environment schema
+const messageQueueEnvironmentSchema = joi_1.default.object({
+    RABBITMQ_URL: joi_1.default.string().uri().required().description('RabbitMQ connection string'),
+    RABBITMQ_HOST: joi_1.default.string().hostname().default('localhost'),
+    RABBITMQ_PORT: joi_1.default.number().integer().min(1).max(65535).default(5672),
+    RABBITMQ_USER: joi_1.default.string().default('guest'),
+    RABBITMQ_PASSWORD: joi_1.default.string().default('guest'),
+    RABBITMQ_VHOST: joi_1.default.string().default('/'),
+    RABBITMQ_PREFETCH: joi_1.default.number().integer().min(1).default(10),
+    RABBITMQ_RETRY_ATTEMPTS: joi_1.default.number().integer().min(0).default(3),
+    RABBITMQ_RETRY_DELAY: joi_1.default.number().integer().min(100).default(1000),
 });
-exports.communicationSchema = communicationSchema;
+exports.messageQueueEnvironmentSchema = messageQueueEnvironmentSchema;
+// External services environment schema
+const externalServicesEnvironmentSchema = joi_1.default.object({
+    // Payment gateway
+    STRIPE_SECRET_KEY: joi_1.default.string().pattern(/^sk_/).optional(),
+    STRIPE_WEBHOOK_SECRET: joi_1.default.string().optional(),
+    PAYPAL_CLIENT_ID: joi_1.default.string().optional(),
+    PAYPAL_CLIENT_SECRET: joi_1.default.string().optional(),
+    // Email service
+    SMTP_HOST: joi_1.default.string().hostname().optional(),
+    SMTP_PORT: joi_1.default.number().integer().valid(25, 465, 587, 2525).optional(),
+    SMTP_USER: joi_1.default.string().email().optional(),
+    SMTP_PASSWORD: joi_1.default.string().optional(),
+    SMTP_FROM: joi_1.default.string().email().optional(),
+    // AWS services
+    AWS_ACCESS_KEY_ID: joi_1.default.string().optional(),
+    AWS_SECRET_ACCESS_KEY: joi_1.default.string().optional(),
+    AWS_REGION: joi_1.default.string().optional(),
+    AWS_S3_BUCKET: joi_1.default.string().optional(),
+    // Elasticsearch
+    ELASTICSEARCH_URL: joi_1.default.string().uri().optional(),
+    ELASTICSEARCH_USERNAME: joi_1.default.string().optional(),
+    ELASTICSEARCH_PASSWORD: joi_1.default.string().optional(),
+});
+exports.externalServicesEnvironmentSchema = externalServicesEnvironmentSchema;
 // Service-specific schemas
-exports.serviceSchemas = {
-    // Auth Service
-    'auth-service': baseSchema
-        .concat(databaseSchema)
-        .concat(securitySchema)
-        .keys({
-        BCRYPT_ROUNDS: joi_1.default.number().min(10).max(15).default(12),
-        PASSWORD_RESET_EXPIRES: joi_1.default.string().default('1h'),
-        EMAIL_VERIFICATION_EXPIRES: joi_1.default.string().default('24h'),
-    }),
-    // User Service
-    'user-service': baseSchema.concat(databaseSchema).keys({
-        USER_AVATAR_MAX_SIZE: joi_1.default.number().default(5242880), // 5MB
-        USER_AVATAR_ALLOWED_TYPES: joi_1.default.string().default('jpg,jpeg,png,gif'),
-    }),
-    // Product Service
-    'product-service': baseSchema.concat(databaseSchema).keys({
-        PRODUCT_IMAGE_MAX_SIZE: joi_1.default.number().default(10485760), // 10MB
-        PRODUCT_IMAGE_ALLOWED_TYPES: joi_1.default.string().default('jpg,jpeg,png,gif,webp'),
-        ELASTICSEARCH_HOST: joi_1.default.string().required(),
-        ELASTICSEARCH_PORT: joi_1.default.number().port().default(9200),
-        ELASTICSEARCH_INDEX: joi_1.default.string().required(),
-    }),
-    // Cart Service
-    'cart-service': baseSchema.concat(databaseSchema).keys({
-        CART_EXPIRY_HOURS: joi_1.default.number().min(1).max(168).default(24), // 1-168 hours
-        CART_MAX_ITEMS: joi_1.default.number().min(1).max(100).default(50),
-    }),
-    // Order Service
-    'order-service': baseSchema
-        .concat(databaseSchema)
-        .concat(paymentSchema)
-        .keys({
-        ORDER_EXPIRY_HOURS: joi_1.default.number().min(1).max(72).default(24),
-        ORDER_MAX_ITEMS: joi_1.default.number().min(1).max(100).default(50),
-    }),
-    // Payment Service
-    'payment-service': baseSchema
-        .concat(databaseSchema)
-        .concat(paymentSchema)
-        .keys({
-        PAYMENT_TIMEOUT_SECONDS: joi_1.default.number().min(30).max(300).default(120),
-        PAYMENT_RETRY_ATTEMPTS: joi_1.default.number().min(1).max(5).default(3),
-    }),
-    // Notification Service
-    'notification-service': baseSchema
-        .concat(databaseSchema)
-        .concat(communicationSchema)
-        .keys({
-        NOTIFICATION_QUEUE_SIZE: joi_1.default.number().min(100).max(10000).default(1000),
-        NOTIFICATION_RETRY_ATTEMPTS: joi_1.default.number().min(1).max(10).default(3),
-    }),
-    // Search Service
-    'search-service': baseSchema.concat(databaseSchema).keys({
-        ELASTICSEARCH_HOST: joi_1.default.string().required(),
-        ELASTICSEARCH_PORT: joi_1.default.number().port().default(9200),
-        ELASTICSEARCH_USERNAME: joi_1.default.string().default('elastic'),
-        ELASTICSEARCH_PASSWORD: joi_1.default.string().required(),
-        SEARCH_RESULTS_LIMIT: joi_1.default.number().min(10).max(100).default(20),
-    }),
-    // File Service
-    'file-service': baseSchema.concat(databaseSchema).keys({
-        FILE_STORAGE_TYPE: joi_1.default.string().valid('local', 's3', 'minio').default('local'),
-        FILE_MAX_SIZE: joi_1.default.number().min(1048576).max(104857600).default(10485760), // 1MB - 100MB
-        ALLOWED_FILE_TYPES: joi_1.default.string().default('jpg,jpeg,png,gif,pdf,doc,docx'),
-        // S3 Configuration
-        AWS_ACCESS_KEY_ID: joi_1.default.when('FILE_STORAGE_TYPE', {
-            is: 's3',
-            then: joi_1.default.string().required(),
-            otherwise: joi_1.default.string().optional(),
-        }),
-        AWS_SECRET_ACCESS_KEY: joi_1.default.when('FILE_STORAGE_TYPE', {
-            is: 's3',
-            then: joi_1.default.string().required(),
-            otherwise: joi_1.default.string().optional(),
-        }),
-        AWS_REGION: joi_1.default.when('FILE_STORAGE_TYPE', {
-            is: 's3',
-            then: joi_1.default.string().required(),
-            otherwise: joi_1.default.string().optional(),
-        }),
-        AWS_S3_BUCKET: joi_1.default.when('FILE_STORAGE_TYPE', {
-            is: 's3',
-            then: joi_1.default.string().required(),
-            otherwise: joi_1.default.string().optional(),
-        }),
-        // MinIO Configuration
-        MINIO_ENDPOINT: joi_1.default.when('FILE_STORAGE_TYPE', {
-            is: 'minio',
-            then: joi_1.default.string().required(),
-            otherwise: joi_1.default.string().optional(),
-        }),
-        MINIO_ACCESS_KEY: joi_1.default.when('FILE_STORAGE_TYPE', {
-            is: 'minio',
-            then: joi_1.default.string().required(),
-            otherwise: joi_1.default.string().optional(),
-        }),
-        MINIO_SECRET_KEY: joi_1.default.when('FILE_STORAGE_TYPE', {
-            is: 'minio',
-            then: joi_1.default.string().required(),
-            otherwise: joi_1.default.string().optional(),
-        }),
-    }),
-    // API Gateway
-    'api-gateway': baseSchema.keys({
-        RATE_LIMIT_WINDOW_MS: joi_1.default.number().min(60000).max(3600000).default(900000), // 1min - 1hour
-        RATE_LIMIT_MAX_REQUESTS: joi_1.default.number().min(10).max(10000).default(100),
-        CORS_ORIGIN: joi_1.default.string().required(),
-        CORS_METHODS: joi_1.default.string().default('GET,POST,PUT,DELETE,OPTIONS'),
-        CORS_HEADERS: joi_1.default.string().default('Content-Type,Authorization,X-Requested-With'),
-        // Service URLs
-        AUTH_SERVICE_URL: joi_1.default.string().uri().required(),
-        USER_SERVICE_URL: joi_1.default.string().uri().required(),
-        PRODUCT_SERVICE_URL: joi_1.default.string().uri().required(),
-        CART_SERVICE_URL: joi_1.default.string().uri().required(),
-        ORDER_SERVICE_URL: joi_1.default.string().uri().required(),
-        PAYMENT_SERVICE_URL: joi_1.default.string().uri().required(),
-        NOTIFICATION_SERVICE_URL: joi_1.default.string().uri().required(),
-        SEARCH_SERVICE_URL: joi_1.default.string().uri().required(),
-        FILE_SERVICE_URL: joi_1.default.string().uri().required(),
-    }),
+exports.serviceEnvironmentSchemas = {
+    'auth-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema)
+        .concat(jwtEnvironmentSchema),
+    'user-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema),
+    'product-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema)
+        .concat(externalServicesEnvironmentSchema.fork(['ELASTICSEARCH_URL', 'ELASTICSEARCH_USERNAME', 'ELASTICSEARCH_PASSWORD'], (schema) => schema)),
+    'order-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema),
+    'payment-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema)
+        .concat(externalServicesEnvironmentSchema.fork(['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET'], (schema) => schema)),
+    'cart-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema),
+    'notification-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema)
+        .concat(externalServicesEnvironmentSchema.fork(['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM'], (schema) => schema)),
+    'search-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema)
+        .concat(externalServicesEnvironmentSchema.fork(['ELASTICSEARCH_URL', 'ELASTICSEARCH_USERNAME', 'ELASTICSEARCH_PASSWORD'], (schema) => schema)),
+    'api-gateway': baseEnvironmentSchema.concat(redisEnvironmentSchema).concat(jwtEnvironmentSchema),
+    'pc-builder-service': baseEnvironmentSchema
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema),
+    'dynamic-pricing-service': baseEnvironmentSchema
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema),
+    'analytics-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema),
+    'inventory-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema),
+    'review-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema),
+    'shipping-service': baseEnvironmentSchema
+        .concat(databaseEnvironmentSchema)
+        .concat(redisEnvironmentSchema)
+        .concat(messageQueueEnvironmentSchema),
 };
 // Environment validation function
-function validateEnvironment(serviceName, customSchema) {
-    try {
-        const schema = customSchema || exports.serviceSchemas[serviceName];
-        if (!schema) {
-            logger_1.logger.warn(`No validation schema found for service: ${serviceName}`);
-            return;
-        }
-        const { error, value } = schema.validate(process.env, {
-            allowUnknown: true,
-            abortEarly: false,
-            stripUnknown: false,
-        });
+function validateEnvironment(serviceName, env = process.env) {
+    const schema = exports.serviceEnvironmentSchemas[serviceName];
+    if (!schema) {
+        return {
+            error: `Unknown service: ${serviceName}. Available services: ${Object.keys(exports.serviceEnvironmentSchemas).join(', ')}`,
+        };
+    }
+    const { error, value } = schema.validate(env, {
+        allowUnknown: true,
+        stripUnknown: false,
+        abortEarly: false,
+    });
+    if (error) {
+        const errorMessage = error.details
+            .map((detail) => `${detail.path.join('.')}: ${detail.message}`)
+            .join(', ');
+        return {
+            error: `Environment validation failed for ${serviceName}: ${errorMessage}`,
+        };
+    }
+    return { value };
+}
+// Environment validation middleware
+function createEnvironmentValidator(serviceName) {
+    return (req, res, next) => {
+        const { error } = validateEnvironment(serviceName);
         if (error) {
-            const errorMessages = error.details.map((detail) => ({
-                field: detail.path.join('.'),
-                message: detail.message,
-                value: detail.context?.value,
-            }));
-            logger_1.logger.error('Environment validation failed', {
-                service: serviceName,
-                errors: errorMessages,
-            });
-            console.error('\n🚨 Environment Validation Errors:');
-            console.error('=====================================');
-            errorMessages.forEach(({ field, message, value }) => {
-                console.error(`❌ ${field}: ${message}`);
-                if (value !== undefined) {
-                    console.error(`   Current value: ${value}`);
-                }
-            });
-            console.error('=====================================\n');
+            console.error(`Environment validation error: ${error}`);
             process.exit(1);
         }
-        // Update process.env with validated values
-        Object.assign(process.env, value);
-        logger_1.logger.info('Environment validation passed', {
-            service: serviceName,
-            environment: process.env.NODE_ENV,
-            validatedFields: Object.keys(value).length,
-        });
-    }
-    catch (validationError) {
-        logger_1.logger.error('Environment validation error', {
-            service: serviceName,
-            error: validationError instanceof Error ? validationError.message : 'Unknown error',
-        });
-        console.error('\n🚨 Environment Validation System Error:');
-        console.error('======================================');
-        console.error(validationError);
-        console.error('======================================\n');
+        next();
+    };
+}
+// Validate environment on import
+function validateEnvironmentOnStartup(serviceName) {
+    const { error, value } = validateEnvironment(serviceName);
+    if (error) {
+        console.error(`🚨 Environment validation failed for ${serviceName}:`);
+        console.error(error);
         process.exit(1);
     }
-}
-// Production environment checker
-function checkProductionSecurity() {
-    if (process.env.NODE_ENV !== 'production') {
-        return;
-    }
-    const securityChecks = [
-        {
-            name: 'Default passwords',
-            check: () => {
-                const defaultPasswords = [
-                    'password',
-                    'admin',
-                    '123456',
-                    'ultramarket123',
-                    'CHANGE_ME_IN_PRODUCTION',
-                ];
-                const envVars = Object.entries(process.env);
-                const violations = envVars.filter(([key, value]) => key.toLowerCase().includes('password') &&
-                    defaultPasswords.some((defaultPwd) => value?.includes(defaultPwd)));
-                return violations.length === 0;
-            },
-        },
-        {
-            name: 'Strong JWT secrets',
-            check: () => {
-                const jwtSecret = process.env.JWT_SECRET;
-                const refreshSecret = process.env.JWT_REFRESH_SECRET;
-                return jwtSecret && jwtSecret.length >= 32 && refreshSecret && refreshSecret.length >= 32;
-            },
-        },
-        {
-            name: 'SSL/TLS enabled',
-            check: () => {
-                return process.env.POSTGRES_SSL === 'true' || process.env.POSTGRES_SSL === 'require';
-            },
-        },
-        {
-            name: 'Secure log level',
-            check: () => {
-                const logLevel = process.env.LOG_LEVEL;
-                return logLevel === 'warn' || logLevel === 'error';
-            },
-        },
-    ];
-    const failedChecks = securityChecks.filter((check) => !check.check());
-    if (failedChecks.length > 0) {
-        logger_1.logger.error('Production security checks failed', {
-            failedChecks: failedChecks.map((check) => check.name),
+    console.log(`✅ Environment validation passed for ${serviceName}`);
+    // Log important configuration in development
+    if (process.env.NODE_ENV === 'development') {
+        console.log('📋 Configuration:', {
+            NODE_ENV: value?.NODE_ENV,
+            PORT: value?.PORT,
+            HOST: value?.HOST,
+            API_VERSION: value?.API_VERSION,
+            LOG_LEVEL: value?.LOG_LEVEL,
         });
-        console.error('\n🚨 Production Security Violations:');
-        console.error('==================================');
-        failedChecks.forEach((check) => {
-            console.error(`❌ ${check.name}`);
-        });
-        console.error('==================================\n');
-        process.exit(1);
     }
-    logger_1.logger.info('Production security checks passed');
 }
-// Helper function to generate strong secrets
-function generateSecureSecret(length = 32) {
-    const crypto = require('crypto');
-    return crypto.randomBytes(length).toString('hex');
-}
-//# sourceMappingURL=environment.js.map
+// Default export
+exports.default = {
+    validateEnvironment,
+    validateEnvironmentOnStartup,
+    createEnvironmentValidator,
+    serviceEnvironmentSchemas: exports.serviceEnvironmentSchemas,
+};
