@@ -10,13 +10,17 @@ import {
   SettingOutlined,
   LogoutOutlined,
 } from '@ant-design/icons';
-import { useNavigate, Outlet } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeProvider';
 
 const { Header, Sider, Content } = Layout;
 
-const AdminLayout: React.FC = () => {
+interface AdminLayoutProps {
+  children: React.ReactNode;
+}
+
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -137,7 +141,7 @@ const AdminLayout: React.FC = () => {
             borderRadius: 8,
           }}
         >
-          <Outlet />
+          {children}
         </Content>
       </Layout>
     </Layout>

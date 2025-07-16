@@ -35,7 +35,7 @@ const ProductListPage: React.FC = () => {
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
     sortBy: searchParams.get('sortBy') || 'name',
-    sortOrder: searchParams.get('sortOrder') || 'asc',
+    sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc',
     availability: searchParams.get('availability') === 'true',
     ratings: searchParams.get('ratings') || '',
   });

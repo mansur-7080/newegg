@@ -1,10 +1,14 @@
 import React from 'react';
 import { Layout, Card } from 'antd';
-import { Outlet } from 'react-router-dom';
+// import { Outlet } from 'react-router-dom';
 
 const { Content } = Layout;
 
-const AuthLayout: React.FC = () => {
+interface AuthLayoutProps {
+  children: React.ReactNode;
+}
+
+const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
     <Layout style={{ 
       minHeight: '100vh',
@@ -42,7 +46,7 @@ const AuthLayout: React.FC = () => {
               Admin Panel
             </p>
           </div>
-          <Outlet />
+          {children}
         </Card>
       </Content>
     </Layout>

@@ -316,6 +316,50 @@ class ApiService {
     const response = await apiClient.get('/health');
     return response.data;
   }
+
+  // Tavsiya qilingan mahsulotlar
+  async getRecommendedProducts(userId?: string): Promise<ApiResponse<Product[]>> {
+    const params = userId ? { userId } : {};
+    const response = await apiClient.get('/api/products/recommended', { params });
+    return response.data;
+  }
+
+  // Kategoriya bo'yicha mashhur mahsulotlar
+  async getPopularInCategory(category: string, limit: number = 10): Promise<ApiResponse<Product[]>> {
+    const response = await apiClient.get(`/api/products/popular/${category}`, {
+      params: { limit }
+    });
+    return response.data;
+  }
+
+  // PC qurish uchun mos komponentlar
+  async fetchCompatibleComponents(componentType: string, selectedComponents: any[] = []): Promise<ApiResponse<any[]>> {
+    const response = await apiClient.post('/api/pc-builder/compatible-components', {
+      componentType,
+      selectedComponents
+    });
+    return response.data;
+  }
+
+  // PC assembly validatsiyasi
+  async validateBuild(components: any[]): Promise<ApiResponse<{ isValid: boolean; issues: string[] }>> {
+    const response = await apiClient.post('/api/pc-builder/validate', {
+      components
+    });
+    return response.data;
+  }
+
+  // PC qurish saqlash
+  async saveBuild(buildData: any): Promise<ApiResponse<any>> {
+    const response = await apiClient.post('/api/pc-builder/builds', buildData);
+    return response.data;
+  }
+
+  // Foydalanuvchi PC qurilmalari
+  async fetchUserBuilds(userId: string): Promise<ApiResponse<any[]>> {
+    const response = await apiClient.get(`/api/pc-builder/builds/user/${userId}`);
+    return response.data;
+  }
 }
 
 // Export singleton instance
@@ -324,3 +368,9 @@ export default apiService;
 
 // Export axios instance for custom requests
 export { apiClient };
+
+// Funksion export-lar (eski kod bilan compatibility uchun)
+export const fetchCompatibleComponents = apiService.fetchCompatibleComponents.bind(apiService);
+export const validateBuild = apiService.validateBuild.bind(apiService);
+export const saveBuild = apiService.saveBuild.bind(apiService);
+export const fetchUserBuilds = apiService.fetchUserBuilds.bind(apiService);
