@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ErrorCode = exports.ServiceUnavailableError = exports.InternalServerError = exports.TooManyRequestsError = exports.ValidationError = exports.ConflictError = exports.NotFoundError = exports.ForbiddenError = exports.UnauthorizedError = exports.BadRequestError = exports.AppError = void 0;
-exports.createError = createError;
+exports.createError = exports.ErrorCode = exports.ServiceUnavailableError = exports.InternalServerError = exports.TooManyRequestsError = exports.ValidationError = exports.ConflictError = exports.NotFoundError = exports.ForbiddenError = exports.UnauthorizedError = exports.BadRequestError = exports.AppError = void 0;
 // Base error class
 class AppError extends Error {
     statusCode;
@@ -16,31 +15,6 @@ class AppError extends Error {
     }
 }
 exports.AppError = AppError;
-// Factory function to create errors
-function createError(statusCode, message, code) {
-    switch (statusCode) {
-        case 400:
-            return new BadRequestError(message, code);
-        case 401:
-            return new UnauthorizedError(message, code);
-        case 403:
-            return new ForbiddenError(message, code);
-        case 404:
-            return new NotFoundError(message, code);
-        case 409:
-            return new ConflictError(message, code);
-        case 422:
-            return new ValidationError({}, message);
-        case 429:
-            return new TooManyRequestsError(message, code);
-        case 500:
-            return new InternalServerError(message, code);
-        case 503:
-            return new ServiceUnavailableError(message, code);
-        default:
-            return new AppError(message, statusCode, true, code);
-    }
-}
 // Common error classes
 class BadRequestError extends AppError {
     constructor(message = 'Bad Request', code) {
@@ -122,4 +96,30 @@ exports.ErrorCode = {
     RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
     SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
 };
+// Utility function to create errors with status codes
+const createError = (statusCode, message, code) => {
+    switch (statusCode) {
+        case 400:
+            return new BadRequestError(message, code);
+        case 401:
+            return new UnauthorizedError(message, code);
+        case 403:
+            return new ForbiddenError(message, code);
+        case 404:
+            return new NotFoundError(message, code);
+        case 409:
+            return new ConflictError(message, code);
+        case 422:
+            return new ValidationError({}, message);
+        case 429:
+            return new TooManyRequestsError(message, code);
+        case 500:
+            return new InternalServerError(message, code);
+        case 503:
+            return new ServiceUnavailableError(message, code);
+        default:
+            return new AppError(message, statusCode, true, code);
+    }
+};
+exports.createError = createError;
 //# sourceMappingURL=errors.js.map

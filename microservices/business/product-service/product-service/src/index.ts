@@ -166,6 +166,11 @@ app.use(errorHandler);
  * Connect to MongoDB with professional error handling and retry logic
  */
 const connectDB = async () => {
+  // Temporarily disabled for testing without MongoDB
+  logger.info('MongoDB connection temporarily disabled for testing');
+  return Promise.resolve();
+
+  /*
   const maxRetries = 5;
   let retries = 0;
   let connected = false;
@@ -236,6 +241,7 @@ const connectDB = async () => {
       }
     }
   }
+  */
 };
 
 /**
