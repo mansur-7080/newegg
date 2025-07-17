@@ -1,4 +1,4 @@
-import { Product, Category, Review, IProduct, ICategory, IReview } from '../models/Product';
+import { Product, Category, Review, IProduct, ICategory, IReview } from '../models';
 import { logger } from '../shared';
 import mongoose from 'mongoose';
 

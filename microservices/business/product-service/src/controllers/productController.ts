@@ -30,6 +30,32 @@ export class ProductController {
     }
   };
 
+  // Get all products with pagination and filters
+  getProducts = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { page = 1, limit = 10 } = req.query;
+      const products = await this.productService.getProducts({
+        page: Number(page),
+        limit: Number(limit),
+        filters: {},
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      });
+
+      res.status(200).json({
+        success: true,
+        data: products,
+      });
+    } catch (error) {
+      logger.error('Failed to get products', { error });
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get products',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  };
+
   getProduct = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
@@ -383,6 +409,84 @@ export class ProductController {
       res.status(500).json({
         success: false,
         message: error.message || 'Error getting statistics',
+      });
+    }
+  };
+
+  // Alias for getProduct to match route naming
+  getProductById = this.getProduct;
+
+  // Get products by category
+  getProductsByCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { category } = req.params;
+      const { page = 1, limit = 10 } = req.query;
+      const result = await this.productService.getProductsByCategory(
+        category,
+        Number(page),
+        Number(limit)
+      );
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      logger.error('Failed to get products by category', { category: req.params.category, error });
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get products by category',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  };
+
+  // Get all brands
+  getBrands = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const brands = await this.productService.getBrands();
+
+      res.status(200).json({
+        success: true,
+        data: { brands },
+      });
+    } catch (error) {
+      logger.error('Failed to get brands', { error });
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get brands',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  };
+
+  // Update product stock
+  updateProductStock = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { quantity, operation = 'add' } = req.body;
+
+      if (typeof quantity !== 'number') {
+        res.status(400).json({
+          success: false,
+          message: 'Quantity must be a number',
+        });
+        return;
+      }
+
+      const result = await this.productService.updateStock(id, quantity, operation);
+
+      res.status(200).json({
+        success: true,
+        data: { product: result },
+        message: 'Stock updated successfully',
+      });
+    } catch (error) {
+      logger.error('Failed to update product stock', { id: req.params.id, error });
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update product stock',
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   };

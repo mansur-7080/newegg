@@ -144,10 +144,10 @@ class ProductDatabase {
       // Create a new product document
       const product = new Product({
         ...data,
-        // Make sure rating is properly structured
-        rating: {
-          average: data.rating?.average || 0,
-          count: data.rating?.count || 0,
+        // Make sure ratings is properly structured
+        ratings: {
+          average: data.ratings?.average || 0,
+          count: data.ratings?.count || 0,
         },
       });
 

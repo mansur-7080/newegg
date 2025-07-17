@@ -1,5 +1,5 @@
 import { createClient, RedisClientType } from 'redis';
-import LRUCache from 'lru-cache';
+import { LRUCache } from 'lru-cache';
 import { promisify } from 'util';
 import { logger } from './logger';
 import * as zlib from 'zlib';
@@ -25,7 +25,7 @@ export interface CacheOptions {
  * - Circuit breaker for Redis failures
  */
 export class AdvancedCacheService {
-  private memoryCache: LRUCache<string, any>;
+  private memoryCache: LRUCache<string, any, unknown>;
   private redis: RedisClientType;
   private isRedisConnected: boolean = false;
   private compressionThreshold: number = 1024; // 1KB
@@ -39,7 +39,7 @@ export class AdvancedCacheService {
     memoryOptions: { max: number; ttl: number } = { max: 500, ttl: 60 * 1000 }
   ) {
     // Initialize in-memory LRU cache
-    this.memoryCache = new LRUCache({
+    this.memoryCache = new LRUCache<string, any, unknown>({
       max: memoryOptions.max,
       ttl: memoryOptions.ttl,
       updateAgeOnGet: true,

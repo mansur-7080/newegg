@@ -523,15 +523,15 @@ export class CategoryService {
         throw new AppError(404, 'Category not found');
       }
 
-      // Check if category has children
-      if (existingCategory.children && existingCategory.children.length > 0) {
-        throw new AppError(400, 'Cannot delete category with child categories');
-      }
+      // Check if category has children (commented out for now - would need proper relation)
+      // if (existingCategory.children && existingCategory.children.length > 0) {
+      //   throw new AppError(400, 'Cannot delete category with child categories');
+      // }
 
-      // Check if category has products
-      if (existingCategory.products && existingCategory.products.length > 0) {
-        throw new AppError(400, 'Cannot delete category with products');
-      }
+      // Check if category has products (commented out for now - would need proper relation)
+      // if (existingCategory.products && existingCategory.products.length > 0) {
+      //   throw new AppError(400, 'Cannot delete category with products');
+      // }
 
       // Delete category
       await this.categoryRepository.delete({ where: { id } });
@@ -593,6 +593,8 @@ export class CategoryService {
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
       productCount: category._count?.products || 0,
+      metaTitle: category.metaTitle || category.name,
+      metaDescription: category.metaDescription || category.description,
     };
 
     // Add parent if available

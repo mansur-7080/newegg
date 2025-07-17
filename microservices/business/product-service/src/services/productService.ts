@@ -419,18 +419,7 @@ export class ProductService {
     }
   }
 
-  /**
-   * Get product categories
-   */
-  async getCategories() {
-    try {
-      const categories = await Product.distinct('category');
-      return categories.filter(Boolean);
-    } catch (error) {
-      logger.error('Failed to get categories', { error });
-      throw error;
-    }
-  }
+
 
   /**
    * Get product brands
