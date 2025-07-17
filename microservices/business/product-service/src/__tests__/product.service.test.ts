@@ -3,6 +3,82 @@ import ProductDatabase from '../database/ProductDatabase';
 import { IProduct } from '../models/Product';
 import { logger } from '../shared';
 
+// Mock models first
+jest.mock('../models/Product');
+jest.mock('../models/Category');
+jest.mock('../models/Review');
+
+// Mock mongoose
+jest.mock('mongoose', () => {
+  const mockProductInstance = {
+    save: jest.fn().mockResolvedValue({
+      _id: '507f1f77bcf86cd799439011',
+      name: 'Test Product',
+    }),
+    _id: '507f1f77bcf86cd799439011',
+  };
+
+  const MockProduct = jest.fn().mockImplementation(() => mockProductInstance);
+  MockProduct.find = jest.fn().mockReturnValue({
+    sort: jest.fn().mockReturnValue({
+      skip: jest.fn().mockReturnValue({
+        limit: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue([]),
+        }),
+      }),
+    }),
+  });
+  MockProduct.findById = jest.fn().mockReturnValue({
+    lean: jest.fn().mockResolvedValue(null),
+  });
+  MockProduct.findByIdAndUpdate = jest.fn().mockReturnValue({
+    lean: jest.fn().mockResolvedValue(null),
+  });
+  MockProduct.findByIdAndDelete = jest.fn().mockResolvedValue(null);
+  MockProduct.countDocuments = jest.fn().mockResolvedValue(0);
+  MockProduct.create = jest.fn().mockResolvedValue({});
+  MockProduct.findOne = jest.fn().mockReturnValue({
+    lean: jest.fn().mockResolvedValue(null),
+  });
+
+  return {
+    Schema: jest.fn().mockImplementation(() => ({
+      index: jest.fn(),
+      pre: jest.fn(),
+      virtual: jest.fn(() => ({ get: jest.fn() })),
+      Types: {
+        ObjectId: jest.fn(),
+      },
+    })),
+    model: jest.fn().mockReturnValue(MockProduct),
+    connect: jest.fn().mockResolvedValue(undefined),
+    connection: {
+      readyState: 1,
+    },
+    Types: {
+      ObjectId: jest.fn().mockImplementation((id) => ({
+        toString: () => id || '507f1f77bcf86cd799439011',
+      })),
+    },
+    default: {
+      Schema: jest.fn().mockImplementation(() => ({
+        index: jest.fn(),
+        pre: jest.fn(),
+        virtual: jest.fn(() => ({ get: jest.fn() })),
+        Types: {
+          ObjectId: jest.fn(),
+        },
+      })),
+      model: jest.fn().mockReturnValue(MockProduct),
+      Types: {
+        ObjectId: jest.fn().mockImplementation((id) => ({
+          toString: () => id || '507f1f77bcf86cd799439011',
+        })),
+      },
+    },
+  };
+});
+
 // Mock the database
 jest.mock('../database/ProductDatabase');
 
@@ -28,7 +104,24 @@ describe('ProductService', () => {
     productService = new ProductService();
 
     // Get the mocked database instance
-    mockDatabase = (productService as any).database;
+    mockDatabase = ProductDatabase as jest.Mocked<typeof ProductDatabase>;
+    
+    // Ensure all database methods are mocked
+    if (!mockDatabase.getAllProducts) {
+      mockDatabase.getAllProducts = jest.fn();
+    }
+    if (!mockDatabase.getProductById) {
+      mockDatabase.getProductById = jest.fn();
+    }
+    if (!mockDatabase.updateProduct) {
+      mockDatabase.updateProduct = jest.fn();
+    }
+    if (!mockDatabase.deleteProduct) {
+      mockDatabase.deleteProduct = jest.fn();
+    }
+    if (!mockDatabase.createProduct) {
+      mockDatabase.createProduct = jest.fn();
+    }
   });
 
   describe('createProduct', () => {

@@ -67,6 +67,10 @@
     "testMatch": [
       "**/__tests__/**/*.test.ts"
     ],
+    "testTimeout": 10000,
+    "clearMocks": true,
+    "resetMocks": true,
+    "restoreMocks": true,
     "collectCoverageFrom": [
       "src/**/*.ts",
       "!src/index.ts",

@@ -5,6 +5,93 @@ import { AppError } from '../shared';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import db from '../lib/database';
+import { Types } from 'mongoose';
+
+// Mock models first
+jest.mock('../models/Product');
+jest.mock('../models/Category');
+jest.mock('../models/Review');
+
+// Mock mongoose
+jest.mock('mongoose', () => {
+  const mockProductInstance = {
+    save: jest.fn().mockResolvedValue({
+      _id: '507f1f77bcf86cd799439011',
+      name: 'Test Product',
+    }),
+    _id: '507f1f77bcf86cd799439011',
+  };
+
+  const MockProduct = jest.fn().mockImplementation(() => mockProductInstance);
+  MockProduct.find = jest.fn().mockReturnValue({
+    sort: jest.fn().mockReturnValue({
+      skip: jest.fn().mockReturnValue({
+        limit: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue([]),
+        }),
+      }),
+    }),
+  });
+  MockProduct.findById = jest.fn().mockReturnValue({
+    lean: jest.fn().mockResolvedValue(null),
+  });
+  MockProduct.findByIdAndUpdate = jest.fn().mockReturnValue({
+    lean: jest.fn().mockResolvedValue(null),
+  });
+  MockProduct.findByIdAndDelete = jest.fn().mockResolvedValue(null);
+  MockProduct.countDocuments = jest.fn().mockResolvedValue(0);
+  MockProduct.create = jest.fn().mockResolvedValue({});
+  MockProduct.findOne = jest.fn().mockReturnValue({
+    lean: jest.fn().mockResolvedValue(null),
+  });
+
+  return {
+    Schema: jest.fn().mockImplementation(() => ({
+      index: jest.fn(),
+      pre: jest.fn(),
+      virtual: jest.fn(() => ({ get: jest.fn() })),
+      Types: {
+        ObjectId: jest.fn(),
+      },
+    })),
+    model: jest.fn().mockReturnValue(MockProduct),
+    connect: jest.fn().mockResolvedValue(undefined),
+    connection: {
+      readyState: 1,
+    },
+    Types: {
+      ObjectId: jest.fn().mockImplementation((id) => ({
+        toString: () => id || '507f1f77bcf86cd799439011',
+      })),
+    },
+    default: {
+      Schema: jest.fn().mockImplementation(() => ({
+        index: jest.fn(),
+        pre: jest.fn(),
+        virtual: jest.fn(() => ({ get: jest.fn() })),
+        Types: {
+          ObjectId: jest.fn(),
+        },
+      })),
+      model: jest.fn().mockReturnValue(MockProduct),
+      Types: {
+        ObjectId: jest.fn().mockImplementation((id) => ({
+          toString: () => id || '507f1f77bcf86cd799439011',
+        })),
+      },
+    },
+  };
+});
+
+// Test constants with valid ObjectIds
+const VALID_PRODUCT_ID = new Types.ObjectId().toString();
+const VALID_CATEGORY_ID = new Types.ObjectId().toString();
+const VALID_USER_ID = new Types.ObjectId().toString();
+const NON_EXISTENT_ID = new Types.ObjectId().toString();
+const INVALID_CATEGORY_ID = new Types.ObjectId().toString();
+const ANOTHER_USER_ID = new Types.ObjectId().toString();
+const SECOND_PRODUCT_ID = new Types.ObjectId().toString();
+const SECOND_CATEGORY_ID = new Types.ObjectId().toString();
 
 // Mock repositories
 jest.mock('../repositories/product-repository');
@@ -79,18 +166,18 @@ describe('ProductService', () => {
       // Mock data
       const mockProducts = [
         {
-          id: '1',
+          id: VALID_PRODUCT_ID,
           name: 'Product 1',
           slug: 'product-1',
           price: new Prisma.Decimal(100),
-          category: { id: 'cat1', name: 'Category 1', slug: 'category-1' },
+          category: { id: VALID_CATEGORY_ID, name: 'Category 1', slug: 'category-1' },
         },
         {
-          id: '2',
+          id: SECOND_PRODUCT_ID,
           name: 'Product 2',
           slug: 'product-2',
           price: new Prisma.Decimal(200),
-          category: { id: 'cat2', name: 'Category 2', slug: 'category-2' },
+          category: { id: SECOND_CATEGORY_ID, name: 'Category 2', slug: 'category-2' },
         },
       ];
 
@@ -102,6 +189,9 @@ describe('ProductService', () => {
       const result = await productService.getProducts({
         page: 1,
         limit: 10,
+        filters: {},
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
       });
 
       // Assert results
@@ -129,11 +219,17 @@ describe('ProductService', () => {
 
       // Call with search parameters
       await productService.getProducts({
-        search: 'test',
-        minPrice: 10,
-        maxPrice: 100,
-        category: 'category-id',
-        brand: 'test-brand',
+        page: 1,
+        limit: 10,
+        filters: {
+          search: 'test',
+          minPrice: 10,
+          maxPrice: 100,
+          category: 'category-id',
+          brand: 'test-brand',
+        },
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
       });
 
       // Verify search filters are applied
@@ -155,28 +251,28 @@ describe('ProductService', () => {
     it('should return a product when found', async () => {
       // Mock data
       const mockProduct = {
-        id: '1',
+        id: VALID_PRODUCT_ID,
         name: 'Test Product',
         slug: 'test-product',
         price: new Prisma.Decimal(100),
-        category: { id: 'cat1', name: 'Category 1', slug: 'category-1' },
+        category: { id: VALID_CATEGORY_ID, name: 'Category 1', slug: 'category-1' },
       };
 
       // Setup mocks
       mockProductRepository.findUnique.mockResolvedValue(mockProduct as any);
 
       // Call the service
-      const result = await productService.getProductById('1');
+      const result = await productService.getProductById(VALID_PRODUCT_ID);
 
       // Assert results
       expect(result).toBeDefined();
-      expect(result.id).toBe('1');
+      expect(result.id).toBe(VALID_PRODUCT_ID);
       expect(result.name).toBe('Test Product');
       expect(result.price).toBe(100);
 
       // Check repository call
       expect(mockProductRepository.findUnique).toHaveBeenCalledWith({
-        where: { id: '1' },
+        where: { id: VALID_PRODUCT_ID },
         include: expect.objectContaining({
           category: expect.any(Object),
         }),
@@ -188,7 +284,7 @@ describe('ProductService', () => {
       mockProductRepository.findUnique.mockResolvedValue(null);
 
       // Assert that it throws
-      await expect(productService.getProductById('non-existent')).rejects.toThrow(
+      await expect(productService.getProductById(NON_EXISTENT_ID)).rejects.toThrow(
         new AppError(404, 'Product not found')
       );
     });
@@ -199,23 +295,23 @@ describe('ProductService', () => {
       // Mock data
       const mockProductData = {
         name: 'New Product',
-        categoryId: 'cat1',
+        categoryId: VALID_CATEGORY_ID,
         price: 299.99,
         sku: 'TEST123',
       };
 
       const mockCreatedProduct = {
-        id: 'new-id',
+        id: VALID_PRODUCT_ID,
         name: 'New Product',
         slug: 'new-product',
         price: new Prisma.Decimal(299.99),
         sku: 'TEST123',
-        category: { id: 'cat1', name: 'Category 1', slug: 'category-1' },
+        category: { id: VALID_CATEGORY_ID, name: 'Category 1', slug: 'category-1' },
       };
 
       // Setup mocks
       mockCategoryRepository.findUnique.mockResolvedValue({
-        id: 'cat1',
+        id: VALID_CATEGORY_ID,
         name: 'Category 1',
       } as any);
       mockProductRepository.findUnique.mockResolvedValue(null); // No existing product with slug
@@ -226,17 +322,17 @@ describe('ProductService', () => {
       });
 
       // Call the service
-      const result = await productService.createProduct(mockProductData as any, 'user-id');
+      const result = await productService.createProduct(mockProductData as any, VALID_USER_ID);
 
       // Assert results
       expect(result).toBeDefined();
-      expect(result.id).toBe('new-id');
+      expect(result.id).toBe(VALID_PRODUCT_ID);
       expect(result.name).toBe('New Product');
       expect(result.price).toBe(299.99);
 
       // Verify category was checked
       expect(mockCategoryRepository.findUnique).toHaveBeenCalledWith({
-        where: { id: 'cat1' },
+        where: { id: VALID_CATEGORY_ID },
       });
     });
 
@@ -247,8 +343,8 @@ describe('ProductService', () => {
       // Call and assert
       await expect(
         productService.createProduct(
-          { name: 'Test', categoryId: 'invalid', price: 100, sku: 'TEST' } as any,
-          'user-id'
+          { name: 'Test', categoryId: INVALID_CATEGORY_ID, price: 100, sku: 'TEST' } as any,
+          VALID_USER_ID
         )
       ).rejects.toThrow(new AppError(400, 'Category not found'));
     });
@@ -258,11 +354,11 @@ describe('ProductService', () => {
     it('should update a product successfully', async () => {
       // Mock data
       const mockProduct = {
-        id: '1',
+        id: VALID_PRODUCT_ID,
         name: 'Existing Product',
         slug: 'existing-product',
         price: new Prisma.Decimal(100),
-        vendorId: 'user-id',
+        vendorId: VALID_USER_ID,
       };
 
       const updateData = {
@@ -271,12 +367,12 @@ describe('ProductService', () => {
       };
 
       const updatedProduct = {
-        id: '1',
+        id: VALID_PRODUCT_ID,
         name: 'Updated Product',
         slug: 'existing-product',
         price: new Prisma.Decimal(150),
-        vendorId: 'user-id',
-        category: { id: 'cat1', name: 'Category 1', slug: 'category-1' },
+        vendorId: VALID_USER_ID,
+        category: { id: VALID_CATEGORY_ID, name: 'Category 1', slug: 'category-1' },
       };
 
       // Setup mocks
@@ -284,18 +380,18 @@ describe('ProductService', () => {
       mockProductRepository.update.mockResolvedValue(updatedProduct as any);
 
       // Call the service
-      const result = await productService.updateProduct('1', updateData as any, 'user-id');
+      const result = await productService.updateProduct(VALID_PRODUCT_ID, updateData as any, VALID_USER_ID);
 
       // Assert results
       expect(result).toBeDefined();
-      expect(result.id).toBe('1');
+      expect(result.id).toBe(VALID_PRODUCT_ID);
       expect(result.name).toBe('Updated Product');
       expect(result.price).toBe(150);
 
       // Check repository calls
       expect(mockProductRepository.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: '1' },
+          where: { id: VALID_PRODUCT_ID },
           data: expect.objectContaining({
             name: 'Updated Product',
           }),
@@ -309,16 +405,16 @@ describe('ProductService', () => {
 
       // Call and assert
       await expect(
-        productService.updateProduct('invalid', { name: 'Updated' }, 'user-id')
+        productService.updateProduct(NON_EXISTENT_ID, { name: 'Updated' }, VALID_USER_ID)
       ).rejects.toThrow(new AppError(404, 'Product not found'));
     });
 
     it('should throw error when user does not have permission', async () => {
       // Mock data - product owned by another user
       const mockProduct = {
-        id: '1',
+        id: VALID_PRODUCT_ID,
         name: 'Existing Product',
-        vendorId: 'other-user-id',
+        vendorId: ANOTHER_USER_ID,
       };
 
       // Setup mock
@@ -326,7 +422,7 @@ describe('ProductService', () => {
 
       // Call and assert
       await expect(
-        productService.updateProduct('1', { name: 'Updated' }, 'user-id')
+        productService.updateProduct(VALID_PRODUCT_ID, { name: 'Updated' }, VALID_USER_ID)
       ).rejects.toThrow(new AppError(403, 'You can only update your own products'));
     });
   });
@@ -335,13 +431,13 @@ describe('ProductService', () => {
     it('should delete a product successfully', async () => {
       // Mock data
       const mockProduct = {
-        id: '1',
+        id: VALID_PRODUCT_ID,
         name: 'Product to delete',
-        vendorId: 'user-id',
+        vendorId: VALID_USER_ID,
       };
 
       const updatedProduct = {
-        id: '1',
+        id: VALID_PRODUCT_ID,
         isActive: false,
         status: 'ARCHIVED',
       };
@@ -351,11 +447,11 @@ describe('ProductService', () => {
       mockProductRepository.update.mockResolvedValue(updatedProduct as any);
 
       // Call the service
-      await productService.deleteProduct('1', 'user-id');
+      await productService.deleteProduct(VALID_PRODUCT_ID, VALID_USER_ID);
 
       // Check repository calls
       expect(mockProductRepository.update).toHaveBeenCalledWith({
-        where: { id: '1' },
+        where: { id: VALID_PRODUCT_ID },
         data: expect.objectContaining({
           isActive: false,
         }),
@@ -367,7 +463,7 @@ describe('ProductService', () => {
       mockProductRepository.findUnique.mockResolvedValue(null);
 
       // Call and assert
-      await expect(productService.deleteProduct('invalid', 'user-id')).rejects.toThrow(
+      await expect(productService.deleteProduct(NON_EXISTENT_ID, VALID_USER_ID)).rejects.toThrow(
         new AppError(404, 'Product not found')
       );
     });

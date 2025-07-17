@@ -2,19 +2,17 @@ import { Product, PrismaClient } from '@prisma/client';
 import { ProductRepository } from '../repositories/product-repository';
 import { mockDeep, mockReset } from 'jest-mock-extended';
 
-// Mock Prisma Client
-jest.mock('../lib/database', () => {
-  return {
-    __esModule: true,
-    default: {
-      prisma: mockDeep<PrismaClient>(),
-    },
-  };
-});
+// Mock the database module first
+jest.mock('../lib/database');
 
-// Import database with mocked Prisma client
+// Import database after mocking
 import db from '../lib/database';
-const mockPrisma = db.prisma as unknown as ReturnType<typeof mockDeep<PrismaClient>>;
+
+// Create mock instance after import
+const mockPrisma = mockDeep<PrismaClient>();
+
+// Cast db.prisma to the mock
+(db.prisma as any) = mockPrisma;
 
 describe('ProductRepository', () => {
   let productRepository: ProductRepository;
