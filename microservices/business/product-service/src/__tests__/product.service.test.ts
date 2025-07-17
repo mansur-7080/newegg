@@ -7,7 +7,7 @@ import { logger } from '../shared';
 jest.mock('../database/ProductDatabase');
 
 // Mock the shared module
-jest.mock('@ultramarket/shared', () => ({
+jest.mock('../shared', () => ({
   logger: {
     info: jest.fn(),
     error: jest.fn(),

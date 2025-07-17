@@ -1,4 +1,4 @@
-import { ProductService } from '../services/product.service';
+import { ProductService } from '../services/productService';
 import { ProductRepository } from '../repositories/product-repository';
 import { CategoryRepository } from '../repositories/category-repository';
 import { AppError } from '../shared';
