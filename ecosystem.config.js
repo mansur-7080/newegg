@@ -43,7 +43,7 @@ module.exports = {
     },
     {
       name: 'config-service',
-      cwd: './microservices/core/config-service',
+      cwd: './microservices/core/config-service/config-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -53,7 +53,7 @@ module.exports = {
     },
     {
       name: 'store-service',
-      cwd: './microservices/core/store-service',
+      cwd: './microservices/core/store-service/store-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -78,7 +78,7 @@ module.exports = {
     },
     {
       name: 'cart-service',
-      cwd: './microservices/business/cart-service',
+      cwd: './microservices/business/cart-service/cart-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -101,7 +101,7 @@ module.exports = {
     },
     {
       name: 'payment-service',
-      cwd: './microservices/business/payment-service',
+      cwd: './microservices/business/payment-service/payment-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -115,7 +115,7 @@ module.exports = {
     },
     {
       name: 'inventory-service',
-      cwd: './microservices/business/inventory-service',
+      cwd: './microservices/business/inventory-service/inventory-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -127,7 +127,7 @@ module.exports = {
     },
     {
       name: 'shipping-service',
-      cwd: './microservices/business/shipping-service',
+      cwd: './microservices/business/shipping-service/shipping-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -138,7 +138,7 @@ module.exports = {
     },
     {
       name: 'review-service',
-      cwd: './microservices/business/review-service',
+      cwd: './microservices/business/review-service/review-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -151,7 +151,7 @@ module.exports = {
     // PLATFORM SERVICES
     {
       name: 'search-service',
-      cwd: './microservices/platform/search-service',
+      cwd: './microservices/platform/search-service/search-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -162,7 +162,7 @@ module.exports = {
     },
     {
       name: 'notification-service',
-      cwd: './microservices/platform/notification-service',
+      cwd: './microservices/platform/notification-service/notification-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -174,7 +174,7 @@ module.exports = {
     },
     {
       name: 'file-service',
-      cwd: './microservices/platform/file-service',
+      cwd: './microservices/platform/file-service/file-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -198,7 +198,7 @@ module.exports = {
     },
     {
       name: 'audit-service',
-      cwd: './microservices/platform/audit-service',
+      cwd: './microservices/platform/audit-service/audit-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -209,7 +209,7 @@ module.exports = {
     },
     {
       name: 'content-service',
-      cwd: './microservices/platform/content-service',
+      cwd: './microservices/platform/content-service/content-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -222,7 +222,7 @@ module.exports = {
     // ML/AI SERVICES
     {
       name: 'recommendation-service',
-      cwd: './microservices/ml-ai/recommendation-service',
+      cwd: './microservices/ml-ai/recommendation-service/recommendation-service',
       script: 'npm',
       args: 'run dev',
       env: {
@@ -234,7 +234,7 @@ module.exports = {
     },
     {
       name: 'fraud-detection-service',
-      cwd: './microservices/ml-ai/fraud-detection-service',
+      cwd: './microservices/ml-ai/fraud-detection-service/fraud-detection-service',
       script: 'npm',
       args: 'run dev',
       env: {
