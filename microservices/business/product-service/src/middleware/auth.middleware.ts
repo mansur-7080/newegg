@@ -5,7 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '../shared/logger';
 
 export interface AuthenticatedUser {
   id: string;
@@ -27,26 +27,28 @@ export const authenticateToken = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Access token required',
         code: 'TOKEN_MISSING',
       });
+      return;
     }
 
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
       logger.error('JWT_SECRET environment variable not set');
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         message: 'Server configuration error',
       });
+      return;
     }
 
     // Verify token
@@ -60,20 +62,22 @@ export const authenticateToken = async (
         userAgent: req.get('User-Agent'),
       });
 
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Invalid token format',
         code: 'TOKEN_INVALID',
       });
+      return;
     }
 
     // Check if user is active
     if (decoded.isActive === false) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Account is deactivated',
         code: 'ACCOUNT_INACTIVE',
       });
+      return;
     }
 
     // Attach user to request
@@ -100,11 +104,12 @@ export const authenticateToken = async (
         userAgent: req.get('User-Agent'),
       });
 
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Token expired',
         code: 'TOKEN_EXPIRED',
       });
+      return;
     }
 
     if (error instanceof jwt.JsonWebTokenError) {
@@ -114,11 +119,12 @@ export const authenticateToken = async (
         userAgent: req.get('User-Agent'),
       });
 
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Invalid token',
         code: 'TOKEN_INVALID',
       });
+      return;
     }
 
     logger.error('Authentication error', { 
@@ -126,10 +132,11 @@ export const authenticateToken = async (
       ip: req.ip,
     });
 
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: 'Authentication service error',
     });
+      return;
   }
 };
 
@@ -145,11 +152,12 @@ export const requireAuth = (
     if (error) return next(error);
     
     if (!req.user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Authentication required',
         code: 'AUTH_REQUIRED',
       });
+      return;
     }
 
     next();
@@ -179,13 +187,14 @@ export const optionalAuth = (
  * Require specific role
  */
 export const requireRole = (...roles: string[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Authentication required',
         code: 'AUTH_REQUIRED',
       });
+      return;
     }
 
     if (!roles.includes(req.user.role)) {
@@ -197,13 +206,14 @@ export const requireRole = (...roles: string[]) => {
         path: req.path,
       });
 
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Insufficient permissions',
         code: 'INSUFFICIENT_ROLE',
         required: roles,
         current: req.user.role,
       });
+      return;
     }
 
     next();
@@ -214,13 +224,14 @@ export const requireRole = (...roles: string[]) => {
  * Require specific permission
  */
 export const requirePermission = (...permissions: string[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Authentication required',
         code: 'AUTH_REQUIRED',
       });
+      return;
     }
 
     const hasPermission = permissions.some(permission => 
@@ -236,13 +247,14 @@ export const requirePermission = (...permissions: string[]) => {
         path: req.path,
       });
 
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Insufficient permissions',
         code: 'INSUFFICIENT_PERMISSION',
         required: permissions,
         current: req.user.permissions,
       });
+      return;
     }
 
     next();
@@ -265,11 +277,12 @@ export const requireVendor = requireRole('vendor', 'admin');
 export const requireOwnershipOrAdmin = (resourceIdParam: string = 'id') => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Authentication required',
         code: 'AUTH_REQUIRED',
       });
+      return;
     }
 
     // Admin can access anything
@@ -298,11 +311,12 @@ export const requireOwnershipOrAdmin = (resourceIdParam: string = 'id') => {
       path: req.path,
     });
 
-    return res.status(403).json({
+    res.status(403).json({
       success: false,
       message: 'You can only access your own resources',
       code: 'OWNERSHIP_REQUIRED',
     });
+      return;
   };
 };
 
@@ -338,12 +352,13 @@ export const createUserRateLimit = (maxRequests: number, windowMs: number) => {
         ip: req.ip,
       });
 
-      return res.status(429).json({
+      res.status(429).json({
         success: false,
         message: 'Too many requests',
         code: 'USER_RATE_LIMIT_EXCEEDED',
         retryAfter: Math.ceil((userLimit.resetTime - now) / 1000),
       });
+      return;
     }
 
     // Increment request count
@@ -359,15 +374,16 @@ export const authenticateApiKey = (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   const apiKey = req.headers['x-api-key'] as string;
 
   if (!apiKey) {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       message: 'API key required',
       code: 'API_KEY_MISSING',
     });
+      return;
   }
 
   const validApiKeys = process.env.API_KEYS?.split(',') || [];
@@ -378,11 +394,12 @@ export const authenticateApiKey = (
       ip: req.ip,
     });
 
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       message: 'Invalid API key',
       code: 'API_KEY_INVALID',
     });
+      return;
   }
 
   logger.debug('API key authenticated', {

@@ -5,7 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { validationResult, ValidationError } from 'express-validator';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '../shared/logger';
 
 /**
  * Format validation errors for consistent API responses
@@ -24,7 +24,7 @@ export const handleValidationErrors = (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
@@ -45,12 +45,13 @@ export const handleValidationErrors = (
       ip: req.ip,
     });
 
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: 'Validation failed',
       errors: formattedErrors,
       code: 'VALIDATION_ERROR',
     });
+      return;
   }
 
   next();
@@ -116,17 +117,18 @@ export const validatePagination = (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   const { page, limit } = req.query;
 
   if (page) {
     const pageNum = parseInt(page as string, 10);
     if (isNaN(pageNum) || pageNum < 1) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Page must be a positive integer',
         code: 'INVALID_PAGE',
       });
+      return;
     }
     req.query.page = pageNum.toString();
   }
@@ -134,11 +136,12 @@ export const validatePagination = (
   if (limit) {
     const limitNum = parseInt(limit as string, 10);
     if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Limit must be between 1 and 100',
         code: 'INVALID_LIMIT',
       });
+      return;
     }
     req.query.limit = limitNum.toString();
   }
@@ -150,23 +153,25 @@ export const validatePagination = (
  * Validate sort parameters
  */
 export const validateSort = (allowedFields: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const { sortBy, sortOrder } = req.query;
 
     if (sortBy && !allowedFields.includes(sortBy as string)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: `Invalid sort field. Allowed fields: ${allowedFields.join(', ')}`,
         code: 'INVALID_SORT_FIELD',
       });
+      return;
     }
 
     if (sortOrder && !['asc', 'desc'].includes(sortOrder as string)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Sort order must be "asc" or "desc"',
         code: 'INVALID_SORT_ORDER',
       });
+      return;
     }
 
     next();
@@ -177,26 +182,28 @@ export const validateSort = (allowedFields: string[]) => {
  * Validate MongoDB ObjectId
  */
 export const validateObjectId = (paramName: string = 'id') => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const id = req.params[paramName];
     
     if (!id) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: `${paramName} is required`,
         code: 'MISSING_PARAMETER',
       });
+      return;
     }
 
     // MongoDB ObjectId validation (24 character hex string)
     const objectIdRegex = /^[0-9a-fA-F]{24}$/;
     
     if (!objectIdRegex.test(id)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: `Invalid ${paramName} format`,
         code: 'INVALID_OBJECT_ID',
       });
+      return;
     }
 
     next();
@@ -207,26 +214,28 @@ export const validateObjectId = (paramName: string = 'id') => {
  * Validate slug format
  */
 export const validateSlug = (paramName: string = 'slug') => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const slug = req.params[paramName];
     
     if (!slug) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: `${paramName} is required`,
         code: 'MISSING_PARAMETER',
       });
+      return;
     }
 
     // Slug validation (lowercase letters, numbers, hyphens)
     const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
     
     if (!slugRegex.test(slug)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: `Invalid ${paramName} format. Use lowercase letters, numbers, and hyphens only`,
         code: 'INVALID_SLUG_FORMAT',
       });
+      return;
     }
 
     next();
@@ -240,17 +249,18 @@ export const validatePriceRange = (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   const { minPrice, maxPrice } = req.query;
 
   if (minPrice) {
     const min = parseFloat(minPrice as string);
     if (isNaN(min) || min < 0) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Minimum price must be a non-negative number',
         code: 'INVALID_MIN_PRICE',
       });
+      return;
     }
     req.query.minPrice = min.toString();
   }
@@ -258,11 +268,12 @@ export const validatePriceRange = (
   if (maxPrice) {
     const max = parseFloat(maxPrice as string);
     if (isNaN(max) || max < 0) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Maximum price must be a non-negative number',
         code: 'INVALID_MAX_PRICE',
       });
+      return;
     }
     req.query.maxPrice = max.toString();
   }
@@ -272,11 +283,12 @@ export const validatePriceRange = (
     const max = parseFloat(maxPrice as string);
     
     if (min > max) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Minimum price cannot be greater than maximum price',
         code: 'INVALID_PRICE_RANGE',
       });
+      return;
     }
   }
 
@@ -290,33 +302,36 @@ export const validateSearchQuery = (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   const { q } = req.query;
 
   if (!q) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: 'Search query (q) is required',
       code: 'MISSING_SEARCH_QUERY',
     });
+      return;
   }
 
   const query = q as string;
 
   if (query.length < 2) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: 'Search query must be at least 2 characters long',
       code: 'SEARCH_QUERY_TOO_SHORT',
     });
+      return;
   }
 
   if (query.length > 100) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: 'Search query cannot exceed 100 characters',
       code: 'SEARCH_QUERY_TOO_LONG',
     });
+      return;
   }
 
   // Sanitize search query
@@ -332,7 +347,7 @@ export const validateFileUpload = (
   allowedTypes: string[],
   maxSize: number = 5 * 1024 * 1024 // 5MB
 ) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.file && !req.files) {
       return next(); // No file uploaded, continue
     }
@@ -344,20 +359,22 @@ export const validateFileUpload = (
 
       // Check file type
       if (!allowedTypes.includes(file.mimetype)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: `Invalid file type. Allowed types: ${allowedTypes.join(', ')}`,
           code: 'INVALID_FILE_TYPE',
         });
+      return;
       }
 
       // Check file size
       if (file.size > maxSize) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: `File size exceeds limit of ${maxSize / (1024 * 1024)}MB`,
           code: 'FILE_SIZE_EXCEEDED',
         });
+      return;
       }
     }
 
@@ -369,16 +386,17 @@ export const validateFileUpload = (
  * Validate array field
  */
 export const validateArrayField = (fieldName: string, maxLength: number = 50) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const field = req.body[fieldName];
 
     if (field && Array.isArray(field)) {
       if (field.length > maxLength) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: `${fieldName} cannot have more than ${maxLength} items`,
           code: 'ARRAY_LENGTH_EXCEEDED',
         });
+      return;
       }
     }
 
@@ -393,7 +411,7 @@ export const validateRateLimit = (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   // Check if rate limit headers are present
   const remaining = req.get('X-RateLimit-Remaining');
   const limit = req.get('X-RateLimit-Limit');
@@ -402,11 +420,12 @@ export const validateRateLimit = (
     const remainingRequests = parseInt(remaining, 10);
     
     if (remainingRequests <= 0) {
-      return res.status(429).json({
+      res.status(429).json({
         success: false,
         message: 'Rate limit exceeded',
         code: 'RATE_LIMIT_EXCEEDED',
       });
+      return;
     }
   }
 
@@ -417,15 +436,16 @@ export const validateRateLimit = (
  * Validate content type
  */
 export const validateContentType = (allowedTypes: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const contentType = req.get('Content-Type');
 
     if (!contentType) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Content-Type header is required',
         code: 'MISSING_CONTENT_TYPE',
       });
+      return;
     }
 
     const isAllowed = allowedTypes.some(type => 
@@ -433,11 +453,12 @@ export const validateContentType = (allowedTypes: string[]) => {
     );
 
     if (!isAllowed) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: `Invalid content type. Allowed types: ${allowedTypes.join(', ')}`,
         code: 'INVALID_CONTENT_TYPE',
       });
+      return;
     }
 
     next();

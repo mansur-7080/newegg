@@ -4,7 +4,7 @@
  */
 
 import mongoose, { Document, Schema, Model } from 'mongoose';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '../shared/logger';
 
 // Interfaces
 export interface IProductVariant {
@@ -147,6 +147,22 @@ export interface IProduct extends Document {
   canBeDeleted(): Promise<boolean>;
   isInStock(): boolean;
   getAvailableQuantity(): number;
+}
+
+// Static methods interface
+export interface IProductModel extends Model<IProduct> {
+  findActive(filter?: any): any;
+  findFeatured(limit?: number): any;
+  findBySlug(slug: string): any;
+  getAnalytics(): Promise<{
+    total: number;
+    active: number;
+    featured: number;
+    lowStock: number;
+    totalSales: number;
+    averagePrice: number;
+    categoryDistribution: any[];
+  }>;
 }
 
 // Schema definition
@@ -574,7 +590,7 @@ const ProductSchema = new Schema<IProduct>({
   toJSON: { 
     virtuals: true,
     transform: function(doc, ret) {
-      delete ret.__v;
+      delete (ret as any).__v;
       if (ret.deletedAt) {
         delete ret.deletedAt;
       }
@@ -584,23 +600,17 @@ const ProductSchema = new Schema<IProduct>({
   toObject: { virtuals: true },
 });
 
-// Indexes
+// Indexes (field-level indexes are defined in the schema above)
 ProductSchema.index({ name: 'text', description: 'text', tags: 'text' });
 ProductSchema.index({ category: 1, status: 1 });
 ProductSchema.index({ brand: 1, status: 1 });
-ProductSchema.index({ price: 1 });
-ProductSchema.index({ createdAt: -1 });
 ProductSchema.index({ 'rating.average': -1 });
 ProductSchema.index({ salesCount: -1 });
 ProductSchema.index({ isFeatured: 1, status: 1 });
 ProductSchema.index({ vendorId: 1, status: 1 });
-ProductSchema.index({ tags: 1 });
-ProductSchema.index({ deletedAt: 1 });
 
 // Virtual properties
-ProductSchema.virtual('isInStock').get(function() {
-  return this.getAvailableQuantity() > 0 || this.inventory.allowBackorder;
-});
+// Stock check is handled by the instance method below
 
 ProductSchema.virtual('discountPercentage').get(function() {
   if (this.compareAtPrice && this.compareAtPrice > this.price) {
@@ -614,7 +624,7 @@ ProductSchema.pre('save', async function(next) {
   try {
     // Generate slug if not provided or name changed
     if (!this.slug || this.isModified('name')) {
-      this.slug = await generateUniqueSlug(this.name, this._id);
+      this.slug = await generateUniqueSlug(this.name, this._id as mongoose.Types.ObjectId);
     }
 
     // Set published date when status changes to active
@@ -637,7 +647,7 @@ ProductSchema.pre('save', async function(next) {
 
     next();
   } catch (error) {
-    next(error);
+    next(error as Error);
   }
 });
 
@@ -677,7 +687,7 @@ ProductSchema.methods.releaseInventory = async function(quantity: number): Promi
 
 ProductSchema.methods.calculateAverageRating = function(): void {
   if (this.reviews && this.reviews.length > 0) {
-    const totalRating = this.reviews.reduce((sum, review) => sum + review.rating, 0);
+    const totalRating = this.reviews.reduce((sum: number, review: any) => sum + review.rating, 0);
     this.rating.average = Math.round((totalRating / this.reviews.length) * 10) / 10;
     this.rating.count = this.reviews.length;
   } else {
@@ -722,6 +732,10 @@ ProductSchema.statics.findFeatured = function(limit = 10) {
     .limit(limit);
 };
 
+ProductSchema.statics.findBySlug = function(slug: string) {
+  return this.findOne({ slug, status: 'active', deletedAt: null });
+};
+
 ProductSchema.statics.getAnalytics = async function() {
   const pipeline = [
     { $match: { deletedAt: null } },
@@ -738,7 +752,7 @@ ProductSchema.statics.getAnalytics = async function() {
         averagePrice: [{ $group: { _id: null, average: { $avg: "$price" } } }],
         categoryDistribution: [
           { $group: { _id: "$category", count: { $sum: 1 } } },
-          { $sort: { count: -1 } }
+          { $sort: { count: -1 as -1 } }
         ]
       }
     }
@@ -787,7 +801,7 @@ async function generateUniqueSlug(name: string, excludeId?: mongoose.Types.Objec
 }
 
 // Create and export model
-const Product: Model<IProduct> = mongoose.model<IProduct>('Product', ProductSchema);
+const Product: IProductModel = mongoose.model<IProduct, IProductModel>('Product', ProductSchema);
 
 export default Product;
 export { Product };

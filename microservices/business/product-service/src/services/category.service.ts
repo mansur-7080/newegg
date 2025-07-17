@@ -6,8 +6,8 @@
 import mongoose from 'mongoose';
 import Category, { ICategory } from '../models/Category';
 import Product from '../models/Product';
-import { logger } from '@ultramarket/shared/logging/logger';
-import { ValidationError, NotFoundError } from '@ultramarket/shared/errors';
+import { logger } from '../shared/logger';
+import { ValidationError, NotFoundError } from '../shared/errors';
 
 export interface BulkImportResult {
   success: number;
@@ -118,7 +118,7 @@ export class CategoryService {
 
         // Check for circular reference
         const descendants = await this.getAllDescendants(categoryId);
-        const descendantIds = descendants.map(d => d._id.toString());
+        const descendantIds = descendants.map(d => (d._id as mongoose.Types.ObjectId).toString());
         
         if (descendantIds.includes(newParentId)) {
           throw new ValidationError('Cannot move category to its own descendant');
@@ -126,7 +126,7 @@ export class CategoryService {
       }
 
       // Update parent
-      category.parentId = newParentId ? new mongoose.Types.ObjectId(newParentId) : null;
+      category.parentId = newParentId ? new mongoose.Types.ObjectId(newParentId) : undefined;
 
       // Update position if provided
       if (position !== undefined) {
@@ -240,7 +240,7 @@ export class CategoryService {
       if (includeDescendants) {
         // Get all descendants
         const descendants = await this.getAllDescendants(categoryId);
-        const categoryIds = [categoryId, ...descendants.map(d => d._id.toString())];
+        const categoryIds = [categoryId, ...descendants.map(d => (d._id as mongoose.Types.ObjectId).toString())];
         
         productCount = await Product.countDocuments({
           category: { $in: categoryIds },
@@ -373,7 +373,7 @@ export class CategoryService {
     try {
       // Check if new parent is a descendant of the category
       const descendants = await this.getAllDescendants(categoryId);
-      const descendantIds = descendants.map(d => d._id.toString());
+      const descendantIds = descendants.map(d => (d._id as mongoose.Types.ObjectId).toString());
       
       return !descendantIds.includes(newParentId);
     } catch (error) {

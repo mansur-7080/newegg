@@ -237,7 +237,9 @@ export interface PaginationMeta {
   hasPrev: boolean;
 }
 
-export interface PaginatedResponse<T = any> extends ApiResponse<T> {
+export interface PaginatedResponse<T = any> {
+  success: boolean;
+  message?: string;
   data: {
     items: T[];
     pagination: PaginationMeta;

@@ -4,8 +4,8 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '@ultramarket/shared/logging/logger';
-import { ValidationError, NotFoundError, AuthorizationError } from '@ultramarket/shared/errors';
+import { logger } from '../shared/logger';
+import { ValidationError, NotFoundError, AuthorizationError } from '../shared/errors';
 import Product, { IProduct } from '../models/Product';
 import Category from '../models/Category';
 import { ProductService } from '../services/product.service';

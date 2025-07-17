@@ -9,7 +9,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from './shared/logger';
 import productRoutes from './routes/product.routes';
 import categoryRoutes from './routes/category.routes';
 import { connectDatabase, getDatabaseHealth } from './config/database';
@@ -106,7 +106,7 @@ app.use((req, res, next) => {
 });
 
 // Health check endpoint
-app.get('/health', async (req, res) => {
+app.get('/health', async (req, res): Promise<void> => {
   try {
     const dbHealth = await getDatabaseHealth();
     
@@ -123,7 +123,8 @@ app.get('/health', async (req, res) => {
 
     if (dbHealth.status === 'unhealthy') {
       health.status = 'degraded';
-      return res.status(503).json(health);
+      res.status(503).json(health);
+      return;
     }
 
     res.status(200).json(health);

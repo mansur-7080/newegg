@@ -6,19 +6,15 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
 import { CategoryController } from '../controllers/category.controller';
-import { validateRequest } from '@ultramarket/shared/middleware/validation';
-import { authenticate, authorize } from '@ultramarket/shared/middleware/auth';
-import { rateLimit } from '@ultramarket/shared/middleware/rate-limit';
-import { cacheMiddleware } from '@ultramarket/shared/middleware/cache';
+import { validateRequest } from '../shared/middleware/validation';
+import { authenticate, authorize } from '../shared/middleware/auth';
+import { rateLimit as defaultRateLimit } from '../shared/middleware/rate-limit';
+import { cacheMiddleware } from '../shared/middleware/cache';
 
 const router = Router();
 
 // Rate limiting for category endpoints
-const categoryRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Limit each IP to 500 requests per windowMs
-  message: 'Too many category requests from this IP',
-});
+const categoryRateLimit = defaultRateLimit;
 
 // Validation schemas
 const createCategoryValidation = [

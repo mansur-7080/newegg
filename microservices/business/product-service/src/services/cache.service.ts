@@ -4,7 +4,7 @@
  */
 
 import Redis from 'ioredis';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '../shared/logger';
 
 export class CacheService {
   private static instance: CacheService;
@@ -16,10 +16,10 @@ export class CacheService {
       port: parseInt(process.env.REDIS_PORT || '6379', 10),
       password: process.env.REDIS_PASSWORD || undefined,
       db: parseInt(process.env.REDIS_DB || '0', 10),
-      retryDelayOnFailover: 100,
       enableReadyCheck: true,
       maxRetriesPerRequest: 3,
       lazyConnect: true,
+      retryStrategy: (times) => Math.min(times * 50, 2000),
     });
 
     this.redis.on('connect', () => {

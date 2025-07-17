@@ -306,7 +306,7 @@ export const validateProductSearch = [
     .isFloat({ min: 0 })
     .withMessage('Maximum price must be a positive number')
     .custom((value, { req }) => {
-      if (value && req.query.minPrice && parseFloat(value) < parseFloat(req.query.minPrice)) {
+      if (value && req.query?.minPrice && parseFloat(value) < parseFloat(req.query.minPrice as string)) {
         throw new Error('Maximum price must be greater than minimum price');
       }
       return true;

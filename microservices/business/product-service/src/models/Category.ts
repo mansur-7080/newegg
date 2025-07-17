@@ -4,7 +4,7 @@
  */
 
 import mongoose, { Document, Schema, Model } from 'mongoose';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '../shared/logger';
 
 // Interfaces
 export interface ICategoryMetadata {
@@ -40,6 +40,17 @@ export interface ICategory extends Document {
   getFullPath(): Promise<ICategory[]>;
   hasProducts(): Promise<boolean>;
   canBeDeleted(): Promise<boolean>;
+}
+
+// Static methods interface
+export interface ICategoryModel extends Model<ICategory> {
+  buildTree(parentId?: mongoose.Types.ObjectId, maxDepth?: number): Promise<ICategory[]>;
+  getAnalytics(): Promise<{
+    total: number;
+    active: number;
+    roots: number;
+    levelDistribution: any[];
+  }>;
 }
 
 // Schema definition
@@ -142,7 +153,7 @@ const CategorySchema = new Schema<ICategory>({
   toJSON: { 
     virtuals: true,
     transform: function(doc, ret) {
-      delete ret.__v;
+      delete (ret as any).__v;
       return ret;
     }
   },
@@ -152,7 +163,7 @@ const CategorySchema = new Schema<ICategory>({
 // Indexes
 CategorySchema.index({ parentId: 1, sortOrder: 1 });
 CategorySchema.index({ level: 1, isActive: 1 });
-CategorySchema.index({ path: 1 });
+// Path index is defined at field level
 CategorySchema.index({ name: 'text', 'metadata.description': 'text' });
 CategorySchema.index({ 'metadata.keywords': 1 });
 
@@ -177,18 +188,18 @@ CategorySchema.pre('save', async function(next) {
   try {
     // Generate slug if not provided
     if (!this.slug || this.isModified('name')) {
-      this.slug = await generateUniqueSlug(this.name, this._id);
+      this.slug = await generateUniqueSlug(this.name, this._id as mongoose.Types.ObjectId);
     }
     
     // Calculate level and path
     if (this.parentId) {
-      const parent = await this.constructor.findById(this.parentId);
+      const parent = await (this.constructor as any).findById(this.parentId);
       if (parent) {
         this.level = parent.level + 1;
         this.path = parent.path ? `${parent.path}/${parent._id}` : `${parent._id}`;
         
         // Prevent circular references
-        if (this.path.includes(this._id.toString())) {
+        if (this.path.includes((this._id as mongoose.Types.ObjectId).toString())) {
           throw new Error('Circular reference detected in category hierarchy');
         }
       } else {
@@ -201,7 +212,7 @@ CategorySchema.pre('save', async function(next) {
     
     next();
   } catch (error) {
-    next(error);
+    next(error as Error);
   }
 });
 
@@ -209,7 +220,7 @@ CategorySchema.pre('save', async function(next) {
 CategorySchema.pre('deleteOne', { document: true, query: false }, async function(next) {
   try {
     // Check if category has children
-    const childrenCount = await this.constructor.countDocuments({ parentId: this._id });
+    const childrenCount = await (this.constructor as any).countDocuments({ parentId: this._id });
     if (childrenCount > 0) {
       throw new Error('Cannot delete category with child categories');
     }
@@ -223,13 +234,13 @@ CategorySchema.pre('deleteOne', { document: true, query: false }, async function
     
     next();
   } catch (error) {
-    next(error);
+    next(error as Error);
   }
 });
 
 // Instance methods
 CategorySchema.methods.getChildren = async function(): Promise<ICategory[]> {
-  return this.constructor.find({ parentId: this._id }).sort({ sortOrder: 1 });
+  return (this.constructor as any).find({ parentId: this._id }).sort({ sortOrder: 1 });
 };
 
 CategorySchema.methods.getParents = async function(): Promise<ICategory[]> {
@@ -237,7 +248,7 @@ CategorySchema.methods.getParents = async function(): Promise<ICategory[]> {
   let current = this;
   
   while (current.parentId) {
-    const parent = await this.constructor.findById(current.parentId);
+          const parent = await (this.constructor as any).findById(current.parentId);
     if (!parent) break;
     parents.unshift(parent);
     current = parent;
@@ -258,7 +269,7 @@ CategorySchema.methods.hasProducts = async function(): Promise<boolean> {
 };
 
 CategorySchema.methods.canBeDeleted = async function(): Promise<boolean> {
-  const childrenCount = await this.constructor.countDocuments({ parentId: this._id });
+  const childrenCount = await (this.constructor as any).countDocuments({ parentId: this._id });
   const hasProducts = await this.hasProducts();
   return childrenCount === 0 && !hasProducts;
 };
@@ -282,7 +293,7 @@ CategorySchema.statics.buildTree = async function(parentId = null, maxDepth = 5,
   const categories = await this.find({ parentId, isActive: true }).sort({ sortOrder: 1 });
   
   for (const category of categories) {
-    category.children = await this.buildTree(category._id, maxDepth, currentDepth + 1);
+    category.children = await (this as any).buildTree(category._id, maxDepth, currentDepth + 1);
   }
   
   return categories;
@@ -296,7 +307,7 @@ CategorySchema.statics.getAnalytics = async function() {
         activeCategories: [{ $match: { isActive: true } }, { $count: "count" }],
         levelDistribution: [
           { $group: { _id: "$level", count: { $sum: 1 } } },
-          { $sort: { _id: 1 } }
+          { $sort: { _id: 1 as 1 } }
         ],
         categoriesWithoutParent: [
           { $match: { parentId: null } },
@@ -346,7 +357,7 @@ async function generateUniqueSlug(name: string, excludeId?: mongoose.Types.Objec
 }
 
 // Create and export model
-const Category: Model<ICategory> = mongoose.model<ICategory>('Category', CategorySchema);
+const Category: ICategoryModel = mongoose.model<ICategory, ICategoryModel>('Category', CategorySchema);
 
 export default Category;
 export { Category };

@@ -4,7 +4,7 @@
  */
 
 import mongoose from 'mongoose';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '../shared/logger';
 
 interface DatabaseConfig {
   uri: string;
@@ -100,7 +100,9 @@ export const getDatabaseHealth = async (): Promise<{
 
     if (state === 1) {
       // Test the connection with a simple operation
-      await mongoose.connection.db.admin().ping();
+      if (mongoose.connection.db) {
+        await mongoose.connection.db.admin().ping();
+      }
       
       return {
         status: 'healthy',

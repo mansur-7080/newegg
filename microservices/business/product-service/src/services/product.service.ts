@@ -6,8 +6,8 @@
 import mongoose from 'mongoose';
 import Product, { IProduct } from '../models/Product';
 import Category from '../models/Category';
-import { logger } from '@ultramarket/shared/logging/logger';
-import { ValidationError, NotFoundError } from '@ultramarket/shared/errors';
+import { logger } from '../shared/logger';
+import { ValidationError, NotFoundError } from '../shared/errors';
 
 export interface ProductSearchParams {
   page: number;
@@ -287,7 +287,7 @@ export class ProductService {
       }
 
       // Validate category if being changed
-      if (updateData.category && updateData.category !== product.category.toString()) {
+      if (updateData.category && updateData.category !== (product.category as any)?.toString()) {
         const category = await Category.findById(updateData.category);
         if (!category || !category.isActive) {
           throw new ValidationError('Invalid or inactive category');

@@ -4,8 +4,9 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '@ultramarket/shared/logging/logger';
-import { ValidationError, NotFoundError } from '@ultramarket/shared/errors';
+import mongoose from 'mongoose';
+import { logger } from '../shared/logger';
+import { ValidationError, NotFoundError } from '../shared/errors';
 import Category, { ICategory } from '../models/Category';
 import Product from '../models/Product';
 import { CategoryService } from '../services/category.service';
@@ -346,7 +347,7 @@ export class CategoryController {
 
         // Prevent circular reference
         const descendants = await CategoryController.categoryService.getAllDescendants(id);
-        const descendantIds = descendants.map(d => d._id.toString());
+        const descendantIds = descendants.map(d => (d._id as mongoose.Types.ObjectId).toString());
         
         if (descendantIds.includes(updateData.parentId)) {
           throw new ValidationError('Cannot move category to its own descendant');
@@ -431,7 +432,7 @@ export class CategoryController {
 
         // Prevent circular reference
         const descendants = await CategoryController.categoryService.getAllDescendants(id);
-        const descendantIds = descendants.map(d => d._id.toString());
+        const descendantIds = descendants.map(d => (d._id as mongoose.Types.ObjectId).toString());
         
         if (descendantIds.includes(newParentId)) {
           throw new ValidationError('Cannot move category to its own descendant');
