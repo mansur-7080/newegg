@@ -1,48 +1,45 @@
-import mongoose from 'mongoose';
+import { PrismaClient } from '@prisma/client';
 import { logger } from '@ultramarket/shared/logging/logger';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ultramarket_products';
+const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://ultramarket_user:ultramarket_password@localhost:5432/ultramarket';
+
+export const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: DATABASE_URL,
+    },
+  },
+  log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
+});
 
 export const connectDatabase = async (): Promise<void> => {
   try {
-    const options = {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-      bufferCommands: false,
-      bufferMaxEntries: 0,
-    };
-
-    await mongoose.connect(MONGODB_URI, options);
-
-    logger.info('MongoDB connected successfully', {
-      host: mongoose.connection.host,
-      database: mongoose.connection.name,
+    await prisma.$connect();
+    
+    // Test the connection
+    await prisma.$queryRaw`SELECT 1`;
+    
+    logger.info('PostgreSQL connected successfully', {
+      url: DATABASE_URL.replace(/:[^:@]*@/, ':***@'), // Hide password in logs
     });
 
-    mongoose.connection.on('error', (error) => {
-      logger.error('MongoDB connection error', { error });
+    // Handle graceful shutdown
+    process.on('beforeExit', async () => {
+      await prisma.$disconnect();
     });
 
-    mongoose.connection.on('disconnected', () => {
-      logger.warn('MongoDB disconnected');
-    });
-
-    mongoose.connection.on('reconnected', () => {
-      logger.info('MongoDB reconnected');
-    });
   } catch (error) {
-    logger.error('Failed to connect to MongoDB', { error });
+    logger.error('Failed to connect to PostgreSQL', { error });
     throw error;
   }
 };
 
 export const disconnectDatabase = async (): Promise<void> => {
   try {
-    await mongoose.disconnect();
-    logger.info('MongoDB disconnected successfully');
+    await prisma.$disconnect();
+    logger.info('PostgreSQL disconnected successfully');
   } catch (error) {
-    logger.error('Error disconnecting from MongoDB', { error });
+    logger.error('Error disconnecting from PostgreSQL', { error });
     throw error;
   }
 };

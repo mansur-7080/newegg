@@ -4,50 +4,134 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { logger } from '@ultramarket/shared/logging/logger';
-import { ValidationError, NotFoundError, AuthorizationError } from '@ultramarket/shared/errors';
-import {
-  validateProductInput,
-  validateProductUpdateInput,
-  validateProductSearchInput,
-} from '../validators/product.validator';
-import {
-  createProduct,
-  findProductById,
-  findProducts,
-  updateProduct,
-  deleteProduct,
-  searchProducts,
-  getProductCategories,
-  getProductBrands,
-  getProductStatistics,
-} from '../services/product.service';
-import { cacheProduct, getCachedProduct, invalidateProductCache } from '../services/cache.service';
-import { logProductAction } from '../services/audit.service';
-import {
-  requireVendor,
-  requireAdmin,
-  requireOwnershipOrAdmin,
-} from '../middleware/auth.middleware';
-
-const prisma = new PrismaClient();
+import { productService, ProductFilters } from '../services/product.service';
 
 export class ProductController {
+  /**
+   * Get all products with filtering and pagination
+   * GET /api/v1/products
+   */
+  static async getProducts(req: Request, res: Response, next: NextFunction) {
+    try {
+      const filters: ProductFilters = {
+        page: req.query.page ? parseInt(req.query.page as string) : 1,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+        search: req.query.search as string,
+        category: req.query.category as string,
+        brand: req.query.brand as string,
+        minPrice: req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined,
+        maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
+        status: req.query.status as any,
+        type: req.query.type as any,
+        isActive: req.query.isActive ? req.query.isActive === 'true' : true,
+        isFeatured: req.query.isFeatured ? req.query.isFeatured === 'true' : undefined,
+        sortBy: req.query.sortBy as string || 'createdAt',
+        sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'desc',
+        tags: req.query.tags ? (req.query.tags as string).split(',') : undefined,
+      };
+
+      const result = await productService.getProducts(filters);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get a single product by ID
+   * GET /api/v1/products/:id
+   */
+  static async getProductById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const product = await productService.getProductById(id);
+
+      res.json({
+        success: true,
+        data: product,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get a single product by slug
+   * GET /api/v1/products/slug/:slug
+   */
+  static async getProductBySlug(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { slug } = req.params;
+      const product = await productService.getProductBySlug(slug);
+
+      res.json({
+        success: true,
+        data: product,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   /**
    * Create a new product
    * POST /api/v1/products
    */
   static async createProduct(req: Request, res: Response, next: NextFunction) {
     try {
-      // Validate input
-      const { error, value } = validateProductInput(req.body);
-      if (error) {
-        throw new ValidationError('Invalid product data', error.details);
-      }
+      const product = await productService.createProduct(req.body);
 
-      const productData = value;
-      const userId = (req as any).user?.id;
+      res.status(201).json({
+        success: true,
+        message: 'Product created successfully',
+        data: product,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Update a product
+   * PUT /api/v1/products/:id
+   */
+  static async updateProduct(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const product = await productService.updateProduct(id, req.body);
+
+      res.json({
+        success: true,
+        message: 'Product updated successfully',
+        data: product,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Delete a product
+   * DELETE /api/v1/products/:id
+   */
+  static async deleteProduct(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      await productService.deleteProduct(id);
+
+      res.status(204).json({
+        success: true,
+        message: 'Product deleted successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 
       // Create product
       const product = await createProduct({

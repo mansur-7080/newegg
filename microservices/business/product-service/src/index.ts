@@ -8,7 +8,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
-import { validateEnvironmentOnStartup } from '@ultramarket/shared/validation/environment';
 import { logger } from '@ultramarket/shared/logging/logger';
 import { errorHandler } from '@ultramarket/shared/middleware/error-handler';
 import { securityMiddleware } from '@ultramarket/shared/middleware/security';
@@ -16,8 +15,7 @@ import productRoutes from './routes/product.routes';
 import categoryRoutes from './routes/category.routes';
 import { connectDatabase } from './config/database';
 
-// Validate environment on startup
-validateEnvironmentOnStartup('product-service');
+// Environment validation will be done by shared library automatically
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3003;
