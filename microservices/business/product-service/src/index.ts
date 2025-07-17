@@ -8,16 +8,14 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
-import { validateEnvironmentOnStartup } from '@ultramarket/shared/validation/environment';
-import { logger } from '@ultramarket/shared/logging/logger';
-import { errorHandler } from '@ultramarket/shared/middleware/error-handler';
-import { securityMiddleware } from '@ultramarket/shared/middleware/security';
+import { logger } from '@ultramarket/shared';
 import productRoutes from './routes/product.routes';
 import categoryRoutes from './routes/category.routes';
 import { connectDatabase } from './config/database';
+import dotenv from 'dotenv';
 
-// Validate environment on startup
-validateEnvironmentOnStartup('product-service');
+// Load environment variables
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3003;
@@ -47,11 +45,8 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Security middleware
-app.use(securityMiddleware());
-
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.status(200).json({
     status: 'healthy',
     service: 'product-service',
@@ -65,7 +60,21 @@ app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 
 // Error handling middleware
-app.use(errorHandler);
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error('Request error', err);
+  
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Internal server error';
+  
+  res.status(statusCode).json({
+    success: false,
+    error: {
+      message,
+      code: err.code || 'INTERNAL_ERROR',
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    }
+  });
+});
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -90,7 +99,7 @@ async function startServer() {
       });
     });
   } catch (error) {
-    logger.error('Failed to start product service', { error });
+    logger.error('Failed to start product service', error);
     process.exit(1);
   }
 }

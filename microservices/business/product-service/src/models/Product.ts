@@ -417,3 +417,5 @@ productSchema.methods.incrementWishlist = function () {
 };
 
 export const Product = mongoose.model<IProduct>('Product', productSchema);
+
+export default Product;

@@ -1,0 +1,41 @@
+### Health Check
+GET http://localhost:3003/health
+
+### Get All Products  
+GET http://localhost:3003/api/v1/products
+
+### Search Products
+GET http://localhost:3003/api/v1/products/search?query=laptop
+
+### Get Product by ID
+GET http://localhost:3003/api/v1/products/507f1f77bcf86cd799439011
+
+### Get All Categories
+GET http://localhost:3003/api/v1/categories
+
+### Create Product (requires auth)
+POST http://localhost:3003/api/v1/products
+Content-Type: application/json
+Authorization: Bearer your_jwt_token_here
+
+{
+  "name": "Laptop HP Pavilion",
+  "description": "High performance laptop for developers",
+  "sku": "HP-PAV-001",
+  "price": 999.99,
+  "quantity": 50,
+  "categoryId": "507f1f77bcf86cd799439011",
+  "brand": "HP",
+  "tags": ["laptop", "computer", "electronics"]
+}
+
+### Create Category (requires auth)
+POST http://localhost:3003/api/v1/categories  
+Content-Type: application/json
+Authorization: Bearer your_jwt_token_here
+
+{
+  "name": "Electronics",
+  "description": "Electronic devices and accessories",
+  "slug": "electronics"
+}

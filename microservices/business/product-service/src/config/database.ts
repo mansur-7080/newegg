@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '@ultramarket/shared';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ultramarket_products';
 
