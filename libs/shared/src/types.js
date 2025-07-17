@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PaymentMethod = exports.PaymentStatus = exports.OrderStatus = exports.UserRole = void 0;
+exports.PaymentMethod = exports.PaymentStatus = exports.OrderStatus = exports.AuthProvider = exports.UserRole = void 0;
 var UserRole;
 (function (UserRole) {
     UserRole["CUSTOMER"] = "CUSTOMER";
@@ -8,6 +8,14 @@ var UserRole;
     UserRole["ADMIN"] = "ADMIN";
     UserRole["SUPER_ADMIN"] = "SUPER_ADMIN";
 })(UserRole || (exports.UserRole = UserRole = {}));
+var AuthProvider;
+(function (AuthProvider) {
+    AuthProvider["LOCAL"] = "LOCAL";
+    AuthProvider["GOOGLE"] = "GOOGLE";
+    AuthProvider["FACEBOOK"] = "FACEBOOK";
+    AuthProvider["APPLE"] = "APPLE";
+    AuthProvider["GITHUB"] = "GITHUB";
+})(AuthProvider || (exports.AuthProvider = AuthProvider = {}));
 var OrderStatus;
 (function (OrderStatus) {
     OrderStatus["PENDING"] = "PENDING";
@@ -29,10 +37,8 @@ var PaymentMethod;
 (function (PaymentMethod) {
     PaymentMethod["CREDIT_CARD"] = "CREDIT_CARD";
     PaymentMethod["DEBIT_CARD"] = "DEBIT_CARD";
-    PaymentMethod["CLICK"] = "CLICK";
-    PaymentMethod["PAYME"] = "PAYME";
-    PaymentMethod["UZCARD"] = "UZCARD";
-    PaymentMethod["HUMO"] = "HUMO";
+    PaymentMethod["PAYPAL"] = "PAYPAL";
+    PaymentMethod["STRIPE"] = "STRIPE";
     PaymentMethod["BANK_TRANSFER"] = "BANK_TRANSFER";
     PaymentMethod["CASH_ON_DELIVERY"] = "CASH_ON_DELIVERY";
 })(PaymentMethod || (exports.PaymentMethod = PaymentMethod = {}));

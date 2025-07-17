@@ -1,27 +1,22 @@
 import mongoose from 'mongoose';
-import { logger } from '@ultramarket/shared/logging/logger';
+import { logger } from '../shared';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ultramarket_products';
-
-export const connectDatabase = async (): Promise<void> => {
+const connectDB = async (): Promise<void> => {
   try {
-    const options = {
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ultramarket_products';
+
+    await mongoose.connect(mongoUri, {
+      // Modern MongoDB driver options
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
-      bufferCommands: false,
-      bufferMaxEntries: 0,
-    };
-
-    await mongoose.connect(MONGODB_URI, options);
-
-    logger.info('MongoDB connected successfully', {
-      host: mongoose.connection.host,
-      database: mongoose.connection.name,
     });
 
+    logger.info('MongoDB connected successfully');
+
+    // Handle connection events
     mongoose.connection.on('error', (error) => {
-      logger.error('MongoDB connection error', { error });
+      logger.error('MongoDB connection error:', error);
     });
 
     mongoose.connection.on('disconnected', () => {
@@ -32,17 +27,9 @@ export const connectDatabase = async (): Promise<void> => {
       logger.info('MongoDB reconnected');
     });
   } catch (error) {
-    logger.error('Failed to connect to MongoDB', { error });
-    throw error;
+    logger.error('MongoDB connection failed:', error);
+    process.exit(1);
   }
 };
 
-export const disconnectDatabase = async (): Promise<void> => {
-  try {
-    await mongoose.disconnect();
-    logger.info('MongoDB disconnected successfully');
-  } catch (error) {
-    logger.error('Error disconnecting from MongoDB', { error });
-    throw error;
-  }
-};
+export default connectDB;
