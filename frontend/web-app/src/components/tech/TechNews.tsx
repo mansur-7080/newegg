@@ -49,10 +49,10 @@ RTX 5090 modeli 24GB GDDR7 xotira, RTX 5080 modeli 16GB GDDR7 xotira va RTX 5070
         {
           id: 'news-2',
           title: 'AMD yangi Ryzen 9000 protsessorlarini taqdim etdi',
-          excerpt: 'AMD kompaniyasi yangi Zen 5 arxitekturasi asosidagi Ryzen 9000 seriyasini e'lon qildi.',
+          excerpt: 'AMD kompaniyasi yangi Zen 5 arxitekturasi asosidagi Ryzen 9000 seriyasini taqdim etdi.',
           content: `AMD kompaniyasi yangi Zen 5 arxitekturasi asosidagi Ryzen 9000 seriyali protsessorlarni taqdim etdi. Bu seriyaga Ryzen 9 9950X, Ryzen 9 9900X, Ryzen 7 9800X va Ryzen 5 9600X modellari kiradi.
 
-Yangi protsessorlar ilgari modellarga qaraganda 15% gacha tezroq ishlaydi va energiya tejamkorligi 20% ga oshgan. Barcha modellar AM5 soketiga mo'ljallangan bo'lib, DDR5 xotirani qo'llab-quvvatlaydi.`,
+Yangi protsessorlar ilgari modellarga qaraganda 15% gacha tezroq ishlaydi va energiya tejamkorligi 20% ga oshgan. Barcha modellar AM5 soketiga moljallangan bolib, DDR5 xotirani qollab-quvvatlaydi.`,
           image: '/images/news/ryzen-9000.jpg',
           author: 'Davron Kamolov',
           publishedAt: '2025-06-20',
@@ -63,7 +63,7 @@ Yangi protsessorlar ilgari modellarga qaraganda 15% gacha tezroq ishlaydi va ene
           id: 'news-3',
           title: 'Windows 12 operatsion tizimi rasman taqdim etildi',
           excerpt: 'Microsoft kompaniyasi Windows 12 operatsion tizimini taqdim etdi, u AI asosidagi yangi xususiyatlar bilan jihozlangan.',
-          content: `Microsoft kompaniyasi Windows 12 operatsion tizimini rasman taqdim etdi. Yangi operatsion tizim sun'iy intellekt bilan ishlashga katta e'tibor qaratgan.
+          content: `Microsoft kompaniyasi Windows 12 operatsion tizimini rasman taqdim etdi. Yangi operatsion tizim suniy intellekt bilan ishlashga katta etibor qaratgan.
 
 Windows 12 ning asosiy yangiliklari qatoriga Copilot+, yangi tashqi ko'rinish, tezlik va xavfsizlikni oshiradigan yangiliklar kiradi. Operatsion tizimga yangilash 2025-yil oktyabr oyidan boshlab mavjud bo'ladi.`,
           image: '/images/news/windows12.jpg',
@@ -88,8 +88,8 @@ Yangi MacBook Air 13.6 va 15 dyuymli displeylar bilan, MacBook Pro esa 14 va 16 
         {
           id: 'news-5',
           title: 'Google Chrome 125 versiyasi chiqarildi',
-          excerpt: 'Google Chrome 125 versiyasi sun'iy intellekt asosidagi yangi xususiyatlar bilan yangilandi.',
-          content: `Google Chrome brauzerining 125-versiyasi chiqarildi. Yangi versiyada sun'iy intellekt asosidagi qidiruv va kontentni tahlil qilish imkoniyatlari qo'shildi.
+          excerpt: 'Google Chrome 125 versiyasi suniy intellekt asosidagi yangi xususiyatlar bilan yangilandi.',
+                      content: `Google Chrome brauzerining 125-versiyasi chiqarildi. Yangi versiyada suniy intellekt asosidagi qidiruv va kontentni tahlil qilish imkoniyatlari qoshildi.
 
 Chrome 125 ning asosiy yangiliklari quyidagilar:
 - AI asosidagi "Smart Search" funksiyasi
@@ -120,7 +120,7 @@ Har ikki model ham Snapdragon 8 Gen 4 protsessori bilan jihozlangan va 50MP asos
         {
           id: 'news-7',
           title: 'OpenAI GPT-6 ni taqdim etdi',
-          excerpt: 'OpenAI kompaniyasi GPT-6 sun'iy intellekt modelini taqdim etdi.',
+          excerpt: 'OpenAI kompaniyasi GPT-6 suniy intellekt modelini taqdim etdi.',
           content: `OpenAI kompaniyasi GPT-6 sun'iy intellekt modelini taqdim etdi. Yangi model ilgarigi GPT-4 dan sezilarli darajada kuchliroq va yangi imkoniyatlarga ega.
 
 GPT-6 ning asosiy yangiliklari:
