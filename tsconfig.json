@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "outDir": "./dist",
+    "rootDir": "./",
+    "noEmit": true
+  },
+  "include": [
+    "libs/**/*",
+    "microservices/**/*",
+    "frontend/**/*",
+    "tests/**/*",
+    "scripts/**/*",
+    "*.ts",
+    "*.js"
+  ],
+  "exclude": ["node_modules", "dist", "build", "coverage", "**/*.min.js", "**/*.bundle.js"],
+  "references": [
+    {
+      "path": "./libs/shared"
+    }
+  ]
+}
