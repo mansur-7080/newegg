@@ -21,7 +21,15 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
       });
     }
 
-    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+    const jwtSecret = process.env.JWT_SECRET;
+    
+    if (!jwtSecret) {
+      logger.error('CRITICAL SECURITY ERROR: JWT_SECRET environment variable is not set');
+      return res.status(500).json({
+        success: false,
+        error: 'Server configuration error. Authentication unavailable.',
+      });
+    }
     const decoded = jwt.verify(token, jwtSecret) as any;
 
     req.user = {
@@ -56,7 +64,12 @@ export const optionalAuthMiddleware = (
       return next();
     }
 
-    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+    const jwtSecret = process.env.JWT_SECRET;
+    
+    if (!jwtSecret) {
+      logger.error('CRITICAL SECURITY ERROR: JWT_SECRET environment variable is not set');
+      return next(); // Continue without authentication for optional auth
+    }
     const decoded = jwt.verify(token, jwtSecret) as any;
 
     req.user = {
