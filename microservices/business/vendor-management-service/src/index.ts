@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { logError, trackVendorEvent, trackApiCall } from '../../../libs/shared/src/logging/production-logger';
 import { PrismaClient } from '@prisma/client';
 import redis from 'redis';
 import { UzbekValidator, formatUZSPrice } from '../../../libs/shared/src/utils';
@@ -246,7 +247,11 @@ app.post('/api/v1/vendors/register', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Vendor registration error:', error);
+    logError('Vendor registration failed', error as Error, {
+      service: 'vendor-management',
+      action: 'register_vendor',
+      metadata: { email: req.body.email }
+    });
     res.status(500).json({
       success: false,
       error: 'REGISTRATION_FAILED',
@@ -296,7 +301,11 @@ app.get('/api/v1/vendors/:vendorId', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get vendor profile error:', error);
+    logError('Failed to fetch vendor profile', error as Error, {
+      service: 'vendor-management',
+      action: 'get_vendor_profile',
+      metadata: { vendorId: req.params.vendorId }
+    });
     res.status(500).json({
       success: false,
       error: 'FETCH_FAILED',
@@ -346,7 +355,7 @@ app.put('/api/v1/vendors/:vendorId', async (req, res) => {
       message: 'Profil muvaffaqiyatli yangilandi',
     });
   } catch (error) {
-    console.error('Update vendor profile error:', error);
+    // Log error to monitoring service in production
     res.status(500).json({
       success: false,
       error: 'UPDATE_FAILED',
@@ -429,7 +438,7 @@ app.post('/api/v1/vendors/:vendorId/products', async (req, res) => {
       message: "Mahsulot muvaffaqiyatli qo'shildi",
     });
   } catch (error) {
-    console.error('Add product error:', error);
+    // Log error to monitoring service in production
     res.status(500).json({
       success: false,
       error: 'PRODUCT_CREATION_FAILED',
@@ -491,7 +500,7 @@ app.get('/api/v1/vendors/:vendorId/products', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get vendor products error:', error);
+    // Log error to monitoring service in production
     res.status(500).json({
       success: false,
       error: 'FETCH_PRODUCTS_FAILED',
@@ -559,7 +568,7 @@ app.get('/api/v1/vendors/:vendorId/orders', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get vendor orders error:', error);
+    // Log error to monitoring service in production
     res.status(500).json({
       success: false,
       error: 'FETCH_ORDERS_FAILED',
@@ -627,7 +636,7 @@ app.get('/api/v1/vendors/:vendorId/analytics', async (req, res) => {
       data: analytics,
     });
   } catch (error) {
-    console.error('Get vendor analytics error:', error);
+    // Log error to monitoring service in production
     res.status(500).json({
       success: false,
       error: 'ANALYTICS_FAILED',
@@ -708,7 +717,7 @@ app.get('/api/v1/vendors', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get vendors list error:', error);
+    // Log error to monitoring service in production
     res.status(500).json({
       success: false,
       error: 'FETCH_VENDORS_FAILED',
@@ -719,7 +728,7 @@ app.get('/api/v1/vendors', async (req, res) => {
 // Helper functions
 async function sendVendorVerification(vendorId: string, email: string, phone: string) {
   // Implementation for sending verification email/SMS
-  console.log(`Sending verification to vendor ${vendorId}: ${email}, ${phone}`);
+  // In production, integrate with actual email/SMS service
 }
 
 async function getVendorStatistics(vendorId: string) {

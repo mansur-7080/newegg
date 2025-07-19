@@ -16,6 +16,8 @@ export interface AuthenticatedRequest extends Request {
 /**
  * Validate JWT token middleware
  */
+import { env } from '../config/env-validator';
+
 export const validateToken = (req: Request, res: Response, next: NextFunction): void => {
   try {
     const authHeader = req.headers.authorization;
@@ -30,16 +32,11 @@ export const validateToken = (req: Request, res: Response, next: NextFunction): 
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
-    if (!process.env.JWT_SECRET) {
-      logger.error('JWT_SECRET not configured');
-      res.status(500).json({
-        success: false,
-        message: 'Server configuration error',
-      });
-      return;
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET) as JWTPayload;
+    // JWT_SECRET is guaranteed to exist and be valid due to env validation
+    const decoded = jwt.verify(token, env.JWT_SECRET, {
+      issuer: 'ultramarket',
+      audience: 'ultramarket-users'
+    }) as JWTPayload;
 
     // Add user info to request
     (req as AuthenticatedRequest).user = decoded;
@@ -73,33 +70,32 @@ export const validateToken = (req: Request, res: Response, next: NextFunction): 
  * Generate access token
  */
 export const generateAccessToken = (payload: Omit<JWTPayload, 'type'>): string => {
-  if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET not configured');
-  }
-
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
+  return jwt.sign(payload, env.JWT_SECRET, { 
+    expiresIn: env.JWT_ACCESS_EXPIRES_IN,
+    issuer: 'ultramarket',
+    audience: 'ultramarket-users'
+  });
 };
 
 /**
  * Generate refresh token
  */
 export const generateRefreshToken = (userId: string): string => {
-  if (!process.env.JWT_REFRESH_SECRET) {
-    throw new Error('JWT_REFRESH_SECRET not configured');
-  }
-
-  return jwt.sign({ userId, type: 'refresh' }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+  return jwt.sign({ userId, type: 'refresh' }, env.JWT_REFRESH_SECRET, { 
+    expiresIn: env.JWT_REFRESH_EXPIRES_IN,
+    issuer: 'ultramarket',
+    audience: 'ultramarket-users'
+  });
 };
 
 /**
  * Verify refresh token
  */
 export const verifyRefreshToken = (token: string): { userId: string; type: string } => {
-  if (!process.env.JWT_REFRESH_SECRET) {
-    throw new Error('JWT_REFRESH_SECRET not configured');
-  }
-
-  return jwt.verify(token, process.env.JWT_REFRESH_SECRET) as { userId: string; type: string };
+  return jwt.verify(token, env.JWT_REFRESH_SECRET, {
+    issuer: 'ultramarket',
+    audience: 'ultramarket-users'
+  }) as { userId: string; type: string };
 };
 
 /**

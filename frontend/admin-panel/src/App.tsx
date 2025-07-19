@@ -187,9 +187,8 @@ const App: React.FC = () => {
         },
       });
 
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Unhandled promise rejection:', event.reason);
-      }
+      // Error is already captured by Sentry
+      // Additional logging can be configured in monitoring service
     };
 
     const handleError = (event: ErrorEvent) => {
@@ -205,9 +204,8 @@ const App: React.FC = () => {
         },
       });
 
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Global error:', event.error);
-      }
+      // Error is already captured by Sentry
+      // Additional logging can be configured in monitoring service
     };
 
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
@@ -232,9 +230,8 @@ const App: React.FC = () => {
           },
         });
 
-        if (process.env.NODE_ENV === 'development') {
-          console.error('React Error Boundary:', error, errorInfo);
-        }
+        // Error is already captured by Sentry
+        // Additional debugging can be configured for development
       }}
     >
       <QueryClientProvider client={queryClient}>

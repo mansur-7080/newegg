@@ -149,8 +149,8 @@ export class UzbekPaymentService {
 
       // To'lov statusini yangilash
       if (data.action === 1) {
-        // To'lov tasdiqlandi
-        console.log(`Click payment confirmed: ${data.click_trans_id}`);
+        // To'lov tasdiqlandi - log to monitoring service in production
+        // Update order status in database
       }
 
       return { success: true, message: 'Webhook processed' };

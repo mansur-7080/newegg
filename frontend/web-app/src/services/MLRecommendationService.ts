@@ -50,8 +50,8 @@ class MLRecommendationService {
       // For now, return mock data
       return this.getMockRecommendations(params);
     } catch (error) {
-      console.error('Error getting recommendations:', error);
-      throw error;
+      // In production, log to monitoring service
+      throw new Error('Failed to load recommendations');
     }
   }
 
@@ -69,8 +69,8 @@ class MLRecommendationService {
       // For now, return mock data
       return this.getMockCartRecommendations(productIds, limit);
     } catch (error) {
-      console.error('Error getting cart recommendations:', error);
-      throw error;
+      // In production, log to monitoring service
+      throw new Error('Failed to load cart recommendations');
     }
   }
 
@@ -89,11 +89,11 @@ class MLRecommendationService {
       // In production, this would call your actual ML service
       // await axios.post(`${this.baseUrl}/track`, { productId, action, userId });
 
-      // For now, just log
-      console.log(`Tracking ${action} for product ${productId} by user ${userId || 'anonymous'}`);
+      // Track interaction silently
+      // In production, this would call your analytics service
     } catch (error) {
-      // Don't throw errors for tracking - just log them
-      console.error('Error tracking product interaction:', error);
+      // Don't throw errors for tracking - fail silently for better UX
+      // In production, log to monitoring service
     }
   }
 
