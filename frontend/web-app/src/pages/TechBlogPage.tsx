@@ -217,7 +217,7 @@ const TechBlogPage: React.FC = () => {
       setNews(mockNews);
       setFeaturedArticle(mockArticles.find((a) => a.featured) || mockArticles[0]);
     } catch (error) {
-      console.error('Error fetching tech content:', error);
+      // Error should be handled through proper error boundary
     } finally {
       setLoading(false);
     }

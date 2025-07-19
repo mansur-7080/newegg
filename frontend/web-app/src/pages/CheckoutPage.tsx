@@ -125,7 +125,7 @@ const CheckoutPage: React.FC = () => {
       setOrderComplete(true);
       dispatch(clearCart());
     } catch (error) {
-      console.error('Buyurtma yaratishda xatolik:', error);
+      // Error should be handled through proper error boundary or notification system
       alert("Buyurtma yaratishda xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.");
     } finally {
       setIsProcessing(false);

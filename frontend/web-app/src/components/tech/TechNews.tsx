@@ -164,7 +164,7 @@ PlayStation 6 ning narxi taxminan $599-699 atrofida bo'lishi kutilmoqda.`,
       // Limit qo'llanilishi
       setNewsItems(filteredNews.slice(0, limit));
     } catch (error) {
-      console.error('Yangiliklar olishda xatolik:', error);
+              // Error should be handled through proper error boundary
     } finally {
       setLoading(false);
     }

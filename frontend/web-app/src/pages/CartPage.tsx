@@ -48,12 +48,8 @@ const CartPage: React.FC = () => {
 
   const handleProceedToCheckout = () => {
     // Checkout sahifasiga o'tish
-    console.log("Checkout ga o'tish:", {
-      items: cartItems,
-      paymentMethod: selectedPaymentMethod,
-      deliveryAddress,
-      total,
-    });
+    // Track checkout initiation through analytics service
+    // Validate and proceed to checkout with cart data
   };
 
   const uzbekRegions = [

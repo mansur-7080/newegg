@@ -35,11 +35,11 @@ global.Math.random = jest.fn(() => 0.5);
 global.testUtils = {
   // Helper to create mock user
   createMockUser: (overrides = {}) => ({
-    id: 'test-user-id',
-    email: 'test@example.com',
-    username: 'testuser',
-    firstName: 'Test',
-    lastName: 'User',
+    id: 'mock-user-id-for-testing',
+    email: 'mock.user@testing.local',
+    username: 'mockuser',
+    firstName: 'Mock',
+    lastName: 'TestUser',
     role: 'CUSTOMER',
     isActive: true,
     isEmailVerified: true,

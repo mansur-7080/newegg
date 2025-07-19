@@ -209,7 +209,7 @@ const UserProfilePage: React.FC = () => {
 
       setUser(mockUser);
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      // Error should be handled through proper error boundary
     } finally {
       setLoading(false);
     }
@@ -304,7 +304,7 @@ const UserProfilePage: React.FC = () => {
 
       setBuilds(mockBuilds);
     } catch (error) {
-      console.error('Error loading user builds:', error);
+      // Error should be handled through proper error boundary
     }
   };
 

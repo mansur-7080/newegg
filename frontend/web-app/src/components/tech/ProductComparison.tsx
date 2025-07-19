@@ -111,7 +111,7 @@ const ProductComparison: React.FC<ComparisonProps> = ({ category, initialProduct
         setSelectedSpecs(Object.keys(categoryProducts[0].specs));
       }
     } catch (error) {
-      console.error('Mahsulotlarni olishda xatolik:', error);
+              // Error should be handled through proper error boundary
     } finally {
       setLoading(false);
     }

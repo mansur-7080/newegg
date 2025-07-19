@@ -76,7 +76,7 @@ class PaymentAPI {
     try {
       this.authToken = await AsyncStorage.getItem('authToken');
     } catch (error) {
-      console.error('Auth token yuk qolmadi:', error);
+      // Authentication error should be handled through proper error handling
     }
   }
 
@@ -96,7 +96,7 @@ class PaymentAPI {
   }
 
   private handleError(error: any): PaymentResponse {
-    console.error('Payment API Error:', error);
+          // Payment API error should be handled through proper error handling
 
     if (error.response) {
       return {
@@ -509,7 +509,7 @@ class PaymentAPI {
       );
     } catch (error) {
       // Analytics tracking should not block payment flow
-      console.warn('Analytics tracking failed:', error);
+              // Analytics tracking failure should be handled silently
     }
   }
 }

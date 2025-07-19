@@ -39,7 +39,7 @@ const ProductDetailPage: React.FC = () => {
     mlService.trackProductInteraction(product.id, 'add-to-cart');
 
     // Actual add to cart logic would go here
-    console.log('Added to cart:', product.id);
+    // Track cart addition through analytics service
   };
 
   return (

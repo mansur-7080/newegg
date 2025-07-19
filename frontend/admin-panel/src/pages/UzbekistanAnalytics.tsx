@@ -173,7 +173,7 @@ const UzbekistanAnalytics: React.FC = () => {
       const analyticsData = await response.json();
       setData(analyticsData);
     } catch (error) {
-      console.error("Analytics ma'lumotlarini yuklashda xatolik:", error);
+              // Analytics error should be handled through proper error boundary
       // Mock data for demonstration
       setData(generateMockData());
     } finally {

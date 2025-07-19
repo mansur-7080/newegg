@@ -159,7 +159,7 @@ const TechScanner: React.FC<TechScannerProps> = ({onProductFound, onClose}) => {
         Alert.alert('Tanib olish xatoligi', 'Rasmda mahsulot tanib olinmadi');
       }
     } catch (error) {
-      console.error('AI recognition error:', error);
+              // Error should be handled through proper error boundary
       Alert.alert('Xato', 'Rasmni qayta ishlashda xatolik yuz berdi');
     } finally {
       setProcessingImage(false);

@@ -56,9 +56,9 @@ process.env.BCRYPT_ROUNDS = '10';
 process.env.SESSION_SECRET = 'test-session-secret-for-testing-purposes-only';
 process.env.COOKIE_SECRET = 'test-cookie-secret-for-testing-purposes-only';
 
-// External services (mock endpoints for testing)
-process.env.STRIPE_SECRET_KEY = 'sk_test_fake_stripe_key_for_testing';
-process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_fake_webhook_secret';
+// External services (mock endpoints for testing only)
+process.env.STRIPE_SECRET_KEY = 'sk_test_mock_key_for_testing_only';
+process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_mock_webhook_secret_for_testing_only';
 process.env.PAYPAL_CLIENT_ID = 'test_paypal_client_id';
 process.env.PAYPAL_CLIENT_SECRET = 'test_paypal_client_secret';
 

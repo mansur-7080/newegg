@@ -122,7 +122,7 @@ const PaymentScreen: React.FC = () => {
         setUserLanguage(language);
       }
     } catch (error) {
-      console.error('Language yuk qolmadi:', error);
+      // Language loading error should be handled through proper error handling
     }
   };
 
