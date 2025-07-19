@@ -1,0 +1,42 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@ultramarket/shared": ["./libs/shared/src"],
+      "@ultramarket/shared/*": ["./libs/shared/src/*"],
+      "@ultramarket/types": ["./libs/types/src"],
+      "@ultramarket/types/*": ["./libs/types/src/*"],
+      "@ultramarket/utils": ["./libs/utils/src"],
+      "@ultramarket/utils/*": ["./libs/utils/src/*"],
+      "@ultramarket/constants": ["./libs/constants/src"],
+      "@ultramarket/constants/*": ["./libs/constants/src/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "libs/**/*",
+    "types/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "microservices",
+    "frontend",
+    "tests",
+    "scripts",
+    "**/*.min.js",
+    "**/*.bundle.js",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  }
+}

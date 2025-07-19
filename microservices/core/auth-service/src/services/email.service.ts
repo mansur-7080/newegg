@@ -63,8 +63,10 @@ export class EmailService {
       //   },
       // });
 
-      console.log(`📧 Email Verification Link for ${firstName} (${email}):`);
-      console.log(`🔗 ${verificationLink}`);
+          // Log verification link for development only
+    if (process.env.NODE_ENV === 'development') {
+      logger.info(`📧 Email Verification Link for ${firstName} (${email}): ${verificationLink}`);
+    }
     } catch (error) {
       logger.error('Failed to send verification email', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -102,8 +104,10 @@ export class EmailService {
       //   },
       // });
 
-      console.log(`📧 Password Reset Link for ${firstName} (${email}):`);
-      console.log(`🔗 ${resetLink}`);
+          // Log reset link for development only
+    if (process.env.NODE_ENV === 'development') {
+      logger.info(`📧 Password Reset Link for ${firstName} (${email}): ${resetLink}`);
+    }
     } catch (error) {
       logger.error('Failed to send password reset email', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -133,8 +137,10 @@ export class EmailService {
       //   },
       // });
 
-      console.log(`📧 Welcome Email sent to ${firstName} (${email})`);
-    } catch (error) {
+          if (process.env.NODE_ENV === 'development') {
+      logger.info(`📧 Welcome Email sent to ${firstName} (${email})`);
+    }
+  } catch (error) {
       logger.error('Failed to send welcome email', {
         error: error instanceof Error ? error.message : 'Unknown error',
         email,
@@ -160,9 +166,9 @@ export class EmailService {
       });
 
       // TODO: Implement actual email sending
-      console.log(`📧 Notification Email to ${firstName || 'User'} (${email}):`);
-      console.log(`📌 Subject: ${subject}`);
-      console.log(`💬 Message: ${message}`);
+          if (process.env.NODE_ENV === 'development') {
+      logger.info(`📧 Notification Email to ${firstName || 'User'} (${email}): ${subject} - ${message}`);
+    }
     } catch (error) {
       logger.error('Failed to send notification email', {
         error: error instanceof Error ? error.message : 'Unknown error',

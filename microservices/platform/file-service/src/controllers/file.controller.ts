@@ -591,7 +591,23 @@ export class FileController {
       }
 
       // Users can only access their own files
-      // TODO: Implement user file ownership check
+      // Implement user file ownership check
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required to delete files'
+        });
+      }
+
+      // Check if file belongs to user
+      const fileRecord = await fileService.getFileMetadata(fileId);
+      if (fileRecord && fileRecord.uploadedBy !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only delete your own files'
+        });
+      }
       // For now, allow access to authenticated users
       next();
     } catch (error) {

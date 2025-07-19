@@ -125,7 +125,10 @@ const CheckoutPage: React.FC = () => {
       setOrderComplete(true);
       dispatch(clearCart());
     } catch (error) {
+      // Log error for debugging in development
+    if (process.env.NODE_ENV === 'development') {
       console.error('Buyurtma yaratishda xatolik:', error);
+    }
       alert("Buyurtma yaratishda xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.");
     } finally {
       setIsProcessing(false);

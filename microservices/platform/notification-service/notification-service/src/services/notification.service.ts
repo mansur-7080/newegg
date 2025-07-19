@@ -189,7 +189,9 @@ export class NotificationService {
         template: notification.template,
       });
 
-      // TODO: Integrate with SMS provider
+      // Integrate with SMS provider
+      const smsService = await import('./sms.service');
+      await smsService.default.sendSMS(payload.recipient, payload.content);
       // const smsProvider = new SMSProvider();
       // await smsProvider.send(notification.to, notification.message);
     } catch (error) {
@@ -210,7 +212,14 @@ export class NotificationService {
         body: notification.body,
       });
 
-      // TODO: Integrate with push notification provider
+      // Integrate with push notification provider
+      const pushService = await import('./push.service');
+      await pushService.default.sendPushNotification({
+        userId: payload.userId,
+        title: payload.title || 'Notification',
+        body: payload.content,
+        data: payload.data
+      });
       // const pushProvider = new PushNotificationProvider();
       // await pushProvider.send(notification);
     } catch (error) {
